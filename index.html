@@ -1584,6 +1584,26 @@
           dateGroups[dateKey].push(row);
         }
 
+        // Determine earliest package date for each patient to flag renewal purchases
+        let firstPkgDateStr = null;
+        for (const row of p._rawRows) {
+          if (row.type === 'package' && row.paymentDate) {
+            const dStr = row.paymentDate.toString().substring(0, 10);
+            if (!firstPkgDateStr || dStr < firstPkgDateStr) {
+              firstPkgDateStr = dStr;
+            }
+          }
+        }
+
+        for (const row of p._rawRows) {
+          if (row.type === 'package' && row.paymentDate) {
+            const dStr = row.paymentDate.toString().substring(0, 10);
+            row.isRenewal = !!(firstPkgDateStr && dStr > firstPkgDateStr);
+          } else {
+            row.isRenewal = false;
+          }
+        }
+
         // Allocate within each date group
         for (const dateRows of Object.values(dateGroups)) {
           const dateTotalPaid = dateRows.reduce((sum, r) => sum + r.amountPaid, 0);
@@ -1646,17 +1666,18 @@
         // ══════════════════════════════════════════════════════════════════
         // Pass 3: Aggregate per-package results for display
         //
-        // Merge rows with same packageName+type → sum proportionalPaid.
+        // Merge rows with same packageName+type+isRenewal → sum proportionalPaid.
         // Detect multiple purchases: if proportionalPaid > packageCost → multiple packages.
         // ══════════════════════════════════════════════════════════════════
         const pkgMap = {};
         for (const row of p._rawRows) {
-          const svcKey = `${row.packageName}_${row.type}`.toLowerCase();
+          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
               packageName: row.packageName,
               type: row.type,
+              isRenewal: row.isRenewal,
               doctor: row.doctor,
               agent: row.agent,
               leadSource: row.leadSource,
@@ -1710,6 +1731,7 @@
               finalServices.push({
                 packageName: svc.packageName,
                 type: svc.type,
+                isRenewal: svc.isRenewal,
                 doctor: svc.doctor,
                 agent: svc.agent,
                 leadSource: svc.leadSource,
@@ -1742,9 +1764,11 @@
             svc.proportionalPaid = maxAllowedAllocated;
           }
 
+          const pkgLabelName = svc.isRenewal ? `${svc.packageName} (Renewal)` : svc.packageName;
+
           if (pkgCount === 1) {
             finalServices.push(svc);
-            p.packages.push(svc.packageName);
+            p.packages.push(pkgLabelName);
             p.totalPackageValue += svc.packageCost;
             p.packageRevenue += svc.proportionalPaid;
           } else {
@@ -1754,6 +1778,7 @@
               finalServices.push({
                 packageName: svc.packageName,
                 type: svc.type,
+                isRenewal: svc.isRenewal,
                 doctor: svc.doctor,
                 agent: svc.agent,
                 leadSource: svc.leadSource,
@@ -1763,7 +1788,7 @@
                 totalPackageCost: svc.packageCost,
                 proportionalPaid: perPkgAllocated
               });
-              p.packages.push(svc.packageName);
+              p.packages.push(pkgLabelName);
               p.totalPackageValue += svc.packageCost;
               p.packageRevenue += perPkgAllocated;
             }
