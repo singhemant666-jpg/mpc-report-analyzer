@@ -2540,6 +2540,45 @@
       </div>`;
     }
 
+    function formatPainManagementPackageRevenueBreakdown(p) {
+      const pmServices = p.services.filter(s => s.type === 'package' && isPainManagementPackage(s.packageName));
+      if (pmServices.length === 0) return '-';
+
+      const pkgMap = {};
+      for (const s of pmServices) {
+        const name = s.packageName || 'Unknown';
+        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
+        pkgMap[name].count++;
+        pkgMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(pkgMap);
+
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div>
+          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
+          <strong style="color:var(--emerald); font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+        </div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:var(--emerald);">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      const pmTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total: <strong style="color:var(--emerald);">${formatCurrency(pmTotal)}</strong>
+        </div>
+      </div>`;
+    }
+
     function renderTableContent(patients, tab) {
       const content = document.getElementById('table-content');
       const filtered = Object.values(patients).filter(tab.filter);
@@ -2585,9 +2624,6 @@
       let tbody = sortedData.map(p => {
         const badgeClass = getBadgeClass(p.status);
         const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
-        const pmPkgRev = p.services
-          .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
-          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
 
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
@@ -2600,7 +2636,7 @@
           <td style="color:var(--cyan)">${p.consultationRevenue ? formatCurrency(p.consultationRevenue) : '-'}</td>
           <td style="color:var(--purple)">${formatPackageRevenueBreakdown(p)}</td>
           <td style="color:var(--amber)">${formatSingleSessionRevenueBreakdown(p)}</td>
-          <td style="color:var(--emerald); font-weight:700;">${pmPkgRev ? formatCurrency(pmPkgRev) : '-'}</td>
+          <td style="color:var(--emerald); font-weight:700;">${formatPainManagementPackageRevenueBreakdown(p)}</td>
           <td><span class="badge ${badgeClass}">${p.status}</span></td>
         </tr>`;
       }).join('');
