@@ -1584,26 +1584,6 @@
           dateGroups[dateKey].push(row);
         }
 
-        // Determine earliest package date for each patient to flag renewal purchases
-        let firstPkgDateStr = null;
-        for (const row of p._rawRows) {
-          if (row.type === 'package' && row.paymentDate) {
-            const dStr = row.paymentDate.toString().substring(0, 10);
-            if (!firstPkgDateStr || dStr < firstPkgDateStr) {
-              firstPkgDateStr = dStr;
-            }
-          }
-        }
-
-        for (const row of p._rawRows) {
-          if (row.type === 'package' && row.paymentDate) {
-            const dStr = row.paymentDate.toString().substring(0, 10);
-            row.isRenewal = !!(firstPkgDateStr && dStr > firstPkgDateStr);
-          } else {
-            row.isRenewal = false;
-          }
-        }
-
         // Allocate within each date group
         for (const dateRows of Object.values(dateGroups)) {
           const dateTotalPaid = dateRows.reduce((sum, r) => sum + r.amountPaid, 0);
@@ -1635,9 +1615,6 @@
           if (packageRows.length > 0) {
             const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
 
-            // Determine effectiveTotalPkgCost per package row:
-            // If totalPackageCost in Excel matches totalPkgCost of the entire bundle on this date,
-            // it is a bundled transaction total, NOT multiple units of the same package name.
             for (const pr of packageRows) {
               if (pr.totalPackageCost > 0 && Math.abs(pr.totalPackageCost - totalPkgCost) < 1) {
                 pr.effectiveTotalPkgCost = pr.packageCost;
@@ -1660,6 +1637,38 @@
                 }
               }
             }
+          }
+        }
+
+        // Determine cumulative allocation per package to set isRenewal accurately:
+        // Installments for the initial contract capacity (unitCost) are NOT renewals.
+        // Payments exceeding unitCost (subsequent renewal contracts) are flagged as isRenewal = true.
+        const pkgRowMap = {};
+        for (const row of p._rawRows) {
+          if (row.type === 'package') {
+            const name = row.packageName || 'Unknown';
+            if (!pkgRowMap[name]) pkgRowMap[name] = [];
+            pkgRowMap[name].push(row);
+          }
+        }
+
+        for (const [pkgName, rows] of Object.entries(pkgRowMap)) {
+          rows.sort((a, b) => {
+            const da = a.paymentDate instanceof Date ? a.paymentDate : new Date(a.paymentDate || 0);
+            const db = b.paymentDate instanceof Date ? b.paymentDate : new Date(b.paymentDate || 0);
+            return da - db;
+          });
+
+          const unitCost = rows[0].packageCost > 0 ? rows[0].packageCost : getPackagePrice(pkgName, 0);
+          let cumulativeAllocated = 0;
+
+          for (const row of rows) {
+            if (unitCost > 0 && cumulativeAllocated >= unitCost - 0.01) {
+              row.isRenewal = true;
+            } else {
+              row.isRenewal = false;
+            }
+            cumulativeAllocated += (row.proportionalPaid || 0);
           }
         }
 
@@ -1764,7 +1773,7 @@
             svc.proportionalPaid = maxAllowedAllocated;
           }
 
-          const pkgLabelName = svc.isRenewal ? `${svc.packageName} (Renewal)` : svc.packageName;
+          const pkgLabelName = svc.packageName;
 
           if (pkgCount === 1) {
             finalServices.push(svc);
@@ -1830,11 +1839,16 @@
         'Only Single Session', 'Package + Single Session'
       ];
       STATUSES.forEach(s => statusCounts[s] = 0);
+      statusCounts['Package Renewal'] = 0;
 
       let totalRevenue = 0, consultationRevenue = 0, packageRevenue = 0, ssRevenue = 0;
 
       for (const p of pList) {
-        statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+        if (p.services && p.services.some(s => s.isRenewal)) {
+          statusCounts['Package Renewal']++;
+        } else {
+          statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+        }
         totalRevenue += p.totalPaid;
         consultationRevenue += p.consultationRevenue;
         packageRevenue += p.packageRevenue;
@@ -1861,6 +1875,7 @@
         ? (converted / totalConsultationPatients * 100) : 0;
 
       // Doctor-wise metrics & Pain Management Incentive Breakdown
+      // Rule: ONLY count initial (first package after consultation) for Doctor Incentive & Conversion %
       const doctorMap = {};
       for (const p of pList) {
         for (const doc of p.doctors) {
@@ -1881,20 +1896,26 @@
 
           const dMap = doctorMap[doc];
           if (p.hasConsultation) dMap.consultation++;
-          if (p.hasPackage) dMap.totalPackages++;
           dMap.totalRevenue += p.totalPaid;
 
-          for (const svc of p.services) {
-            if (svc.type === 'package') {
+          const initialPkgSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal);
+          if (initialPkgSvcs.length > 0) dMap.totalPackages++;
+
+          const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
+          if (initialPmSvcs.length > 0) {
+            dMap.painMgmtCount++; // Increment by 1 for this converted patient
+            for (const svc of initialPmSvcs) {
+              dMap.painMgmtRevenue += svc.proportionalPaid;
               const pkgName = svc.packageName || 'Unknown';
-              if (isPainManagementPackage(pkgName)) {
-                dMap.painMgmtCount++;
-                dMap.painMgmtRevenue += svc.proportionalPaid;
-                dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
-              } else {
-                dMap.otherPackageCount++;
-              }
-            } else if (svc.type === 'single_session') {
+              dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+            }
+          }
+
+          const initialOtherSvcs = initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName));
+          dMap.otherPackageCount += initialOtherSvcs.length;
+
+          for (const svc of p.services) {
+            if (svc.type === 'single_session') {
               dMap.singleSessionCount++;
             }
           }
@@ -1904,8 +1925,8 @@
       // Calculate conversion percentages for each doctor
       for (const doc of Object.keys(doctorMap)) {
         const d = doctorMap[doc];
-        d.overallConvPct = d.consultation > 0 ? (d.totalPackages / d.consultation * 100) : 0;
-        d.painMgmtConvPct = d.consultation > 0 ? (d.painMgmtCount / d.consultation * 100) : 0;
+        d.overallConvPct = d.consultation > 0 ? Math.min(100, (d.totalPackages / d.consultation * 100)) : 0;
+        d.painMgmtConvPct = d.consultation > 0 ? Math.min(100, (d.painMgmtCount / d.consultation * 100)) : 0;
       }
 
       // Agent-wise metrics
@@ -1976,7 +1997,7 @@
         sourceMap,
         packageSales,
         revenueByDate,
-        STATUSES
+        STATUSES: [...STATUSES, 'Package Renewal']
       };
     }
 
@@ -2013,7 +2034,11 @@
       if (status) {
         const newFiltered = {};
         for (const [k, p] of Object.entries(filteredPatients)) {
-          if (p.status === status) newFiltered[k] = p;
+          if (status === 'Package Renewal') {
+            if (p.services && p.services.some(s => s.isRenewal)) newFiltered[k] = p;
+          } else {
+            if (p.status === status) newFiltered[k] = p;
+          }
         }
         filteredPatients = newFiltered;
       }
@@ -2031,11 +2056,7 @@
       document.getElementById('filter-source').value = '';
       document.getElementById('filter-package').value = '';
       document.getElementById('filter-status').value = '';
-
-      filteredPatients = { ...allPatients };
-      currentMetrics = computeMetrics(filteredPatients);
-      renderDashboard(currentMetrics, filteredPatients);
-      showToast('Filters cleared', 'info');
+      applyFilters();
     }
 
     function populateFilters() {
@@ -2055,7 +2076,7 @@
       const statuses = [
         'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
         'Consultation + Package + Single Session', 'Only Package',
-        'Only Single Session', 'Package + Single Session'
+        'Only Single Session', 'Package + Single Session', 'Package Renewal'
       ];
       populateSelect('filter-status', statuses, 'All Statuses');
     }
@@ -2586,8 +2607,46 @@
       </div>`;
     }
 
-    function formatPainManagementPackageRevenueBreakdown(p) {
-      const pmServices = p.services.filter(s => s.type === 'package' && isPainManagementPackage(s.packageName));
+    function formatPackageRevenueBreakdownFiltered(services, targetType) {
+      const filteredSvcs = services.filter(s => s.type === targetType);
+      if (filteredSvcs.length === 0) return '-';
+
+      const pkgMap = {};
+      for (const s of filteredSvcs) {
+        const name = s.packageName || 'Unknown';
+        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
+        pkgMap[name].count++;
+        pkgMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(pkgMap);
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div>
+          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
+          <strong style="color:${targetType === 'single_session' ? 'var(--amber)' : 'var(--emerald)'}; font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+        </div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:${targetType === 'single_session' ? 'var(--amber)' : 'var(--emerald)'};">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      const totalRev = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total: <strong style="color:${targetType === 'single_session' ? 'var(--amber)' : 'var(--purple)'};">${formatCurrency(totalRev)}</strong>
+        </div>
+      </div>`;
+    }
+
+    function formatPainManagementPackageRevenueBreakdownFiltered(services) {
+      const pmServices = services.filter(s => s.type === 'package' && isPainManagementPackage(s.packageName));
       if (pmServices.length === 0) return '-';
 
       const pkgMap = {};
@@ -2599,7 +2658,6 @@
       }
 
       const entries = Object.entries(pkgMap);
-
       if (entries.length === 1 && entries[0][1].count === 1) {
         return `<div>
           <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
@@ -2669,26 +2727,44 @@
 
       let tbody = sortedData.map(p => {
         const badgeClass = getBadgeClass(p.status);
-        const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
+
+        // Filter services depending on current active tab
+        let displayServices = p.services;
+        if (tab.id === 'consult_pkg' || tab.id === 'consult_pkg_ss' || tab.id === 'only_pkg') {
+          displayServices = p.services.filter(s => !s.isRenewal);
+        } else if (tab.id === 'renewals') {
+          displayServices = p.services.filter(s => s.isRenewal);
+        }
+
+        const pkgVal = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+        const nonConsultPaid = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
+        const packagesList = displayServices.filter(s => s.type !== 'consultation').map(s => s.packageName);
 
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
-          <td>${formatPackageList(p.packages)}</td>
+          <td>${formatPackageList(packagesList)}</td>
           <td>${p.doctors.join(', ') || '-'}</td>
           <td>${p.agents.join(', ') || '-'}</td>
           <td>${p.leadSources.join(', ') || '-'}</td>
-          <td>${p.totalPackageValue ? formatCurrency(p.totalPackageValue) : '-'}</td>
+          <td>${pkgVal ? formatCurrency(pkgVal) : '-'}</td>
           <td style="font-weight:600">${nonConsultPaid ? formatCurrency(nonConsultPaid) : '-'}</td>
-          <td style="color:var(--cyan)">${p.consultationRevenue ? formatCurrency(p.consultationRevenue) : '-'}</td>
-          <td style="color:var(--purple)">${formatPackageRevenueBreakdown(p)}</td>
-          <td style="color:var(--amber)">${formatSingleSessionRevenueBreakdown(p)}</td>
-          <td style="color:var(--emerald); font-weight:700;">${formatPainManagementPackageRevenueBreakdown(p)}</td>
+          <td style="color:var(--cyan)">${consultPaid ? formatCurrency(consultPaid) : '-'}</td>
+          <td style="color:var(--purple)">${formatPackageRevenueBreakdownFiltered(displayServices, 'package')}</td>
+          <td style="color:var(--amber)">${formatPackageRevenueBreakdownFiltered(displayServices, 'single_session')}</td>
+          <td style="color:var(--emerald); font-weight:700;">${formatPainManagementPackageRevenueBreakdownFiltered(displayServices)}</td>
           <td><span class="badge ${badgeClass}">${p.status}</span></td>
         </tr>`;
       }).join('');
 
       const pmTotal = sortedData.reduce((sum, p) => {
-        const pmRev = p.services
+        let svcs = p.services;
+        if (tab.id === 'consult_pkg' || tab.id === 'consult_pkg_ss' || tab.id === 'only_pkg') {
+          svcs = svcs.filter(s => !s.isRenewal);
+        } else if (tab.id === 'renewals') {
+          svcs = svcs.filter(s => s.isRenewal);
+        }
+        const pmRev = svcs
           .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         return sum + pmRev;
