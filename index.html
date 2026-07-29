@@ -2480,7 +2480,8 @@
       { id: 'consult_pkg_ss', label: 'Consult + Pkg + SS', filter: p => p.status === 'Consultation + Package + Single Session' },
       { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
       { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
-      { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' }
+      { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' },
+      { id: 'renewals', label: 'Package Renewals', filter: p => p.services && p.services.some(s => s.isRenewal) }
     ];
 
     function renderTables(patients, metrics) {
