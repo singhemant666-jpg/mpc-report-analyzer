@@ -1457,6 +1457,7 @@
       if (!packageName) return defaultCost || 1800;
       const lower = packageName.toLowerCase();
 
+      if (lower.includes('focused shockwave') || lower.includes('shockwave')) return 2000;
       if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('foot in soles')) return 2360;
       if (lower.includes('prism')) return 500;
       if (lower.includes('bmsk') || lower.includes('basic bmsk')) return 1000;
@@ -1468,6 +1469,20 @@
 
       if (defaultCost && defaultCost > 0) return defaultCost;
       return 1800;
+    }
+
+    function getPackagePrice(packageName, defaultCost) {
+      if (defaultCost && defaultCost > 0) return defaultCost;
+      if (!packageName) return 0;
+      const lower = packageName.toLowerCase();
+
+      if (lower.includes('focused shockwave') || lower.includes('shockwave')) {
+        const match = packageName.match(/(\d+)/);
+        const sessionCount = match ? parseInt(match[1], 10) : 1;
+        return sessionCount * 1800; // Focused Shockwave Package rate is ₹1,800 per session
+      }
+
+      return defaultCost || 0;
     }
 
     function isPainManagementPackage(packageName) {
@@ -1523,6 +1538,8 @@
           }
         } else if (serviceType === 'single_session') {
           pkgPrice = getSingleSessionPrice(pkgName, row.packageCost);
+        } else if (serviceType === 'package') {
+          pkgPrice = getPackagePrice(pkgName, row.packageCost);
         }
 
         p._rawRows.push({
