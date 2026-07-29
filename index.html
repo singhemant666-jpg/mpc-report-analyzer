@@ -1612,17 +1612,32 @@
           }
 
           // Step 3: Remaining Advance Payment is allocated proportionally to Treatment Packages
-          if (dateRemaining > 0 && packageRows.length > 0) {
+          if (packageRows.length > 0) {
             const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
 
-            if (totalPkgCost > 0) {
-              for (const pr of packageRows) {
-                pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
+            // Determine effectiveTotalPkgCost per package row:
+            // If totalPackageCost in Excel matches totalPkgCost of the entire bundle on this date,
+            // it is a bundled transaction total, NOT multiple units of the same package name.
+            for (const pr of packageRows) {
+              if (pr.totalPackageCost > 0 && Math.abs(pr.totalPackageCost - totalPkgCost) < 1) {
+                pr.effectiveTotalPkgCost = pr.packageCost;
+              } else if (pr.totalPackageCost > 0) {
+                pr.effectiveTotalPkgCost = pr.totalPackageCost;
+              } else {
+                pr.effectiveTotalPkgCost = pr.packageCost;
               }
-            } else {
-              const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
-              for (const pr of packageRows) {
-                pr.proportionalPaid = share;
+            }
+
+            if (dateRemaining > 0) {
+              if (totalPkgCost > 0) {
+                for (const pr of packageRows) {
+                  pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
+                }
+              } else {
+                const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
+                for (const pr of packageRows) {
+                  pr.proportionalPaid = share;
+                }
               }
             }
           }
@@ -1649,11 +1664,15 @@
               amountPaid: row.amountPaid,
               packageCost: row.packageCost,
               totalPackageCost: row.totalPackageCost,
+              effectiveTotalPkgCost: row.effectiveTotalPkgCost || row.packageCost,
               proportionalPaid: row.proportionalPaid
             };
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
             pkgMap[svcKey].proportionalPaid += row.proportionalPaid;
+            if (row.effectiveTotalPkgCost && row.effectiveTotalPkgCost > pkgMap[svcKey].effectiveTotalPkgCost) {
+              pkgMap[svcKey].effectiveTotalPkgCost = row.effectiveTotalPkgCost;
+            }
             if (!pkgMap[svcKey].doctor && row.doctor) pkgMap[svcKey].doctor = row.doctor;
             if (!pkgMap[svcKey].agent && row.agent) pkgMap[svcKey].agent = row.agent;
             if (!pkgMap[svcKey].leadSource && row.leadSource) pkgMap[svcKey].leadSource = row.leadSource;
@@ -1708,10 +1727,11 @@
           }
 
           // Package type: detect multiple purchases
-          // Check totalPackageCost from Excel if available and valid
+          // Check effectiveTotalPkgCost from Excel if available and valid
           let pkgCount = 1;
-          if (svc.totalPackageCost > 0 && svc.packageCost > 0 && svc.totalPackageCost >= svc.packageCost * 2) {
-            pkgCount = Math.round(svc.totalPackageCost / svc.packageCost);
+          const effectiveTotalCost = svc.effectiveTotalPkgCost || svc.packageCost || 0;
+          if (effectiveTotalCost > 0 && svc.packageCost > 0 && effectiveTotalCost >= svc.packageCost * 1.95) {
+            pkgCount = Math.round(effectiveTotalCost / svc.packageCost);
           } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
             pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
           }
