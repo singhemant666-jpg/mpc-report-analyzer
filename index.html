@@ -1453,6 +1453,23 @@
       return 'package';
     }
 
+    function getSingleSessionPrice(packageName, defaultCost) {
+      if (!packageName) return defaultCost || 1800;
+      const lower = packageName.toLowerCase();
+
+      if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('foot in soles')) return 2360;
+      if (lower.includes('prism')) return 500;
+      if (lower.includes('bmsk') || lower.includes('basic bmsk')) return 1000;
+      if (lower.includes('robotic spine') || lower.includes('aligner')) return 2000;
+      if (lower.includes('cryo') || lower.includes('cryotherapy')) return 2500;
+      if (lower.includes('ice bath')) return 2000;
+      if (lower.includes('red light')) return 2000;
+      if (lower.includes('hbot')) return 2000;
+
+      if (defaultCost && defaultCost > 0) return defaultCost;
+      return 1800;
+    }
+
     function isPainManagementPackage(packageName) {
       if (!packageName) return false;
       const lower = packageName.toLowerCase();
@@ -1460,24 +1477,6 @@
     }
 
     // ==================== PATIENT GROUPING & REVENUE ALLOCATION ====================
-    // Proportional Advance Payment Allocation Formula:
-    //
-    // Formula:
-    //   Allocated Payment = (Package Price / Total Package Price) × Total Amount Paid
-    //
-    // Example 1:
-    //   Package A (₹10,000), Package B (₹20,000), Package C (₹30,000) → Total Package Price = ₹60,000
-    //   Patient pays advance ₹24,000:
-    //   → Package A = (10,000 / 60,000) × 24,000 = ₹4,000
-    //   → Package B = (20,000 / 60,000) × 24,000 = ₹8,000
-    //   → Package C = (30,000 / 60,000) × 24,000 = ₹12,000
-    //
-    // Example 2:
-    //   Pain Management-12 (₹18,000, 71.43%) + Focused Shockwave-4 (₹7,200, 28.57%) → Total = ₹25,200
-    //   Patient pays advance ₹20,200:
-    //   → Pain Management-12 = ₹20,200 × 71.43% = ₹14,428.57
-    //   → Focused Shockwave-4 = ₹20,200 × 28.57% = ₹5,771.43
-
     function groupPatients(rows) {
       const patients = {};
 
@@ -1522,6 +1521,8 @@
           } else {
             pkgPrice = (row.packageCost > 0) ? row.packageCost : 499;
           }
+        } else if (serviceType === 'single_session') {
+          pkgPrice = getSingleSessionPrice(pkgName, row.packageCost);
         }
 
         p._rawRows.push({
@@ -1547,17 +1548,7 @@
       }
 
       // ══════════════════════════════════════════════════════════════════
-      // Pass 2: PER-DATE proportional allocation
-      //
-      // For each patient, group rows by payment date.
-      // Within each date group, allocate THAT DATE's total amountPaid:
-      //   1. Consultation → exact fee (₹499 or ₹1,500)
-      //   2. Remaining → proportional by packageCost to non-consultation services
-      //
-      // Example: NANDA RATHOD, Jun 29 (PM-6 ₹9k + W&R-12 ₹18k + WH-6 ₹9k, paid ₹2,000):
-      //   PM-6:   (9000/36000) × 2000 = ₹500
-      //   W&R-12: (18000/36000) × 2000 = ₹1,000
-      //   WH-6:   (9000/36000) × 2000 = ₹500
+      // Pass 2: PER-DATE allocation (Exact Consultation & SS, Proportional Packages)
       // ══════════════════════════════════════════════════════════════════
       for (const key of Object.keys(patients)) {
         const p = patients[key];
@@ -1582,30 +1573,39 @@
           if (dateTotalPaid === 0) continue; // No payment on this date → proportionalPaid stays 0
 
           const consultRows = dateRows.filter(r => r.type === 'consultation');
-          const nonConsultRows = dateRows.filter(r => r.type !== 'consultation');
+          const ssRows = dateRows.filter(r => r.type === 'single_session');
+          const packageRows = dateRows.filter(r => r.type === 'package');
 
-          // Step 1: Consultation gets exact fee
+          let dateRemaining = dateTotalPaid;
+
+          // Step 1: Consultation gets exact fixed fee
           let consultTotal = 0;
           for (const cr of consultRows) {
             const fee = cr.packageCost > 0 ? cr.packageCost : 499;
-            cr.proportionalPaid = Math.min(fee, dateTotalPaid);
+            cr.proportionalPaid = Math.min(fee, dateRemaining);
             consultTotal += cr.proportionalPaid;
           }
+          dateRemaining = Math.max(0, dateRemaining - consultTotal);
 
-          // Step 2: Remaining goes to non-consultation services proportionally
-          const remaining = Math.max(0, dateTotalPaid - consultTotal);
-          if (remaining > 0 && nonConsultRows.length > 0) {
-            const nonConsultPkgValue = nonConsultRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+          // Step 2: Single Sessions get full fixed price (NO bifurcation!)
+          for (const sr of ssRows) {
+            const price = sr.packageCost > 0 ? sr.packageCost : getSingleSessionPrice(sr.packageName, 0);
+            sr.proportionalPaid = Math.min(price, dateRemaining);
+            dateRemaining = Math.max(0, dateRemaining - sr.proportionalPaid);
+          }
 
-            if (nonConsultPkgValue > 0) {
-              for (const nr of nonConsultRows) {
-                nr.proportionalPaid = Math.round((nr.packageCost / nonConsultPkgValue * remaining) * 100) / 100;
+          // Step 3: Remaining Advance Payment is allocated proportionally to Treatment Packages
+          if (dateRemaining > 0 && packageRows.length > 0) {
+            const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+
+            if (totalPkgCost > 0) {
+              for (const pr of packageRows) {
+                pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
               }
             } else {
-              // Fallback: equal split (e.g., Default Top Up with cost 0)
-              const share = Math.round((remaining / nonConsultRows.length) * 100) / 100;
-              for (const nr of nonConsultRows) {
-                nr.proportionalPaid = share;
+              const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
+              for (const pr of packageRows) {
+                pr.proportionalPaid = share;
               }
             }
           }
@@ -1655,7 +1655,6 @@
         for (const svc of mergedServices) {
           if (svc.type === 'consultation') {
             finalServices.push(svc);
-            p.totalPackageValue += svc.packageCost;
             p.consultationRevenue += svc.proportionalPaid;
             continue;
           }
@@ -2541,7 +2540,7 @@
           <td>${p.doctors.join(', ') || '-'}</td>
           <td>${p.agents.join(', ') || '-'}</td>
           <td>${p.leadSources.join(', ') || '-'}</td>
-          <td>${formatCurrency(p.totalPackageValue)}</td>
+          <td>${p.totalPackageValue ? formatCurrency(p.totalPackageValue) : '-'}</td>
           <td style="font-weight:600">${formatCurrency(p.totalPaid)}</td>
           <td style="color:var(--cyan)">${p.consultationRevenue ? formatCurrency(p.consultationRevenue) : '-'}</td>
           <td style="color:var(--purple)">${formatPackageRevenueBreakdown(p)}</td>
