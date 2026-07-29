@@ -1661,6 +1661,7 @@
 
           if (svc.type === 'single_session') {
             finalServices.push(svc);
+            p.packages.push(svc.packageName);
             p.totalPackageValue += svc.packageCost;
             p.singleSessionRevenue += svc.proportionalPaid;
             continue;
