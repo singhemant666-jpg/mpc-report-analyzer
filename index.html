@@ -2567,13 +2567,20 @@
         </tr>`;
       }).join('');
 
+      const pmTotal = sortedData.reduce((sum, p) => {
+        const pmRev = p.services
+          .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        return sum + pmRev;
+      }, 0);
+
       content.innerHTML = `
         <div class="table-wrapper">
           <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
         </div>
         <div class="table-info">
           <span>Showing ${sortedData.length} patients</span>
-          <span>Total: ${formatCurrency(sortedData.reduce((s, p) => s + p.totalPaid, 0))}</span>
+          <span>Pain Mgmt Pkg Total: ${formatCurrency(pmTotal)}</span>
         </div>`;
     }
 
