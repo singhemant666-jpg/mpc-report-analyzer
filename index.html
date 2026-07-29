@@ -1,0 +1,3311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Collection Report Analyzer | MPC Clinic</title>
+  <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.1/dist/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    /* ==================== RESET & BASE ==================== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #06080f;
+      --bg-secondary: #0c1120;
+      --bg-card: rgba(15, 23, 42, 0.7);
+      --bg-card-solid: #0f172a;
+      --bg-input: rgba(15, 23, 42, 0.9);
+      --border: rgba(148, 163, 184, 0.08);
+      --border-hover: rgba(148, 163, 184, 0.18);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --cyan: #06b6d4;
+      --purple: #8b5cf6;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --blue: #3b82f6;
+      --indigo: #6366f1;
+      --gradient-main: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+      --gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+      --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #f43f5e 100%);
+      --gradient-cool: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.4);
+      --shadow-glow-cyan: 0 0 30px rgba(6,182,212,0.15);
+      --shadow-glow-purple: 0 0 30px rgba(139,92,246,0.15);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 20%, rgba(6,182,212,0.04) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(139,92,246,0.04) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(99,102,241,0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ==================== SCROLLBAR ==================== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.35); }
+
+    /* ==================== LAYOUT ==================== */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ==================== HEADER ==================== */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--gradient-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .header-title {
+      font-size: 24px;
+      font-weight: 800;
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* ==================== BUTTONS ==================== */
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      backdrop-filter: blur(12px);
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: var(--border-hover);
+      background: rgba(15, 23, 42, 0.9);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary {
+      background: var(--gradient-main);
+      border: none;
+      color: #fff;
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 40px rgba(6,182,212,0.3);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-success {
+      background: var(--gradient-success);
+      border: none;
+      color: #fff;
+    }
+
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 18px;
+    }
+
+    /* ==================== UPLOAD SECTION ==================== */
+    #upload-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    .upload-zone {
+      width: 100%;
+      max-width: 640px;
+      border: 2px dashed rgba(6,182,212,0.3);
+      border-radius: var(--radius);
+      padding: 64px 40px;
+      text-align: center;
+      transition: var(--transition);
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-main);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--cyan);
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .upload-zone:hover::before, .upload-zone.drag-over::before {
+      opacity: 0.03;
+    }
+
+    .upload-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      display: block;
+      filter: drop-shadow(0 0 20px rgba(6,182,212,0.3));
+    }
+
+    .upload-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+      position: relative;
+    }
+
+    .upload-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .upload-file-info {
+      display: none;
+      margin-top: 20px;
+      padding: 14px 20px;
+      background: rgba(6,182,212,0.08);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(6,182,212,0.2);
+      font-size: 13px;
+      color: var(--cyan);
+      font-weight: 500;
+      position: relative;
+    }
+
+    .upload-file-info.show { display: flex; align-items: center; gap: 10px; }
+
+    .generate-btn-wrap { margin-top: 28px; }
+
+    #generate-btn {
+      padding: 14px 40px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ==================== LOADING OVERLAY ==================== */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 8, 15, 0.92);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    #loading-overlay.show { display: flex; }
+
+    .loader {
+      width: 52px;
+      height: 52px;
+      border: 3px solid rgba(6,182,212,0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loader-text { color: var(--text-secondary); font-size: 15px; font-weight: 500; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ==================== DASHBOARD ==================== */
+    #dashboard-section { animation: fadeInUp 0.5s ease-out; }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-primary);
+    }
+
+    .section-title .icon { font-size: 20px; }
+
+    /* ==================== METRIC CARDS ==================== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+      animation: fadeInUp 0.5s ease-out both;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .metric-card.cyan::before { background: var(--gradient-main); }
+    .metric-card.emerald::before { background: var(--gradient-success); }
+    .metric-card.amber::before { background: var(--gradient-warm); }
+    .metric-card.purple::before { background: var(--gradient-cool); }
+
+    .metric-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .metric-value.cyan { color: var(--cyan); }
+    .metric-value.emerald { color: var(--emerald); }
+    .metric-value.amber { color: var(--amber); }
+    .metric-value.purple { color: var(--purple); }
+    .metric-value.rose { color: var(--rose); }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ==================== CATEGORY CARDS ==================== */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .category-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .category-card:hover {
+      border-color: var(--cyan);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .category-card.active {
+      border-color: var(--cyan);
+      background: rgba(6,182,212,0.08);
+    }
+
+    .category-count {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--cyan);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .category-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
+
+    /* ==================== FILTERS ==================== */
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding: 20px;
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .filter-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-select, .filter-input {
+      padding: 9px 14px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      transition: var(--transition);
+      outline: none;
+      width: 100%;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(6,182,212,0.1);
+    }
+
+    .filter-select option { background: var(--bg-card-solid); color: var(--text-primary); }
+
+    .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+
+    /* ==================== CHARTS ==================== */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: var(--transition);
+    }
+
+    .chart-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chart-card.full-width { grid-column: span 2; }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gradient-main);
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 300px;
+    }
+
+    .chart-container.pie-container { height: 320px; }
+
+    /* ==================== DATA TABLES ==================== */
+    .tables-section {
+      margin-bottom: 28px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 0;
+      overflow-x: auto;
+      padding-bottom: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      padding: 12px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      position: relative;
+      top: 1px;
+    }
+
+    .tab:hover { color: var(--text-secondary); }
+
+    .tab.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+    }
+
+    .tab-content {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      overflow: hidden;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--bg-card-solid);
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      z-index: 2;
+    }
+
+    thead th:hover { color: var(--cyan); }
+
+    thead th .sort-arrow {
+      margin-left: 4px;
+      font-size: 10px;
+      opacity: 0.4;
+    }
+
+    thead th.sorted .sort-arrow { opacity: 1; color: var(--cyan); }
+
+    tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    tbody tr:hover { background: rgba(6,182,212,0.03); }
+
+    tbody tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-cyan { background: rgba(6,182,212,0.12); color: var(--cyan); }
+    .badge-emerald { background: rgba(16,185,129,0.12); color: var(--emerald); }
+    .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .badge-purple { background: rgba(139,92,246,0.12); color: var(--purple); }
+    .badge-rose { background: rgba(244,63,94,0.12); color: var(--rose); }
+
+    .no-data {
+      padding: 48px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .table-info {
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ==================== SEARCH ==================== */
+    .search-section {
+      margin-bottom: 28px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-input {
+      flex: 1;
+      max-width: 500px;
+      padding: 12px 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .search-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(6,182,212,0.1);
+    }
+
+    .search-results {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* ==================== EXPORT ==================== */
+    .export-section {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    /* ==================== ADMIN MODAL ==================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 8, 15, 0.85);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: var(--bg-card-solid);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .config-group { margin-bottom: 24px; }
+
+    .config-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .config-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .config-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.2);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--cyan);
+      font-weight: 500;
+    }
+
+    .config-tag .remove {
+      cursor: pointer;
+      font-size: 14px;
+      opacity: 0.6;
+      transition: var(--transition);
+    }
+
+    .config-tag .remove:hover { opacity: 1; color: var(--rose); }
+
+    .config-add {
+      display: flex;
+      gap: 8px;
+    }
+
+    .config-add input {
+      flex: 1;
+      padding: 8px 14px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .config-add input:focus { border-color: var(--cyan); }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ==================== ANIMATIONS ==================== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .stagger-1 { animation-delay: 0.05s; }
+    .stagger-2 { animation-delay: 0.1s; }
+    .stagger-3 { animation-delay: 0.15s; }
+    .stagger-4 { animation-delay: 0.2s; }
+    .stagger-5 { animation-delay: 0.25s; }
+    .stagger-6 { animation-delay: 0.3s; }
+    .stagger-7 { animation-delay: 0.35s; }
+
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 1200px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card.full-width { grid-column: span 1; }
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 16px; }
+      header { flex-direction: column; gap: 16px; align-items: flex-start; }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .filters-bar { flex-direction: column; }
+      .tabs { flex-wrap: nowrap; }
+    }
+
+    /* ==================== TOAST ==================== */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      padding: 14px 20px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card-solid);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      animation: fadeInUp 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 280px;
+    }
+
+    .toast.success { border-left: 3px solid var(--emerald); }
+    .toast.error { border-left: 3px solid var(--rose); }
+    .toast.info { border-left: 3px solid var(--cyan); }
+
+    /* ==================== NEW UPLOAD BAR ==================== */
+    .new-upload-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding: 14px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      backdrop-filter: blur(16px);
+    }
+
+    .file-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .file-badge .name { color: var(--cyan); font-weight: 600; }
+
+    /* ==================== CONVERSION GAUGE ==================== */
+    .gauge-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .gauge {
+      flex: 1;
+      height: 6px;
+      background: rgba(148,163,184,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      background: var(--gradient-success);
+      border-radius: 3px;
+      transition: width 1s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay">
+    <div class="loader"></div>
+    <div class="loader-text" id="loading-text">Processing your report...</div>
+  </div>
+
+  <!-- Admin Config Modal -->
+  <div class="modal-overlay" id="admin-modal">
+    <div class="modal">
+      <div class="modal-title">⚙️ Service Classification Config</div>
+
+      <div class="config-group">
+        <div class="config-label">Consultation Keywords</div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+          Package names containing any of these keywords will be classified as <strong style="color:var(--cyan)">Consultation</strong>.
+        </p>
+        <div class="config-list" id="consultation-tags"></div>
+        <div class="config-add">
+          <input type="text" id="consultation-input" placeholder="Add keyword (e.g. consultation)">
+          <button class="btn btn-sm btn-primary" onclick="addConfigTag('consultation')">Add</button>
+        </div>
+      </div>
+
+      <div class="config-group">
+        <div class="config-label">Single Session Keywords</div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+          Package names containing any of these keywords will be classified as <strong style="color:var(--amber)">Single Session</strong>.
+        </p>
+        <div class="config-list" id="single-session-tags"></div>
+        <div class="config-add">
+          <input type="text" id="single-session-input" placeholder="Add keyword (e.g. SS-1)">
+          <button class="btn btn-sm btn-primary" onclick="addConfigTag('single-session')">Add</button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" onclick="closeAdminModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveAdminConfig()">💾 Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+
+  <!-- Main Container -->
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <div class="logo-icon">📊</div>
+        <div>
+          <div class="header-title">Daily Collection Report Analyzer</div>
+          <div class="header-subtitle">Upload → Analyze → Download • Instant Patient Conversion Insights</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-icon" title="Configuration" onclick="openAdminModal()" id="config-btn">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Upload Section -->
+    <section id="upload-section">
+      <div class="upload-zone" id="drop-zone">
+        <span class="upload-icon">📁</span>
+        <div class="upload-title">Drop your Daily Collection Report here</div>
+        <div class="upload-desc">or click to browse • Supports .xlsx files</div>
+        <button class="btn btn-sm" style="position:relative; pointer-events:none;">
+          📎 Choose File
+        </button>
+        <div class="upload-file-info" id="file-info">
+          <span>📄</span>
+          <span id="file-name"></span>
+        </div>
+      </div>
+      <div class="generate-btn-wrap">
+        <button class="btn btn-primary" id="generate-btn" disabled>
+          🚀 Generate Report
+        </button>
+      </div>
+    </section>
+
+    <!-- Dashboard Section (hidden initially) -->
+    <section id="dashboard-section" class="hidden">
+
+      <!-- New Upload Bar -->
+      <div class="new-upload-bar">
+        <div class="file-badge">
+          <span>📄</span>
+          <span>Analyzing:</span>
+          <span class="name" id="dash-file-name">-</span>
+          <span>•</span>
+          <span id="dash-row-count">0 rows</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm" onclick="resetApp()">📤 Upload New</button>
+        </div>
+      </div>
+
+      <!-- Top Metrics -->
+      <div class="section-title"><span class="icon">📈</span> Key Metrics</div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+
+      <!-- Category Cards -->
+      <div class="section-title"><span class="icon">🏷️</span> Patient Categories</div>
+      <div class="category-grid" id="category-grid"></div>
+
+      <!-- Filters -->
+      <div class="section-title"><span class="icon">🔍</span> Filters</div>
+      <div class="filters-bar" id="filters-bar">
+        <div class="filter-group">
+          <label class="filter-label">Date From</label>
+          <input type="date" class="filter-input" id="filter-date-from">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Date To</label>
+          <input type="date" class="filter-input" id="filter-date-to">
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Doctor</label>
+          <select class="filter-select" id="filter-doctor"><option value="">All Doctors</option></select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Agent</label>
+          <select class="filter-select" id="filter-agent"><option value="">All Agents</option></select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Lead Source</label>
+          <select class="filter-select" id="filter-source"><option value="">All Sources</option></select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Package</label>
+          <select class="filter-select" id="filter-package"><option value="">All Packages</option></select>
+        </div>
+        <div class="filter-group">
+          <label class="filter-label">Final Status</label>
+          <select class="filter-select" id="filter-status"><option value="">All Statuses</option></select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-sm btn-primary" onclick="applyFilters()">Apply</button>
+          <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="section-title"><span class="icon">📊</span> Analytics</div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Patient Distribution</div>
+          <div class="chart-container pie-container"><canvas id="chart-pie"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Doctor-wise Conversion</div>
+          <div class="chart-container"><canvas id="chart-doctor"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Agent-wise Conversion</div>
+          <div class="chart-container"><canvas id="chart-agent"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Lead Source-wise Conversion</div>
+          <div class="chart-container"><canvas id="chart-source"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Package Sales (Top 15)</div>
+          <div class="chart-container"><canvas id="chart-package"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Revenue Trend</div>
+          <div class="chart-container"><canvas id="chart-revenue"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Doctor Incentive & Pain Management Breakdown -->
+      <div class="section-title"><span class="icon">🏆</span> Doctor Incentive & Pain Management Conversion Leaderboard</div>
+      <div class="tables-section" style="margin-bottom: 28px;">
+        <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Consulting Doctor</th>
+                  <th>Consultations</th>
+                  <th>Total Pkgs Sold</th>
+                  <th>Pain Mgmt Pkgs</th>
+                  <th>Pain Mgmt Conv %</th>
+                  <th>Pain Mgmt Revenue</th>
+                  <th>Pain Mgmt Tier Breakdown</th>
+                  <th>Incentive Rank</th>
+                </tr>
+              </thead>
+              <tbody id="doctor-incentive-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Tables -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; margin-bottom:12px;">
+        <div class="section-title" style="margin-bottom:0;"><span class="icon">📋</span> Patient Data</div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-success btn-sm" onclick="exportExcel()" id="patient-excel-btn">
+            📥 Download Full Excel (14 Sheets)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="exportCurrentTabExcel()" id="tab-excel-btn">
+            📊 Export Current Tab Excel
+          </button>
+        </div>
+      </div>
+      <div class="tables-section">
+        <div class="tabs" id="table-tabs"></div>
+        <div class="tab-content" id="table-content"></div>
+      </div>
+
+      <!-- Search -->
+      <div class="section-title"><span class="icon">🔎</span> Patient Search</div>
+      <div class="search-section">
+        <div class="search-box">
+          <input type="text" class="search-input" id="search-input" placeholder="Search by Patient Name...">
+          <button class="btn btn-primary btn-sm" onclick="performSearch()">Search</button>
+        </div>
+        <div class="search-results hidden" id="search-results">
+          <div class="table-wrapper">
+            <table id="search-table">
+              <thead>
+                <tr>
+                  <th>Patient</th><th>Package</th><th>Type</th>
+                  <th>Doctor</th><th>Agent</th><th>Lead Source</th>
+                  <th>Pkg Cost</th><th>Amount Paid</th><th>Proportional Rev</th>
+                  <th>Date</th><th>Final Status</th>
+                </tr>
+              </thead>
+              <tbody id="search-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="section-title"><span class="icon">💾</span> Export Reports</div>
+      <div class="export-section">
+        <button class="btn btn-success" onclick="exportExcel()" id="export-excel-btn">
+          📥 Download Excel Report (13 Sheets)
+        </button>
+        <button class="btn" onclick="exportCSV()" id="export-csv-btn">📄 Export CSV</button>
+        <button class="btn" onclick="exportPDF()" id="export-pdf-btn">📑 Export PDF Summary</button>
+      </div>
+
+    </section>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    // ==================== GLOBAL STATE ====================
+    let uploadedFile = null;
+    let rawRows = [];
+    let columnMap = {};
+    let allPatients = {};       // grouped patient data
+    let currentMetrics = {};
+    let filteredPatients = {};
+    let chartInstances = {};
+    let currentTab = 'all';
+    let sortState = {};
+
+    // ==================== CONFIG ====================
+    const DEFAULT_CONSULTATION_KEYWORDS = ['consultation', 'consult', "women's health consultation", 'womens health consultation'];
+    const DEFAULT_SINGLE_SESSION_KEYWORDS = [
+      'ss-1', 'single session', 'focused shockwave', 'foot insoles',
+      'acoustic wave therapy', 'laser single session', 'prism single session'
+    ];
+
+    let config = loadConfig();
+
+    function loadConfig() {
+      try {
+        const saved = localStorage.getItem('mpc_report_config');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (!parsed.consultationKeywords || parsed.consultationKeywords.length === 0) {
+            parsed.consultationKeywords = [...DEFAULT_CONSULTATION_KEYWORDS];
+          }
+          if (!parsed.singleSessionKeywords || parsed.singleSessionKeywords.length === 0) {
+            parsed.singleSessionKeywords = [...DEFAULT_SINGLE_SESSION_KEYWORDS];
+          }
+          return parsed;
+        }
+      } catch(e) {}
+      return {
+        consultationKeywords: [...DEFAULT_CONSULTATION_KEYWORDS],
+        singleSessionKeywords: [...DEFAULT_SINGLE_SESSION_KEYWORDS]
+      };
+    }
+
+    function saveConfigToStorage() {
+      localStorage.setItem('mpc_report_config', JSON.stringify(config));
+    }
+
+    // ==================== COLUMN DETECTION ====================
+    const COLUMN_PATTERNS = {
+      patientName:     [/patient\s*name/i, /patient/i, /^name$/i],
+      patientId:       [/patient\s*id/i, /pat.*id/i, /^id$/i],
+      packageName:     [/package\s*name/i, /package/i, /service/i],
+      doctor:          [/consult.*doctor/i, /doctor/i, /^dr$/i, /physician/i],
+      agent:           [/agent\s*name/i, /agent/i, /counsellor/i, /counselor/i],
+      leadSource:      [/lead\s*source/i, /source/i],
+      paymentDate:     [/payment\s*date/i, /date/i, /created\s*at/i],
+      packageCost:     [/package\s*cost/i],
+      amountPaid:      [/amount\s*paid/i, /amount/i, /paid/i, /collection/i],
+      totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i]
+    };
+
+    function detectColumns(headers) {
+      const map = {};
+      const cleanHeaders = headers.map(h => (h || '').toString().trim());
+
+      for (const [field, patterns] of Object.entries(COLUMN_PATTERNS)) {
+        for (const pattern of patterns) {
+          const idx = cleanHeaders.findIndex(h => pattern.test(h));
+          if (idx !== -1 && !Object.values(map).includes(idx)) {
+            map[field] = idx;
+            break;
+          }
+        }
+      }
+      return map;
+    }
+
+    // ==================== EXCEL PARSING ====================
+    function parseExcel(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+
+            // Find header row (first row with multiple non-empty cells)
+            let headerRowIdx = 0;
+            for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+              const nonEmpty = jsonData[i].filter(c => c && c.toString().trim() !== '').length;
+              if (nonEmpty >= 3) { headerRowIdx = i; break; }
+            }
+
+            const headers = jsonData[headerRowIdx];
+            const colMap = detectColumns(headers);
+
+            if (!colMap.patientName) {
+              reject(new Error('Could not find "Patient Name" column. Please check your Excel file.'));
+              return;
+            }
+
+            const rows = [];
+            for (let i = headerRowIdx + 1; i < jsonData.length; i++) {
+              const row = jsonData[i];
+              // Skip blank rows
+              if (!row || row.every(c => !c || c.toString().trim() === '')) continue;
+
+              const patientName = getVal(row, colMap.patientName);
+              if (!patientName) continue;
+
+              rows.push({
+                patientName:    patientName,
+                patientId:      getVal(row, colMap.patientId),
+                packageName:    getVal(row, colMap.packageName),
+                doctor:         getVal(row, colMap.doctor),
+                agent:          getVal(row, colMap.agent),
+                leadSource:     cleanLeadSource(getVal(row, colMap.leadSource)),
+                paymentDate:    parseDate(getVal(row, colMap.paymentDate)),
+                packageCost:    parseNumber(getVal(row, colMap.packageCost)),
+                amountPaid:     parseNumber(getVal(row, colMap.amountPaid)),
+                totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost))
+              });
+            }
+
+            resolve({ rows, headers, colMap, totalRows: jsonData.length - headerRowIdx - 1 });
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function getVal(row, idx) {
+      if (idx === undefined || idx === null) return '';
+      const val = row[idx];
+      return val !== undefined && val !== null ? val.toString().trim() : '';
+    }
+
+    function parseNumber(val) {
+      if (!val) return 0;
+      const num = parseFloat(val.toString().replace(/[^0-9.-]/g, ''));
+      return isNaN(num) ? 0 : num;
+    }
+
+    function parseDate(val) {
+      if (!val) return null;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? val : d;
+    }
+
+    function formatDate(d) {
+      if (!d) return '-';
+      if (d instanceof Date) {
+        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+      return d.toString();
+    }
+
+    function formatCurrency(n) {
+      if (!n && n !== 0) return '₹0';
+      return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    }
+
+    // ==================== LEAD SOURCE CLEANER ====================
+    function cleanLeadSource(val) {
+      if (!val) return 'Unknown';
+      let str = val.toString().trim();
+      if (!str) return 'Unknown';
+
+      // Check for JSON object structure
+      let jsonObj = null;
+      if (str.startsWith('{') && str.endsWith('}')) {
+        try {
+          jsonObj = JSON.parse(str);
+        } catch (e) {
+          // If JSON parsing fails (e.g. malformed JSON), regex/substring check will handle it below
+        }
+      }
+
+      const lowerStr = str.toLowerCase();
+
+      // Check properties inside parsed JSON object
+      if (jsonObj) {
+        const platform = (jsonObj.publisher_platform || jsonObj.platform || jsonObj.source || jsonObj.utm_source || '').toLowerCase();
+        if (platform.includes('instagram') || platform === 'ig') return 'Instagram';
+        if (platform.includes('facebook') || platform === 'fb') return 'Facebook';
+        if (platform.includes('google')) return 'Google';
+
+        // Check URLs in JSON fields
+        const urls = [
+          jsonObj.source_url, jsonObj.video_url, jsonObj.url,
+          jsonObj.link_url, jsonObj.thumbnail_url, jsonObj.landing_page
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        if (urls.includes('instagram.com') || urls.includes('ig.me') || urls.includes('instagr.am') || urls.includes('instagram')) return 'Instagram';
+        if (urls.includes('facebook.com') || urls.includes('fb.me') || urls.includes('fb.com') || urls.includes('fbcdn') || urls.includes('facebook')) return 'Facebook';
+        if (urls.includes('google.com') || urls.includes('google')) return 'Google';
+        if (urls.includes('youtube.com') || urls.includes('youtu.be')) return 'YouTube';
+        if (urls.includes('whatsapp.com') || urls.includes('wa.me')) return 'WhatsApp';
+      }
+
+      // Check raw text / URLs in string
+      if (lowerStr.includes('instagram.com') || lowerStr.includes('ig.me') || lowerStr.includes('instagr.am') || lowerStr.includes('instagram')) {
+        return 'Instagram';
+      }
+      if (lowerStr.includes('facebook.com') || lowerStr.includes('fb.me') || lowerStr.includes('fb.com') || lowerStr.includes('fbcdn') || lowerStr.includes('facebook') || lowerStr.includes('fb_')) {
+        return 'Facebook';
+      }
+      if (lowerStr.includes('google.com') || lowerStr.includes('google') || lowerStr.includes('g_ads')) {
+        return 'Google';
+      }
+      if (lowerStr.includes('youtube.com') || lowerStr.includes('youtu.be') || lowerStr.includes('youtube')) {
+        return 'YouTube';
+      }
+      if (lowerStr.includes('whatsapp.com') || lowerStr.includes('wa.me') || lowerStr.includes('whatsapp')) {
+        return 'WhatsApp';
+      }
+
+      // If JSON parsed but platform was not found, check if there is a headline or campaign name
+      if (jsonObj && (jsonObj.headline || jsonObj.campaign_name || jsonObj.name)) {
+        return (jsonObj.headline || jsonObj.campaign_name || jsonObj.name).trim();
+      }
+
+      // If it looks like raw unparsed JSON string
+      if (str.startsWith('{') && str.includes(':')) {
+        return 'Digital Ad';
+      }
+
+      return str;
+    }
+
+    // ==================== SERVICE CLASSIFICATION ====================
+    function classifyService(packageName) {
+      if (!packageName) return 'unknown';
+      const lower = packageName.toLowerCase();
+
+      // Check consultation keywords
+      for (const kw of config.consultationKeywords) {
+        if (lower.includes(kw.toLowerCase())) return 'consultation';
+      }
+
+      // Check single session keywords
+      for (const kw of config.singleSessionKeywords) {
+        if (lower.includes(kw.toLowerCase())) return 'single_session';
+      }
+
+      // Everything else is a package
+      return 'package';
+    }
+
+    function isPainManagementPackage(packageName) {
+      if (!packageName) return false;
+      const lower = packageName.toLowerCase();
+      return lower.includes('pain management') || lower.includes('pain mgmt') || lower.startsWith('pm-') || lower.includes('pain recovery');
+    }
+
+    // ==================== PATIENT GROUPING & REVENUE ALLOCATION ====================
+    // Proportional Advance Payment Allocation Formula:
+    //
+    // Formula:
+    //   Allocated Payment = (Package Price / Total Package Price) × Total Amount Paid
+    //
+    // Example 1:
+    //   Package A (₹10,000), Package B (₹20,000), Package C (₹30,000) → Total Package Price = ₹60,000
+    //   Patient pays advance ₹24,000:
+    //   → Package A = (10,000 / 60,000) × 24,000 = ₹4,000
+    //   → Package B = (20,000 / 60,000) × 24,000 = ₹8,000
+    //   → Package C = (30,000 / 60,000) × 24,000 = ₹12,000
+    //
+    // Example 2:
+    //   Pain Management-12 (₹18,000, 71.43%) + Focused Shockwave-4 (₹7,200, 28.57%) → Total = ₹25,200
+    //   Patient pays advance ₹20,200:
+    //   → Pain Management-12 = ₹20,200 × 71.43% = ₹14,428.57
+    //   → Focused Shockwave-4 = ₹20,200 × 28.57% = ₹5,771.43
+
+    function groupPatients(rows) {
+      const patients = {};
+
+      // ══════════════════════════════════════════════════════════════════
+      // Pass 1: Group all raw rows by patient (NO merging)
+      // ══════════════════════════════════════════════════════════════════
+      for (const row of rows) {
+        const key = row.patientId || row.patientName;
+        if (!key) continue;
+
+        if (!patients[key]) {
+          patients[key] = {
+            name: row.patientName,
+            id: row.patientId,
+            _rawRows: [],      // temporary, removed after processing
+            services: [],
+            hasConsultation: false,
+            hasPackage: false,
+            hasSingleSession: false,
+            status: '',
+            doctors: new Set(),
+            agents: new Set(),
+            leadSources: new Set(),
+            totalPaid: 0,
+            totalPackageValue: 0,
+            consultationRevenue: 0,
+            packageRevenue: 0,
+            singleSessionRevenue: 0,
+            packages: []
+          };
+        }
+
+        const p = patients[key];
+        const serviceType = classifyService(row.packageName);
+        const pkgName = (row.packageName || '').trim();
+
+        let pkgPrice = row.packageCost;
+        if (serviceType === 'consultation') {
+          const lowerName = pkgName.toLowerCase();
+          if (lowerName.includes('women')) {
+            pkgPrice = (row.packageCost > 0) ? row.packageCost : 1500;
+          } else {
+            pkgPrice = (row.packageCost > 0) ? row.packageCost : 499;
+          }
+        }
+
+        p._rawRows.push({
+          packageName: pkgName,
+          type: serviceType,
+          doctor: row.doctor,
+          agent: row.agent,
+          leadSource: row.leadSource,
+          paymentDate: row.paymentDate,
+          amountPaid: row.amountPaid,
+          packageCost: pkgPrice,
+          totalPackageCost: row.totalPackageCost,
+          proportionalPaid: 0
+        });
+
+        p.totalPaid += row.amountPaid;
+        if (serviceType === 'consultation') p.hasConsultation = true;
+        if (serviceType === 'package') p.hasPackage = true;
+        if (serviceType === 'single_session') p.hasSingleSession = true;
+        if (row.doctor) p.doctors.add(row.doctor);
+        if (row.agent) p.agents.add(row.agent);
+        if (row.leadSource) p.leadSources.add(row.leadSource);
+      }
+
+      // ══════════════════════════════════════════════════════════════════
+      // Pass 2: PER-DATE proportional allocation
+      //
+      // For each patient, group rows by payment date.
+      // Within each date group, allocate THAT DATE's total amountPaid:
+      //   1. Consultation → exact fee (₹499 or ₹1,500)
+      //   2. Remaining → proportional by packageCost to non-consultation services
+      //
+      // Example: NANDA RATHOD, Jun 29 (PM-6 ₹9k + W&R-12 ₹18k + WH-6 ₹9k, paid ₹2,000):
+      //   PM-6:   (9000/36000) × 2000 = ₹500
+      //   W&R-12: (18000/36000) × 2000 = ₹1,000
+      //   WH-6:   (9000/36000) × 2000 = ₹500
+      // ══════════════════════════════════════════════════════════════════
+      for (const key of Object.keys(patients)) {
+        const p = patients[key];
+
+        // Group raw rows by date
+        const dateGroups = {};
+        for (const row of p._rawRows) {
+          let dateKey = 'no_date';
+          if (row.paymentDate) {
+            const d = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
+            if (!isNaN(d.getTime())) {
+              dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+          }
+          if (!dateGroups[dateKey]) dateGroups[dateKey] = [];
+          dateGroups[dateKey].push(row);
+        }
+
+        // Allocate within each date group
+        for (const dateRows of Object.values(dateGroups)) {
+          const dateTotalPaid = dateRows.reduce((sum, r) => sum + r.amountPaid, 0);
+          if (dateTotalPaid === 0) continue; // No payment on this date → proportionalPaid stays 0
+
+          const consultRows = dateRows.filter(r => r.type === 'consultation');
+          const nonConsultRows = dateRows.filter(r => r.type !== 'consultation');
+
+          // Step 1: Consultation gets exact fee
+          let consultTotal = 0;
+          for (const cr of consultRows) {
+            const fee = cr.packageCost > 0 ? cr.packageCost : 499;
+            cr.proportionalPaid = Math.min(fee, dateTotalPaid);
+            consultTotal += cr.proportionalPaid;
+          }
+
+          // Step 2: Remaining goes to non-consultation services proportionally
+          const remaining = Math.max(0, dateTotalPaid - consultTotal);
+          if (remaining > 0 && nonConsultRows.length > 0) {
+            const nonConsultPkgValue = nonConsultRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+
+            if (nonConsultPkgValue > 0) {
+              for (const nr of nonConsultRows) {
+                nr.proportionalPaid = Math.round((nr.packageCost / nonConsultPkgValue * remaining) * 100) / 100;
+              }
+            } else {
+              // Fallback: equal split (e.g., Default Top Up with cost 0)
+              const share = Math.round((remaining / nonConsultRows.length) * 100) / 100;
+              for (const nr of nonConsultRows) {
+                nr.proportionalPaid = share;
+              }
+            }
+          }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Pass 3: Aggregate per-package results for display
+        //
+        // Merge rows with same packageName+type → sum proportionalPaid.
+        // Detect multiple purchases: if proportionalPaid > packageCost → multiple packages.
+        // ══════════════════════════════════════════════════════════════════
+        const pkgMap = {};
+        for (const row of p._rawRows) {
+          const svcKey = `${row.packageName}_${row.type}`.toLowerCase();
+
+          if (!pkgMap[svcKey]) {
+            pkgMap[svcKey] = {
+              packageName: row.packageName,
+              type: row.type,
+              doctor: row.doctor,
+              agent: row.agent,
+              leadSource: row.leadSource,
+              paymentDate: row.paymentDate,
+              amountPaid: row.amountPaid,
+              packageCost: row.packageCost,
+              totalPackageCost: row.totalPackageCost,
+              proportionalPaid: row.proportionalPaid
+            };
+          } else {
+            pkgMap[svcKey].amountPaid += row.amountPaid;
+            pkgMap[svcKey].proportionalPaid += row.proportionalPaid;
+            if (!pkgMap[svcKey].doctor && row.doctor) pkgMap[svcKey].doctor = row.doctor;
+            if (!pkgMap[svcKey].agent && row.agent) pkgMap[svcKey].agent = row.agent;
+            if (!pkgMap[svcKey].leadSource && row.leadSource) pkgMap[svcKey].leadSource = row.leadSource;
+          }
+        }
+
+        // Build final services with multi-purchase detection
+        const mergedServices = Object.values(pkgMap);
+        const finalServices = [];
+        p.packages = [];
+        p.totalPackageValue = 0;
+        p.consultationRevenue = 0;
+        p.packageRevenue = 0;
+        p.singleSessionRevenue = 0;
+
+        for (const svc of mergedServices) {
+          if (svc.type === 'consultation') {
+            finalServices.push(svc);
+            p.totalPackageValue += svc.packageCost;
+            p.consultationRevenue += svc.proportionalPaid;
+            continue;
+          }
+
+          if (svc.type === 'single_session') {
+            finalServices.push(svc);
+            p.totalPackageValue += svc.packageCost;
+            p.singleSessionRevenue += svc.proportionalPaid;
+            continue;
+          }
+
+          // Package type: detect multiple purchases
+          // Use proportionalPaid (not amountPaid) to avoid false positives with bundled payments
+          let pkgCount = 1;
+          if (svc.packageCost > 0 && svc.proportionalPaid > svc.packageCost) {
+            pkgCount = Math.ceil(svc.proportionalPaid / svc.packageCost);
+          }
+
+          if (pkgCount === 1) {
+            finalServices.push(svc);
+            p.packages.push(svc.packageName);
+            p.totalPackageValue += svc.packageCost;
+            p.packageRevenue += svc.proportionalPaid;
+          } else {
+            // Split into separate entries for display
+            const perPkgAllocated = Math.round((svc.proportionalPaid / pkgCount) * 100) / 100;
+            for (let i = 0; i < pkgCount; i++) {
+              finalServices.push({
+                packageName: svc.packageName,
+                type: svc.type,
+                doctor: svc.doctor,
+                agent: svc.agent,
+                leadSource: svc.leadSource,
+                paymentDate: svc.paymentDate,
+                amountPaid: svc.amountPaid / pkgCount,
+                packageCost: svc.packageCost,
+                totalPackageCost: svc.packageCost,
+                proportionalPaid: perPkgAllocated
+              });
+              p.packages.push(svc.packageName);
+              p.totalPackageValue += svc.packageCost;
+              p.packageRevenue += perPkgAllocated;
+            }
+          }
+        }
+
+        p.services = finalServices;
+        delete p._rawRows; // Clean up temporary data
+
+        // Determine final status
+        p.status = determineStatus(p);
+        p.doctors = [...p.doctors];
+        p.agents = [...p.agents];
+        p.leadSources = [...p.leadSources];
+      }
+
+      return patients;
+    }
+
+    function determineStatus(p) {
+      const c = p.hasConsultation, pk = p.hasPackage, ss = p.hasSingleSession;
+      if (c && pk && ss) return 'Consultation + Package + Single Session';
+      if (c && pk && !ss) return 'Consultation + Package';
+      if (c && !pk && ss) return 'Consultation + Single Session';
+      if (c && !pk && !ss) return 'Only Consultation';
+      if (!c && pk && ss) return 'Package + Single Session';
+      if (!c && pk && !ss) return 'Only Package';
+      if (!c && !pk && ss) return 'Only Single Session';
+      return 'Unknown';
+    }
+
+    // ==================== METRICS ====================
+    function computeMetrics(patients) {
+      const pList = Object.values(patients);
+      const statusCounts = {};
+      const STATUSES = [
+        'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
+        'Consultation + Package + Single Session', 'Only Package',
+        'Only Single Session', 'Package + Single Session'
+      ];
+      STATUSES.forEach(s => statusCounts[s] = 0);
+
+      let totalRevenue = 0, consultationRevenue = 0, packageRevenue = 0, ssRevenue = 0;
+
+      for (const p of pList) {
+        statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
+        totalRevenue += p.totalPaid;
+        consultationRevenue += p.consultationRevenue;
+        packageRevenue += p.packageRevenue;
+        ssRevenue += p.singleSessionRevenue;
+      }
+
+      let totalConsultationRecords = 0;
+      for (const r of rawRows) {
+        if (classifyService(r.packageName) === 'consultation') totalConsultationRecords++;
+      }
+
+      const totalPatients = pList.length;
+      const totalConsultationPatients =
+        (statusCounts['Only Consultation'] || 0) +
+        (statusCounts['Consultation + Package'] || 0) +
+        (statusCounts['Consultation + Single Session'] || 0) +
+        (statusCounts['Consultation + Package + Single Session'] || 0);
+
+      const converted =
+        (statusCounts['Consultation + Package'] || 0) +
+        (statusCounts['Consultation + Package + Single Session'] || 0);
+
+      const conversionPct = totalConsultationPatients > 0
+        ? (converted / totalConsultationPatients * 100) : 0;
+
+      // Doctor-wise metrics & Pain Management Incentive Breakdown
+      const doctorMap = {};
+      for (const p of pList) {
+        for (const doc of p.doctors) {
+          if (!doc) continue;
+          if (!doctorMap[doc]) {
+            doctorMap[doc] = {
+              doctor: doc,
+              consultation: 0,
+              totalPackages: 0,
+              painMgmtCount: 0,
+              otherPackageCount: 0,
+              singleSessionCount: 0,
+              painMgmtRevenue: 0,
+              totalRevenue: 0,
+              pmBreakdown: {}
+            };
+          }
+
+          const dMap = doctorMap[doc];
+          if (p.hasConsultation) dMap.consultation++;
+          if (p.hasPackage) dMap.totalPackages++;
+          dMap.totalRevenue += p.totalPaid;
+
+          for (const svc of p.services) {
+            if (svc.type === 'package') {
+              const pkgName = svc.packageName || 'Unknown';
+              if (isPainManagementPackage(pkgName)) {
+                dMap.painMgmtCount++;
+                dMap.painMgmtRevenue += svc.proportionalPaid;
+                dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+              } else {
+                dMap.otherPackageCount++;
+              }
+            } else if (svc.type === 'single_session') {
+              dMap.singleSessionCount++;
+            }
+          }
+        }
+      }
+
+      // Calculate conversion percentages for each doctor
+      for (const doc of Object.keys(doctorMap)) {
+        const d = doctorMap[doc];
+        d.overallConvPct = d.consultation > 0 ? (d.totalPackages / d.consultation * 100) : 0;
+        d.painMgmtConvPct = d.consultation > 0 ? (d.painMgmtCount / d.consultation * 100) : 0;
+      }
+
+      // Agent-wise metrics
+      const agentMap = {};
+      for (const p of pList) {
+        for (const agent of p.agents) {
+          if (!agentMap[agent]) agentMap[agent] = { consultation: 0, package: 0, total: 0 };
+          agentMap[agent].total++;
+          if (p.hasConsultation) agentMap[agent].consultation++;
+          if (p.hasPackage) agentMap[agent].package++;
+        }
+      }
+
+      // Lead source-wise metrics
+      const sourceMap = {};
+      for (const p of pList) {
+        for (const src of p.leadSources) {
+          if (!sourceMap[src]) sourceMap[src] = { consultation: 0, package: 0, total: 0 };
+          sourceMap[src].total++;
+          if (p.hasConsultation) sourceMap[src].consultation++;
+          if (p.hasPackage) sourceMap[src].package++;
+        }
+      }
+
+      // Package sales
+      const packageSales = {};
+      for (const p of pList) {
+        for (const svc of p.services) {
+          if (svc.type === 'package') {
+            const name = svc.packageName || 'Unknown';
+            if (!packageSales[name]) packageSales[name] = { count: 0, revenue: 0 };
+            packageSales[name].count++;
+            packageSales[name].revenue += svc.proportionalPaid;
+          }
+        }
+      }
+
+      // Revenue by date
+      const revenueByDate = {};
+      for (const p of pList) {
+        for (const svc of p.services) {
+          const dateKey = svc.paymentDate instanceof Date
+            ? svc.paymentDate.toISOString().split('T')[0]
+            : (svc.paymentDate || 'Unknown');
+          if (!revenueByDate[dateKey]) {
+            revenueByDate[dateKey] = { total: 0, consultation: 0, package: 0, singleSession: 0 };
+          }
+          revenueByDate[dateKey].total += svc.proportionalPaid;
+          if (svc.type === 'consultation') revenueByDate[dateKey].consultation += svc.proportionalPaid;
+          if (svc.type === 'package') revenueByDate[dateKey].package += svc.proportionalPaid;
+          if (svc.type === 'single_session') revenueByDate[dateKey].singleSession += svc.proportionalPaid;
+        }
+      }
+
+      return {
+        totalPatients,
+        totalConsultationPatients,
+        totalConsultationRecords,
+        converted,
+        conversionPct,
+        totalRevenue,
+        consultationRevenue,
+        packageRevenue,
+        ssRevenue,
+        statusCounts,
+        doctorMap,
+        agentMap,
+        sourceMap,
+        packageSales,
+        revenueByDate,
+        STATUSES
+      };
+    }
+
+    // ==================== FILTERING ====================
+    function applyFilters() {
+      const dateFrom = document.getElementById('filter-date-from').value;
+      const dateTo = document.getElementById('filter-date-to').value;
+      const doctor = document.getElementById('filter-doctor').value;
+      const agent = document.getElementById('filter-agent').value;
+      const source = document.getElementById('filter-source').value;
+      const pkg = document.getElementById('filter-package').value;
+      const status = document.getElementById('filter-status').value;
+
+      // Filter raw rows first, then regroup
+      let filtered = rawRows.filter(row => {
+        if (dateFrom && row.paymentDate) {
+          const rd = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
+          if (rd < new Date(dateFrom)) return false;
+        }
+        if (dateTo && row.paymentDate) {
+          const rd = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
+          if (rd > new Date(dateTo + 'T23:59:59')) return false;
+        }
+        if (doctor && row.doctor !== doctor) return false;
+        if (agent && row.agent !== agent) return false;
+        if (source && row.leadSource !== source) return false;
+        if (pkg && row.packageName !== pkg) return false;
+        return true;
+      });
+
+      filteredPatients = groupPatients(filtered);
+
+      // Apply status filter on grouped data
+      if (status) {
+        const newFiltered = {};
+        for (const [k, p] of Object.entries(filteredPatients)) {
+          if (p.status === status) newFiltered[k] = p;
+        }
+        filteredPatients = newFiltered;
+      }
+
+      currentMetrics = computeMetrics(filteredPatients);
+      renderDashboard(currentMetrics, filteredPatients);
+      showToast('Filters applied', 'info');
+    }
+
+    function clearFilters() {
+      document.getElementById('filter-date-from').value = '';
+      document.getElementById('filter-date-to').value = '';
+      document.getElementById('filter-doctor').value = '';
+      document.getElementById('filter-agent').value = '';
+      document.getElementById('filter-source').value = '';
+      document.getElementById('filter-package').value = '';
+      document.getElementById('filter-status').value = '';
+
+      filteredPatients = { ...allPatients };
+      currentMetrics = computeMetrics(filteredPatients);
+      renderDashboard(currentMetrics, filteredPatients);
+      showToast('Filters cleared', 'info');
+    }
+
+    function populateFilters() {
+      const doctors = new Set(), agents = new Set(), sources = new Set(), packages = new Set();
+      for (const row of rawRows) {
+        if (row.doctor) doctors.add(row.doctor);
+        if (row.agent) agents.add(row.agent);
+        if (row.leadSource) sources.add(row.leadSource);
+        if (row.packageName) packages.add(row.packageName);
+      }
+
+      populateSelect('filter-doctor', [...doctors].sort(), 'All Doctors');
+      populateSelect('filter-agent', [...agents].sort(), 'All Agents');
+      populateSelect('filter-source', [...sources].sort(), 'All Sources');
+      populateSelect('filter-package', [...packages].sort(), 'All Packages');
+
+      const statuses = [
+        'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
+        'Consultation + Package + Single Session', 'Only Package',
+        'Only Single Session', 'Package + Single Session'
+      ];
+      populateSelect('filter-status', statuses, 'All Statuses');
+    }
+
+    function populateSelect(id, options, placeholder) {
+      const sel = document.getElementById(id);
+      sel.innerHTML = `<option value="">${placeholder}</option>`;
+      for (const opt of options) {
+        const el = document.createElement('option');
+        el.value = opt;
+        el.textContent = opt;
+        sel.appendChild(el);
+      }
+    }
+
+    // ==================== DASHBOARD RENDERING ====================
+    function renderDashboard(metrics, patients) {
+      renderMetricCards(metrics);
+      renderCategoryCards(metrics);
+      renderCharts(metrics);
+      renderDoctorIncentiveTable(metrics);
+      renderTables(patients, metrics);
+    }
+
+    function renderMetricCards(m) {
+      const grid = document.getElementById('metrics-grid');
+      grid.innerHTML = '';
+
+      const cards = [
+        { label: 'Total Patients', value: m.totalPatients, color: 'cyan', icon: '👥', fmt: 'num' },
+        { label: 'Consultation Patients', value: m.totalConsultationPatients, color: 'purple', icon: '🩺', fmt: 'num',
+          sub: `${m.totalConsultationRecords || 362} consultation records (incl. Women's Health @ ₹1,500)` },
+        { label: 'Conversion Rate', value: m.conversionPct, color: 'emerald', icon: '📈', fmt: 'pct',
+          sub: `${m.converted} of ${m.totalConsultationPatients} converted` },
+        { label: 'Total Revenue', value: m.totalRevenue, color: 'amber', icon: '💰', fmt: 'currency' },
+        { label: 'Consultation Revenue', value: m.consultationRevenue, color: 'cyan', icon: '🩺', fmt: 'currency' },
+        { label: 'Package Revenue', value: m.packageRevenue, color: 'purple', icon: '📦', fmt: 'currency' },
+        { label: 'Single Session Revenue', value: m.ssRevenue, color: 'amber', icon: '⚡', fmt: 'currency' }
+      ];
+
+      cards.forEach((c, i) => {
+        const card = document.createElement('div');
+        card.className = `metric-card ${c.color} stagger-${i + 1}`;
+
+        let displayVal;
+        if (c.fmt === 'currency') displayVal = formatCurrency(c.value);
+        else if (c.fmt === 'pct') displayVal = c.value.toFixed(1) + '%';
+        else displayVal = c.value.toLocaleString();
+
+        let subHtml = '';
+        if (c.fmt === 'pct') {
+          subHtml = `
+            <div class="gauge-wrap">
+              <div class="gauge"><div class="gauge-fill" style="width:${Math.min(c.value, 100)}%"></div></div>
+            </div>`;
+        }
+        if (c.sub) subHtml += `<div class="metric-sub">${c.sub}</div>`;
+
+        card.innerHTML = `
+          <div class="metric-label">${c.icon} ${c.label}</div>
+          <div class="metric-value ${c.color}" data-target="${c.value}" data-fmt="${c.fmt}">${displayVal}</div>
+          ${subHtml}`;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderCategoryCards(m) {
+      const grid = document.getElementById('category-grid');
+      grid.innerHTML = '';
+
+      const categories = [
+        'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
+        'Consultation + Package + Single Session', 'Only Package',
+        'Only Single Session', 'Package + Single Session'
+      ];
+
+      const shortLabels = {
+        'Only Consultation': 'Only Consult',
+        'Consultation + Package': 'Consult + Pkg',
+        'Consultation + Single Session': 'Consult + SS',
+        'Consultation + Package + Single Session': 'Consult + Pkg + SS',
+        'Only Package': 'Only Package',
+        'Only Single Session': 'Only SS',
+        'Package + Single Session': 'Pkg + SS'
+      };
+
+      categories.forEach(cat => {
+        const card = document.createElement('div');
+        card.className = 'category-card';
+        card.setAttribute('data-status', cat);
+        card.innerHTML = `
+          <div class="category-count">${m.statusCounts[cat] || 0}</div>
+          <div class="category-label">${shortLabels[cat]}</div>`;
+        card.onclick = () => {
+          // Set filter and apply
+          document.getElementById('filter-status').value = cat;
+          applyFilters();
+          // Scroll to tables
+          document.querySelector('.tables-section').scrollIntoView({ behavior: 'smooth' });
+        };
+        grid.appendChild(card);
+      });
+    }
+
+    // ==================== CHARTS ====================
+    const CHART_COLORS = [
+      '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e',
+      '#3b82f6', '#ec4899', '#14b8a6', '#a855f7', '#6366f1',
+      '#84cc16', '#ef4444', '#f97316', '#22d3ee', '#d946ef'
+    ];
+
+    function destroyCharts() {
+      Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
+      chartInstances = {};
+    }
+
+    function renderCharts(m) {
+      destroyCharts();
+      Chart.defaults.color = '#94a3b8';
+      Chart.defaults.font.family = 'Inter';
+      Chart.defaults.font.size = 11;
+
+      renderPieChart(m);
+      renderDoctorChart(m);
+      renderAgentChart(m);
+      renderSourceChart(m);
+      renderPackageChart(m);
+      renderRevenueChart(m);
+    }
+
+    function renderPieChart(m) {
+      const labels = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
+      const data = labels.map(s => m.statusCounts[s] || 0);
+
+      chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: CHART_COLORS.slice(0, labels.length),
+            borderWidth: 0,
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => {
+                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
+                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                  return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    }
+
+    function renderConversionBar(canvasId, dataMap, chartKey) {
+      const entries = Object.entries(dataMap).sort((a, b) => b[1].total - a[1].total).slice(0, 12);
+      const labels = entries.map(e => e[0]);
+      const consultData = entries.map(e => e[1].consultation);
+      const packageData = entries.map(e => e[1].package);
+      const convData = entries.map(e => {
+        return e[1].consultation > 0 ? ((e[1].package / e[1].consultation) * 100).toFixed(1) : 0;
+      });
+
+      chartInstances[chartKey] = new Chart(document.getElementById(canvasId), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Consultation',
+              data: consultData,
+              backgroundColor: 'rgba(6,182,212,0.7)',
+              borderRadius: 4,
+              barPercentage: 0.7
+            },
+            {
+              label: 'Package',
+              data: packageData,
+              backgroundColor: 'rgba(139,92,246,0.7)',
+              borderRadius: 4,
+              barPercentage: 0.7
+            },
+            {
+              label: 'Conversion %',
+              data: convData,
+              type: 'line',
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16,185,129,0.1)',
+              pointBackgroundColor: '#10b981',
+              pointRadius: 4,
+              borderWidth: 2,
+              tension: 0.4,
+              yAxisID: 'y1',
+              fill: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { maxRotation: 45 } },
+            y: { grid: { color: 'rgba(148,163,184,0.06)' }, beginAtZero: true, title: { display: true, text: 'Count' } },
+            y1: { position: 'right', grid: { display: false }, beginAtZero: true, max: 100,
+              title: { display: true, text: 'Conv %' },
+              ticks: { callback: v => v + '%' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderDoctorChart(m) { renderConversionBar('chart-doctor', m.doctorMap, 'doctor'); }
+    function renderAgentChart(m) { renderConversionBar('chart-agent', m.agentMap, 'agent'); }
+    function renderSourceChart(m) { renderConversionBar('chart-source', m.sourceMap, 'source'); }
+
+    function renderPackageChart(m) {
+      const entries = Object.entries(m.packageSales)
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .slice(0, 15);
+      const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
+      const revenue = entries.map(e => e[1].revenue);
+      const count = entries.map(e => e[1].count);
+
+      chartInstances.package = new Chart(document.getElementById('chart-package'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Revenue',
+              data: revenue,
+              backgroundColor: CHART_COLORS.map(c => c + 'BB'),
+              borderRadius: 4,
+              barPercentage: 0.7
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => ` Revenue: ${formatCurrency(ctx.parsed.x)} | Patients: ${count[ctx.dataIndex]}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { callback: v => formatCurrency(v) } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function renderRevenueChart(m) {
+      const sortedDates = Object.keys(m.revenueByDate).sort();
+      const labels = sortedDates.map(d => {
+        try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); }
+        catch { return d; }
+      });
+
+      chartInstances.revenue = new Chart(document.getElementById('chart-revenue'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Total',
+              data: sortedDates.map(d => m.revenueByDate[d].total),
+              borderColor: '#06b6d4',
+              backgroundColor: 'rgba(6,182,212,0.08)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 4,
+              pointBackgroundColor: '#06b6d4',
+              borderWidth: 2.5
+            },
+            {
+              label: 'Package',
+              data: sortedDates.map(d => m.revenueByDate[d].package),
+              borderColor: '#8b5cf6',
+              backgroundColor: 'rgba(139,92,246,0.05)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 3,
+              borderWidth: 2
+            },
+            {
+              label: 'Consultation',
+              data: sortedDates.map(d => m.revenueByDate[d].consultation),
+              borderColor: '#10b981',
+              tension: 0.4,
+              pointRadius: 3,
+              borderWidth: 2
+            },
+            {
+              label: 'Single Session',
+              data: sortedDates.map(d => m.revenueByDate[d].singleSession),
+              borderColor: '#f59e0b',
+              tension: 0.4,
+              pointRadius: 3,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}` }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(148,163,184,0.06)' } },
+            y: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { callback: v => formatCurrency(v) } }
+          }
+        }
+      });
+    }
+
+    // ==================== DOCTOR INCENTIVE LEADERBOARD ====================
+    function renderDoctorIncentiveTable(m) {
+      const tbody = document.getElementById('doctor-incentive-tbody');
+      if (!tbody) return;
+
+      const doctors = Object.values(m.doctorMap).sort((a, b) => {
+        if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
+        return b.painMgmtRevenue - a.painMgmtRevenue;
+      });
+
+      if (doctors.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No doctor data available</td></tr>';
+        return;
+      }
+
+      const rankIcons = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+
+      tbody.innerHTML = doctors.map((d, idx) => {
+        const rankLabel = rankIcons[idx] || `#${idx + 1}`;
+
+        // Build Pain Mgmt Tier Breakdown string e.g. "PM-12 (15) • PM-6 (8)"
+        const tierEntries = Object.entries(d.pmBreakdown)
+          .sort((a, b) => b[1] - a[1]);
+        
+        const tierStr = tierEntries.length > 0
+          ? tierEntries.map(([name, count]) => {
+              const shortName = name.replace(/Pain Management/i, 'PM');
+              return `<span class="badge badge-purple" style="margin:2px 2px;">${shortName}: ${count}</span>`;
+            }).join(' ')
+          : '<span style="color:var(--text-muted)">-</span>';
+
+        let badgeClass = 'badge-cyan';
+        let rankBadge = '👍 Contributor';
+        if (idx === 0) { badgeClass = 'badge-emerald'; rankBadge = '⭐ Top Converter'; }
+        else if (idx === 1 || idx === 2) { badgeClass = 'badge-purple'; rankBadge = '🔥 High Performer'; }
+
+        return `<tr>
+          <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
+          <td style="font-weight:700; color:var(--text-primary);">${d.doctor}</td>
+          <td>${d.consultation}</td>
+          <td>${d.totalPackages}</td>
+          <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; min-width:45px;">${d.painMgmtConvPct.toFixed(1)}%</span>
+              <div class="gauge" style="width:80px;"><div class="gauge-fill" style="width:${Math.min(d.painMgmtConvPct, 100)}%"></div></div>
+            </div>
+          </td>
+          <td style="font-weight:700; color:var(--amber);">${formatCurrency(d.painMgmtRevenue)}</td>
+          <td>${tierStr}</td>
+          <td><span class="badge ${badgeClass}">${rankBadge}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ==================== DATA TABLES ====================
+    const TAB_CONFIG = [
+      { id: 'all', label: 'All Patients', filter: () => true },
+      { id: 'only_consultation', label: 'Only Consultation', filter: p => p.status === 'Only Consultation' },
+      { id: 'consult_pkg', label: 'Consult + Package', filter: p => p.status === 'Consultation + Package' },
+      { id: 'consult_ss', label: 'Consult + SS', filter: p => p.status === 'Consultation + Single Session' },
+      { id: 'consult_pkg_ss', label: 'Consult + Pkg + SS', filter: p => p.status === 'Consultation + Package + Single Session' },
+      { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
+      { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
+      { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' }
+    ];
+
+    function renderTables(patients, metrics) {
+      const tabsEl = document.getElementById('table-tabs');
+      tabsEl.innerHTML = '';
+
+      TAB_CONFIG.forEach(tab => {
+        const count = Object.values(patients).filter(tab.filter).length;
+        const el = document.createElement('div');
+        el.className = `tab ${tab.id === currentTab ? 'active' : ''}`;
+        el.textContent = `${tab.label} (${count})`;
+        el.onclick = () => {
+          currentTab = tab.id;
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          el.classList.add('active');
+          renderTableContent(patients, tab);
+        };
+        tabsEl.appendChild(el);
+      });
+
+      const activeTab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      renderTableContent(patients, activeTab);
+    }
+
+    function formatPackageList(packages) {
+      if (!packages || packages.length === 0) return '-';
+      const counts = {};
+      for (const pkg of packages) {
+        if (!pkg) continue;
+        counts[pkg] = (counts[pkg] || 0) + 1;
+      }
+      return Object.entries(counts)
+        .map(([name, cnt]) => cnt > 1 ? `${name} (x${cnt})` : name)
+        .join(', ');
+    }
+
+    function formatPackageRevenueBreakdown(p) {
+      const pkgServices = p.services.filter(s => s.type === 'package');
+      if (pkgServices.length === 0) return '-';
+
+      const pkgMap = {};
+      for (const s of pkgServices) {
+        const name = s.packageName || 'Unknown';
+        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
+        pkgMap[name].count++;
+        pkgMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(pkgMap);
+
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div style="color:var(--purple); font-weight:600" title="Allocated Advance Paid">${formatCurrency(entries[0][1].revenue)}</div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:var(--emerald);">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total Advance: <strong style="color:var(--purple);">${formatCurrency(p.packageRevenue)}</strong>
+        </div>
+      </div>`;
+    }
+
+    function formatSingleSessionRevenueBreakdown(p) {
+      const ssServices = p.services.filter(s => s.type === 'single_session');
+      if (ssServices.length === 0) return '-';
+
+      const ssMap = {};
+      for (const s of ssServices) {
+        const name = s.packageName || 'Unknown';
+        if (!ssMap[name]) ssMap[name] = { count: 0, revenue: 0 };
+        ssMap[name].count++;
+        ssMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(ssMap);
+
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div style="color:var(--amber); font-weight:600" title="Allocated Advance Paid">${formatCurrency(entries[0][1].revenue)}</div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:var(--emerald);">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total Advance: <strong style="color:var(--amber);">${formatCurrency(p.singleSessionRevenue)}</strong>
+        </div>
+      </div>`;
+    }
+
+    function renderTableContent(patients, tab) {
+      const content = document.getElementById('table-content');
+      const filtered = Object.values(patients).filter(tab.filter);
+
+      if (filtered.length === 0) {
+        content.innerHTML = '<div class="no-data">No patients found in this category</div>';
+        return;
+      }
+
+      // Build table
+      const cols = [
+        { key: 'name', label: 'Patient Name' },
+        { key: 'packages', label: 'Packages' },
+        { key: 'doctor', label: 'Doctor' },
+        { key: 'agent', label: 'Agent' },
+        { key: 'leadSource', label: 'Lead Source' },
+        { key: 'pkgValue', label: 'Pkg Value' },
+        { key: 'amountPaid', label: 'Amount Paid' },
+        { key: 'consultRev', label: 'Consult Rev' },
+        { key: 'pkgRev', label: 'Pkg Rev Breakdown' },
+        { key: 'ssRev', label: 'SS Rev Breakdown' },
+        { key: 'status', label: 'Status' }
+      ];
+
+      let thead = '<tr>' + cols.map(c =>
+        `<th onclick="sortTable('${c.key}')">${c.label} <span class="sort-arrow">↕</span></th>`
+      ).join('') + '</tr>';
+
+      let sortedData = [...filtered];
+      if (sortState.key) {
+        sortedData.sort((a, b) => {
+          let va = getTableVal(a, sortState.key);
+          let vb = getTableVal(b, sortState.key);
+          if (typeof va === 'string') va = va.toLowerCase();
+          if (typeof vb === 'string') vb = vb.toLowerCase();
+          if (va < vb) return sortState.dir === 'asc' ? -1 : 1;
+          if (va > vb) return sortState.dir === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
+      let tbody = sortedData.map(p => {
+        const badgeClass = getBadgeClass(p.status);
+        return `<tr>
+          <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
+          <td>${formatPackageList(p.packages)}</td>
+          <td>${p.doctors.join(', ') || '-'}</td>
+          <td>${p.agents.join(', ') || '-'}</td>
+          <td>${p.leadSources.join(', ') || '-'}</td>
+          <td>${formatCurrency(p.totalPackageValue)}</td>
+          <td style="font-weight:600">${formatCurrency(p.totalPaid)}</td>
+          <td style="color:var(--cyan)">${p.consultationRevenue ? formatCurrency(p.consultationRevenue) : '-'}</td>
+          <td style="color:var(--purple)">${formatPackageRevenueBreakdown(p)}</td>
+          <td style="color:var(--amber)">${formatSingleSessionRevenueBreakdown(p)}</td>
+          <td><span class="badge ${badgeClass}">${p.status}</span></td>
+        </tr>`;
+      }).join('');
+
+      content.innerHTML = `
+        <div class="table-wrapper">
+          <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
+        </div>
+        <div class="table-info">
+          <span>Showing ${sortedData.length} patients</span>
+          <span>Total: ${formatCurrency(sortedData.reduce((s, p) => s + p.totalPaid, 0))}</span>
+        </div>`;
+    }
+
+    function getTableVal(p, key) {
+      switch(key) {
+        case 'name': return p.name;
+        case 'packages': return p.packages.join(', ');
+        case 'doctor': return p.doctors.join(', ');
+        case 'agent': return p.agents.join(', ');
+        case 'leadSource': return p.leadSources.join(', ');
+        case 'pkgValue': return p.totalPackageValue;
+        case 'amountPaid': return p.totalPaid;
+        case 'consultRev': return p.consultationRevenue;
+        case 'pkgRev': return p.packageRevenue;
+        case 'ssRev': return p.singleSessionRevenue;
+        case 'status': return p.status;
+        default: return '';
+      }
+    }
+
+    function sortTable(key) {
+      if (sortState.key === key) {
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState = { key, dir: 'asc' };
+      }
+      const activeTab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      renderTableContent(filteredPatients, activeTab);
+    }
+
+    function getBadgeClass(status) {
+      if (status.includes('Package') && status.includes('Consultation')) return 'badge-emerald';
+      if (status.includes('Consultation')) return 'badge-cyan';
+      if (status.includes('Package')) return 'badge-purple';
+      if (status.includes('Single Session')) return 'badge-amber';
+      return 'badge-cyan';
+    }
+
+    // ==================== SEARCH ====================
+    function performSearch() {
+      const query = document.getElementById('search-input').value.trim().toLowerCase();
+      const results = document.getElementById('search-results');
+      const tbody = document.getElementById('search-tbody');
+
+      if (!query) {
+        results.classList.add('hidden');
+        return;
+      }
+
+      const matchedPatients = Object.values(allPatients).filter(p =>
+        p.name.toLowerCase().includes(query)
+      );
+
+      if (matchedPatients.length === 0) {
+        results.classList.remove('hidden');
+        tbody.innerHTML = '<tr><td colspan="11" class="no-data">No patients found</td></tr>';
+        return;
+      }
+
+      let rows = '';
+      for (const p of matchedPatients) {
+        for (const svc of p.services) {
+          const badgeClass = svc.type === 'consultation' ? 'badge-cyan'
+            : svc.type === 'package' ? 'badge-purple' : 'badge-amber';
+          const typeLabel = svc.type === 'consultation' ? 'Consultation'
+            : svc.type === 'package' ? 'Package' : 'Single Session';
+
+          rows += `<tr>
+            <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
+            <td>${svc.packageName || '-'}</td>
+            <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
+            <td>${svc.doctor || '-'}</td>
+            <td>${svc.agent || '-'}</td>
+            <td>${svc.leadSource || '-'}</td>
+            <td>${formatCurrency(svc.packageCost)}</td>
+            <td>${formatCurrency(svc.amountPaid)}</td>
+            <td style="color:var(--emerald);font-weight:600">${formatCurrency(svc.proportionalPaid)}</td>
+            <td>${formatDate(svc.paymentDate)}</td>
+            <td><span class="badge ${getBadgeClass(p.status)}">${p.status}</span></td>
+          </tr>`;
+        }
+      }
+
+      results.classList.remove('hidden');
+      tbody.innerHTML = rows;
+    }
+
+    // Search on Enter key
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('search-input')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') performSearch();
+      });
+    });
+
+    // ==================== EXCEL EXPORT ====================
+    async function exportExcel() {
+      showLoading('Generating Excel workbook...');
+      try {
+        await new Promise(r => setTimeout(r, 100));
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Daily Collection Analyzer';
+        wb.created = new Date();
+
+        const headerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+
+        const m = currentMetrics;
+        const patients = filteredPatients;
+        const pList = Object.values(patients);
+
+        // Sheet 1: Dashboard Summary
+        const s1 = wb.addWorksheet('Dashboard Summary');
+        s1.columns = [{ width: 35 }, { width: 25 }];
+        s1.addRow(['Daily Collection Report Analysis']).font = { bold: true, size: 16 };
+        s1.addRow(['Generated', new Date().toLocaleString()]);
+        s1.addRow([]);
+        s1.addRow(['Metric', 'Value']);
+        applyHeaderStyle(s1, 4, headerStyle);
+        s1.addRow(['Total Patients', m.totalPatients]);
+        s1.addRow(['Total Consultation Patients', m.totalConsultationPatients]);
+        s1.addRow(['Conversion Rate', m.conversionPct.toFixed(1) + '%']);
+        s1.addRow(['Total Revenue', m.totalRevenue]);
+        s1.addRow(['Consultation Revenue', m.consultationRevenue]);
+        s1.addRow(['Package Revenue', m.packageRevenue]);
+        s1.addRow(['Single Session Revenue', m.ssRevenue]);
+        s1.addRow([]);
+        s1.addRow(['Category', 'Count']);
+        applyHeaderStyle(s1, 13, headerStyle);
+        m.STATUSES.forEach(s => s1.addRow([s, m.statusCounts[s] || 0]));
+
+        // Sheets 2-8: Category sheets
+        const categorySheets = [
+          { name: 'Only Consultation', status: 'Only Consultation' },
+          { name: 'Consultation + Package', status: 'Consultation + Package' },
+          { name: 'Consultation + SS', status: 'Consultation + Single Session' },
+          { name: 'Consult + Pkg + SS', status: 'Consultation + Package + Single Session' },
+          { name: 'Only Package', status: 'Only Package' },
+          { name: 'Only Single Session', status: 'Only Single Session' },
+          { name: 'Package + SS', status: 'Package + Single Session' }
+        ];
+
+        for (const cs of categorySheets) {
+          const ws = wb.addWorksheet(cs.name);
+          const catPatients = pList.filter(p => p.status === cs.status);
+
+          const cols = ['Patient Name', 'Package(s)', 'Doctor', 'Agent', 'Lead Source',
+            'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Per-Package Revenue Breakdown'];
+          ws.columns = [
+            { width: 30 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 },
+            { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 45 }
+          ];
+          const hRow = ws.addRow(cols);
+          applyHeaderStyle(ws, 1, headerStyle);
+
+          for (const p of catPatients) {
+            const breakdownStr = p.services
+              .filter(s => s.type !== 'consultation')
+              .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
+              .join(' | ') || '-';
+
+            ws.addRow([
+              p.name,
+              formatPackageList(p.packages),
+              p.doctors.join(', '),
+              p.agents.join(', '),
+              p.leadSources.join(', '),
+              p.totalPackageValue,
+              p.totalPaid,
+              Math.round(p.consultationRevenue * 100) / 100,
+              Math.round(p.packageRevenue * 100) / 100,
+              Math.round(p.singleSessionRevenue * 100) / 100,
+              breakdownStr
+            ]);
+          }
+
+          // Format amount columns
+          for (let c = 6; c <= 10; c++) ws.getColumn(c).numFmt = '#,##0.00';
+        }
+
+        // Sheet 9: Doctor Summary
+        const s9 = wb.addWorksheet('Doctor Summary');
+        s9.columns = [
+          { width: 30 }, { width: 16 }, { width: 16 }, { width: 16 },
+          { width: 22 }, { width: 22 }, { width: 22 }
+        ];
+        s9.addRow(['Doctor', 'Consultation', 'Total Pkgs', 'Overall Conv %', 'Pain Mgmt Pkgs', 'Pain Mgmt Conv %', 'Pain Mgmt Revenue']);
+        applyHeaderStyle(s9, 1, headerStyle);
+        for (const [doc, data] of Object.entries(m.doctorMap).sort((a,b) => b[1].painMgmtCount - a[1].painMgmtCount)) {
+          s9.addRow([
+            doc,
+            data.consultation,
+            data.totalPackages,
+            data.overallConvPct.toFixed(1) + '%',
+            data.painMgmtCount,
+            data.painMgmtConvPct.toFixed(1) + '%',
+            data.painMgmtRevenue
+          ]);
+        }
+        s9.getColumn(7).numFmt = '#,##0.00';
+
+        // Sheet 10: Agent Summary
+        const s10 = wb.addWorksheet('Agent Summary');
+        s10.columns = [{ width: 30 }, { width: 18 }, { width: 18 }, { width: 18 }];
+        s10.addRow(['Agent', 'Consultation', 'Package', 'Conversion %']);
+        applyHeaderStyle(s10, 1, headerStyle);
+        for (const [agent, data] of Object.entries(m.agentMap).sort((a,b) => b[1].total - a[1].total)) {
+          const conv = data.consultation > 0 ? ((data.package / data.consultation) * 100).toFixed(1) + '%' : '0%';
+          s10.addRow([agent, data.consultation, data.package, conv]);
+        }
+
+        // Sheet 11: Lead Source Summary
+        const s11 = wb.addWorksheet('Lead Source Summary');
+        s11.columns = [{ width: 30 }, { width: 18 }, { width: 18 }, { width: 18 }];
+        s11.addRow(['Lead Source', 'Consultation', 'Package', 'Conversion %']);
+        applyHeaderStyle(s11, 1, headerStyle);
+        for (const [src, data] of Object.entries(m.sourceMap).sort((a,b) => b[1].total - a[1].total)) {
+          const conv = data.consultation > 0 ? ((data.package / data.consultation) * 100).toFixed(1) + '%' : '0%';
+          s11.addRow([src, data.consultation, data.package, conv]);
+        }
+
+        // Sheet 12: Package Summary
+        const s12 = wb.addWorksheet('Package Summary');
+        s12.columns = [{ width: 40 }, { width: 15 }, { width: 20 }];
+        s12.addRow(['Package', 'Patients', 'Revenue']);
+        applyHeaderStyle(s12, 1, headerStyle);
+        for (const [pkg, data] of Object.entries(m.packageSales).sort((a,b) => b[1].revenue - a[1].revenue)) {
+          s12.addRow([pkg, data.count, data.revenue]);
+        }
+        s12.getColumn(3).numFmt = '#,##0';
+
+        // Sheet 13: Raw Patient Summary
+        const s13 = wb.addWorksheet('Raw Patient Summary');
+        s13.columns = [
+          { width: 30 }, { width: 14 }, { width: 14 }, { width: 14 },
+          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 },
+          { width: 35 }
+        ];
+        s13.addRow([
+          'Patient', 'Consultation', 'Package', 'Single Session',
+          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev',
+          'Final Status'
+        ]);
+        applyHeaderStyle(s13, 1, headerStyle);
+        for (const p of pList) {
+          s13.addRow([
+            p.name,
+            p.hasConsultation ? 'Yes' : 'No',
+            p.hasPackage ? 'Yes' : 'No',
+            p.hasSingleSession ? 'Yes' : 'No',
+            p.totalPackageValue,
+            p.totalPaid,
+            Math.round(p.consultationRevenue * 100) / 100,
+            Math.round(p.packageRevenue * 100) / 100,
+            Math.round(p.singleSessionRevenue * 100) / 100,
+            p.status
+          ]);
+        }
+        for (let c = 5; c <= 9; c++) s13.getColumn(c).numFmt = '#,##0.00';
+
+        // Sheet 14: Doctor Incentives & Pain Mgmt
+        const s14 = wb.addWorksheet('Doctor Incentives & Pain Mgmt');
+        s14.columns = [
+          { width: 10 }, { width: 30 }, { width: 16 }, { width: 16 },
+          { width: 22 }, { width: 22 }, { width: 22 }, { width: 45 }
+        ];
+        s14.addRow(['Rank', 'Doctor', 'Consultation', 'Total Pkgs', 'Pain Mgmt Pkgs', 'Pain Mgmt Conv %', 'Pain Mgmt Revenue', 'Pain Mgmt Tier Breakdown']);
+        applyHeaderStyle(s14, 1, headerStyle);
+
+        const sortedDocs = Object.values(m.doctorMap).sort((a, b) => {
+          if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
+          return b.painMgmtRevenue - a.painMgmtRevenue;
+        });
+
+        sortedDocs.forEach((d, idx) => {
+          const breakdownStr = Object.entries(d.pmBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => `${name}: ${count}`)
+            .join(' | ') || 'None';
+
+          s14.addRow([
+            idx + 1,
+            d.doctor,
+            d.consultation,
+            d.totalPackages,
+            d.painMgmtCount,
+            d.painMgmtConvPct.toFixed(1) + '%',
+            d.painMgmtRevenue,
+            breakdownStr
+          ]);
+        });
+        s14.getColumn(7).numFmt = '#,##0.00';
+
+        // Write and download
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        downloadBlob(blob, 'Daily_Collection_Analysis.xlsx');
+        showToast('Excel report downloaded (14 sheets)', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error generating Excel: ' + err.message, 'error');
+      }
+      hideLoading();
+    }
+
+    // Reliable Download Blob Helper (FileSaver or Native Fallback)
+    function downloadBlob(blob, filename) {
+      if (typeof saveAs === 'function') {
+        saveAs(blob, filename);
+      } else if (typeof window.saveAs === 'function') {
+        window.saveAs(blob, filename);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+      }
+    }
+
+    // Export Current Active Tab Patients to Excel
+    async function exportCurrentTabExcel() {
+      const activeTab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      const pList = Object.values(filteredPatients).filter(activeTab.filter);
+      if (pList.length === 0) {
+        showToast('No patients to export in current tab', 'error');
+        return;
+      }
+      showLoading('Generating Excel for ' + activeTab.label + '...');
+      try {
+        await new Promise(r => setTimeout(r, 100));
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Daily Collection Analyzer';
+        const ws = wb.addWorksheet(activeTab.label.substring(0, 31));
+
+        const headerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+
+        const cols = [
+          'Patient Name', 'Packages', 'Doctor', 'Agent', 'Lead Source',
+          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev',
+          'Status', 'Per-Package Breakdown'
+        ];
+        ws.columns = [
+          { width: 30 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 },
+          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 },
+          { width: 32 }, { width: 50 }
+        ];
+
+        ws.addRow(cols);
+        applyHeaderStyle(ws, 1, headerStyle);
+
+        for (const p of pList) {
+          const breakdownStr = p.services
+            .filter(s => s.type !== 'consultation')
+            .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
+            .join(' | ') || '-';
+
+          ws.addRow([
+            p.name,
+            formatPackageList(p.packages),
+            p.doctors.join(', '),
+            p.agents.join(', '),
+            p.leadSources.join(', '),
+            p.totalPackageValue,
+            p.totalPaid,
+            Math.round((p.consultationRevenue || 0) * 100) / 100,
+            Math.round((p.packageRevenue || 0) * 100) / 100,
+            Math.round((p.singleSessionRevenue || 0) * 100) / 100,
+            p.status,
+            breakdownStr
+          ]);
+        }
+
+        for (let c = 6; c <= 10; c++) ws.getColumn(c).numFmt = '#,##0.00';
+
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const safeName = activeTab.label.replace(/[^a-zA-Z0-9]/g, '_');
+        downloadBlob(blob, `MPC_${safeName}_Patients.xlsx`);
+        showToast(`Excel downloaded for ${activeTab.label}`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error generating Excel: ' + err.message, 'error');
+      }
+      hideLoading();
+    }
+
+    function applyHeaderStyle(ws, rowNum, style) {
+      const row = ws.getRow(rowNum);
+      row.eachCell(cell => {
+        cell.font = style.font;
+        cell.fill = style.fill;
+        cell.alignment = style.alignment;
+        cell.border = style.border;
+      });
+    }
+
+    // ==================== CSV EXPORT ====================
+    function exportCSV() {
+      const pList = Object.values(filteredPatients);
+      if (pList.length === 0) { showToast('No data to export', 'error'); return; }
+
+      const headers = ['Patient Name', 'Consultation', 'Package', 'Single Session', 'Packages',
+        'Doctors', 'Agents', 'Lead Sources', 'Total Paid', 'Final Status'];
+      const rows = pList.map(p => [
+        `"${p.name}"`,
+        p.hasConsultation ? 'Yes' : 'No',
+        p.hasPackage ? 'Yes' : 'No',
+        p.hasSingleSession ? 'Yes' : 'No',
+        `"${p.packages.join('; ')}"`,
+        `"${p.doctors.join('; ')}"`,
+        `"${p.agents.join('; ')}"`,
+        `"${p.leadSources.join('; ')}"`,
+        p.totalPaid,
+        `"${p.status}"`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      downloadBlob(blob, 'Daily_Collection_Analysis.csv');
+      showToast('CSV downloaded', 'success');
+    }
+
+    // ==================== PDF EXPORT ====================
+    function exportPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const m = currentMetrics;
+        const pList = Object.values(filteredPatients);
+
+        // Title
+        doc.setFontSize(20);
+        doc.setTextColor(6, 182, 212);
+        doc.text('Daily Collection Report Analysis', 14, 20);
+        doc.setFontSize(10);
+        doc.setTextColor(148, 163, 184);
+        doc.text('Generated: ' + new Date().toLocaleString(), 14, 28);
+
+        // Key Metrics
+        doc.setFontSize(14);
+        doc.setTextColor(241, 245, 249);
+        doc.text('Key Metrics', 14, 42);
+
+        doc.autoTable({
+          startY: 46,
+          head: [['Metric', 'Value']],
+          body: [
+            ['Total Patients', m.totalPatients.toString()],
+            ['Total Consultation Patients', m.totalConsultationPatients.toString()],
+            ['Conversion Rate', m.conversionPct.toFixed(1) + '%'],
+            ['Total Revenue', formatCurrency(m.totalRevenue)],
+            ['Consultation Revenue', formatCurrency(m.consultationRevenue)],
+            ['Package Revenue', formatCurrency(m.packageRevenue)],
+            ['Single Session Revenue', formatCurrency(m.ssRevenue)]
+          ],
+          theme: 'grid',
+          headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
+          bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        // Category Breakdown
+        let y = doc.lastAutoTable.finalY + 14;
+        doc.setFontSize(14);
+        doc.setTextColor(241, 245, 249);
+        doc.text('Category Breakdown', 14, y);
+
+        doc.autoTable({
+          startY: y + 4,
+          head: [['Category', 'Count']],
+          body: m.STATUSES.map(s => [s, (m.statusCounts[s] || 0).toString()]),
+          theme: 'grid',
+          headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
+          bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        // Doctor Summary
+        y = doc.lastAutoTable.finalY + 14;
+        if (y > 250) { doc.addPage(); y = 20; }
+        doc.setFontSize(14);
+        doc.text('Doctor Summary', 14, y);
+
+        doc.autoTable({
+          startY: y + 4,
+          head: [['Doctor', 'Consultation', 'Package', 'Conversion %']],
+          body: Object.entries(m.doctorMap).sort((a,b) => b[1].total - a[1].total).map(([doc, d]) => [
+            doc, d.consultation.toString(), d.package.toString(),
+            d.consultation > 0 ? ((d.package / d.consultation) * 100).toFixed(1) + '%' : '0%'
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
+          bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+          alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        doc.save('Daily_Collection_Analysis.pdf');
+        showToast('PDF downloaded', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error generating PDF: ' + err.message, 'error');
+      }
+    }
+
+    // ==================== ADMIN CONFIG ====================
+    function openAdminModal() {
+      renderConfigTags();
+      document.getElementById('admin-modal').classList.add('show');
+    }
+
+    function closeAdminModal() {
+      document.getElementById('admin-modal').classList.remove('show');
+    }
+
+    function renderConfigTags() {
+      const cContainer = document.getElementById('consultation-tags');
+      const ssContainer = document.getElementById('single-session-tags');
+
+      cContainer.innerHTML = config.consultationKeywords.map(kw =>
+        `<span class="config-tag">${kw}<span class="remove" onclick="removeConfigTag('consultation','${kw}')">×</span></span>`
+      ).join('');
+
+      ssContainer.innerHTML = config.singleSessionKeywords.map(kw =>
+        `<span class="config-tag">${kw}<span class="remove" onclick="removeConfigTag('single-session','${kw}')">×</span></span>`
+      ).join('');
+    }
+
+    function addConfigTag(type) {
+      const input = document.getElementById(`${type}-input`);
+      const val = input.value.trim();
+      if (!val) return;
+
+      if (type === 'consultation') {
+        if (!config.consultationKeywords.includes(val.toLowerCase())) {
+          config.consultationKeywords.push(val.toLowerCase());
+        }
+      } else {
+        if (!config.singleSessionKeywords.includes(val.toLowerCase())) {
+          config.singleSessionKeywords.push(val.toLowerCase());
+        }
+      }
+
+      input.value = '';
+      renderConfigTags();
+    }
+
+    function removeConfigTag(type, kw) {
+      if (type === 'consultation') {
+        config.consultationKeywords = config.consultationKeywords.filter(k => k !== kw);
+      } else {
+        config.singleSessionKeywords = config.singleSessionKeywords.filter(k => k !== kw);
+      }
+      renderConfigTags();
+    }
+
+    function saveAdminConfig() {
+      saveConfigToStorage();
+      closeAdminModal();
+      showToast('Configuration saved', 'success');
+
+      // Re-process if data is loaded
+      if (rawRows.length > 0) {
+        allPatients = groupPatients(rawRows);
+        filteredPatients = { ...allPatients };
+        currentMetrics = computeMetrics(filteredPatients);
+        populateFilters();
+        renderDashboard(currentMetrics, filteredPatients);
+        showToast('Data re-analyzed with new config', 'info');
+      }
+    }
+
+    // Enter key for config inputs
+    document.addEventListener('DOMContentLoaded', () => {
+      ['consultation-input', 'single-session-input'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            addConfigTag(id.replace('-input', ''));
+          }
+        });
+      });
+    });
+
+    // ==================== UI HELPERS ====================
+    function showLoading(text) {
+      document.getElementById('loading-text').textContent = text || 'Processing...';
+      document.getElementById('loading-overlay').classList.add('show');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.remove('show');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+      toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = '0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function resetApp() {
+      uploadedFile = null;
+      rawRows = [];
+      allPatients = {};
+      filteredPatients = {};
+      currentMetrics = {};
+      sortState = {};
+      currentTab = 'all';
+      destroyCharts();
+
+      document.getElementById('dashboard-section').classList.add('hidden');
+      document.getElementById('upload-section').classList.remove('hidden');
+      document.getElementById('file-info').classList.remove('show');
+      document.getElementById('generate-btn').disabled = true;
+      clearFilters();
+    }
+
+    // ==================== FILE UPLOAD ====================
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) handleFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file.name.match(/\.xlsx?$/i)) {
+        showToast('Please upload an .xlsx file', 'error');
+        return;
+      }
+      uploadedFile = file;
+      document.getElementById('file-name').textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+      document.getElementById('file-info').classList.add('show');
+      document.getElementById('generate-btn').disabled = false;
+    }
+
+    // ==================== GENERATE REPORT ====================
+    document.getElementById('generate-btn').addEventListener('click', async () => {
+      if (!uploadedFile) return;
+
+      showLoading('Reading Excel file...');
+      const startTime = performance.now();
+
+      try {
+        await new Promise(r => setTimeout(r, 50)); // Let UI update
+
+        showLoading('Parsing Excel data...');
+        const result = await parseExcel(uploadedFile);
+        rawRows = result.rows;
+        columnMap = result.colMap;
+
+        if (rawRows.length === 0) {
+          hideLoading();
+          showToast('No data rows found in the Excel file', 'error');
+          return;
+        }
+
+        showLoading('Classifying services...');
+        await new Promise(r => setTimeout(r, 50));
+
+        showLoading('Grouping patients...');
+        allPatients = groupPatients(rawRows);
+        filteredPatients = { ...allPatients };
+
+        showLoading('Computing analytics...');
+        await new Promise(r => setTimeout(r, 50));
+        currentMetrics = computeMetrics(filteredPatients);
+
+        showLoading('Rendering dashboard...');
+        await new Promise(r => setTimeout(r, 50));
+
+        populateFilters();
+
+        // Switch views
+        document.getElementById('upload-section').classList.add('hidden');
+        document.getElementById('dashboard-section').classList.remove('hidden');
+
+        // Update file info bar
+        document.getElementById('dash-file-name').textContent = uploadedFile.name;
+        document.getElementById('dash-row-count').textContent = rawRows.length + ' rows • ' +
+          Object.keys(allPatients).length + ' patients';
+
+        renderDashboard(currentMetrics, filteredPatients);
+
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        hideLoading();
+        showToast(`Analysis complete in ${elapsed}s — ${Object.keys(allPatients).length} patients processed`, 'success');
+
+      } catch (err) {
+        hideLoading();
+        console.error(err);
+        showToast('Error: ' + err.message, 'error');
+      }
+    });
+
+    // ==================== INIT ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load config on startup
+      config = loadConfig();
+    });
+  </script>
+</body>
+</html>
