@@ -1685,10 +1685,18 @@
           }
 
           // Package type: detect multiple purchases
-          // Use proportionalPaid (not amountPaid) to avoid false positives with bundled payments
+          // Check totalPackageCost from Excel if available and valid
           let pkgCount = 1;
-          if (svc.packageCost > 0 && svc.proportionalPaid > svc.packageCost) {
-            pkgCount = Math.ceil(svc.proportionalPaid / svc.packageCost);
+          if (svc.totalPackageCost > 0 && svc.packageCost > 0 && svc.totalPackageCost >= svc.packageCost * 2) {
+            pkgCount = Math.round(svc.totalPackageCost / svc.packageCost);
+          } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
+            pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
+          }
+
+          // Cap allocated revenue per package contract at packageCost * pkgCount
+          const maxAllowedAllocated = svc.packageCost * pkgCount;
+          if (svc.packageCost > 0 && svc.proportionalPaid > maxAllowedAllocated) {
+            svc.proportionalPaid = maxAllowedAllocated;
           }
 
           if (pkgCount === 1) {
@@ -2552,6 +2560,7 @@
 
       let tbody = sortedData.map(p => {
         const badgeClass = getBadgeClass(p.status);
+        const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
           <td>${formatPackageList(p.packages)}</td>
@@ -2559,7 +2568,7 @@
           <td>${p.agents.join(', ') || '-'}</td>
           <td>${p.leadSources.join(', ') || '-'}</td>
           <td>${p.totalPackageValue ? formatCurrency(p.totalPackageValue) : '-'}</td>
-          <td style="font-weight:600">${formatCurrency(p.totalPaid)}</td>
+          <td style="font-weight:600">${nonConsultPaid ? formatCurrency(nonConsultPaid) : '-'}</td>
           <td style="color:var(--cyan)">${p.consultationRevenue ? formatCurrency(p.consultationRevenue) : '-'}</td>
           <td style="color:var(--purple)">${formatPackageRevenueBreakdown(p)}</td>
           <td style="color:var(--amber)">${formatSingleSessionRevenueBreakdown(p)}</td>
@@ -2592,7 +2601,7 @@
         case 'agent': return p.agents.join(', ');
         case 'leadSource': return p.leadSources.join(', ');
         case 'pkgValue': return p.totalPackageValue;
-        case 'amountPaid': return p.totalPaid;
+        case 'amountPaid': return Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
         case 'consultRev': return p.consultationRevenue;
         case 'pkgRev': return p.packageRevenue;
         case 'ssRev': return p.singleSessionRevenue;
@@ -2750,6 +2759,8 @@
               .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
               .join(' | ') || '-';
 
+            const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
+
             ws.addRow([
               p.name,
               formatPackageList(p.packages),
@@ -2757,7 +2768,7 @@
               p.agents.join(', '),
               p.leadSources.join(', '),
               p.totalPackageValue,
-              p.totalPaid,
+              nonConsultPaid,
               Math.round(p.consultationRevenue * 100) / 100,
               Math.round(p.packageRevenue * 100) / 100,
               Math.round(p.singleSessionRevenue * 100) / 100,
@@ -2834,13 +2845,14 @@
         ]);
         applyHeaderStyle(s13, 1, headerStyle);
         for (const p of pList) {
+          const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
           s13.addRow([
             p.name,
             p.hasConsultation ? 'Yes' : 'No',
             p.hasPackage ? 'Yes' : 'No',
             p.hasSingleSession ? 'Yes' : 'No',
             p.totalPackageValue,
-            p.totalPaid,
+            nonConsultPaid,
             Math.round(p.consultationRevenue * 100) / 100,
             Math.round(p.packageRevenue * 100) / 100,
             Math.round(p.singleSessionRevenue * 100) / 100,
@@ -2961,6 +2973,8 @@
             .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
             .join(' | ') || '-';
 
+          const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
+
           ws.addRow([
             p.name,
             formatPackageList(p.packages),
@@ -2968,7 +2982,7 @@
             p.agents.join(', '),
             p.leadSources.join(', '),
             p.totalPackageValue,
-            p.totalPaid,
+            nonConsultPaid,
             Math.round((p.consultationRevenue || 0) * 100) / 100,
             Math.round((p.packageRevenue || 0) * 100) / 100,
             Math.round((p.singleSessionRevenue || 0) * 100) / 100,
