@@ -1606,8 +1606,13 @@
           dateGroups[dateKey].push(row);
         }
 
+        // Sort date keys chronologically
+        const sortedDateKeys = Object.keys(dateGroups).sort();
+        const ssAllocatedMap = {}; // track cumulative allocated revenue per single session name
+
         // Allocate within each date group
-        for (const dateRows of Object.values(dateGroups)) {
+        for (const dateKey of sortedDateKeys) {
+          const dateRows = dateGroups[dateKey];
           const dateTotalPaid = dateRows.reduce((sum, r) => sum + r.amountPaid, 0);
           if (dateTotalPaid === 0) continue; // No payment on this date → proportionalPaid stays 0
 
@@ -1626,10 +1631,16 @@
           }
           dateRemaining = Math.max(0, dateRemaining - consultTotal);
 
-          // Step 2: Single Sessions get full fixed price (NO bifurcation!)
+          // Step 2: Single Sessions get target fixed price, respecting already satisfied capacity on earlier dates
           for (const sr of ssRows) {
+            const nameKey = (sr.packageName || 'SS').toLowerCase().trim();
             const price = sr.packageCost > 0 ? sr.packageCost : getSingleSessionPrice(sr.packageName, 0);
-            sr.proportionalPaid = Math.min(price, dateRemaining);
+            const prevAllocated = ssAllocatedMap[nameKey] || 0;
+
+            const needed = Math.max(0, price - prevAllocated);
+            sr.proportionalPaid = Math.min(needed, dateRemaining);
+            ssAllocatedMap[nameKey] = prevAllocated + sr.proportionalPaid;
+
             dateRemaining = Math.max(0, dateRemaining - sr.proportionalPaid);
           }
 
@@ -1752,8 +1763,6 @@
             let ssCount = 1;
             if (unitCost > 0 && svc.proportionalPaid >= unitCost * 1.95) {
               ssCount = Math.max(1, Math.round(svc.proportionalPaid / unitCost));
-            } else if (unitCost > 0 && svc.amountPaid >= unitCost * 1.95) {
-              ssCount = Math.max(1, Math.round(svc.amountPaid / unitCost));
             }
 
             const perSessionPaid = Math.round((svc.proportionalPaid / ssCount) * 100) / 100;
@@ -1779,13 +1788,9 @@
             continue;
           }
 
-          // Package type: detect multiple purchases
-          // Check effectiveTotalPkgCost from Excel if available and valid
+          // Package type: detect multiple purchases (e.g. renewals or explicit multi-contract purchases)
           let pkgCount = 1;
-          const effectiveTotalCost = svc.effectiveTotalPkgCost || svc.packageCost || 0;
-          if (effectiveTotalCost > 0 && svc.packageCost > 0 && effectiveTotalCost >= svc.packageCost * 1.95) {
-            pkgCount = Math.round(effectiveTotalCost / svc.packageCost);
-          } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
+          if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
             pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
           }
 
