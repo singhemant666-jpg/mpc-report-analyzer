@@ -1514,7 +1514,7 @@
     }
 
     // ==================== PATIENT GROUPING & REVENUE ALLOCATION ====================
-    function groupPatients(rows) {
+    function groupPatients(rows, globalPatients = null) {
       const patients = {};
 
       // ══════════════════════════════════════════════════════════════════
@@ -1826,14 +1826,31 @@
           }
         }
 
-        p.services = finalServices;
+        // Determine final status & preserve complete global patient profile if filtering
+        if (globalPatients && globalPatients[key]) {
+          const g = globalPatients[key];
+          p.hasConsultation = g.hasConsultation;
+          p.hasPackage = g.hasPackage;
+          p.hasSingleSession = g.hasSingleSession;
+          p.status = g.status;
+          p.services = g.services;
+          p.packages = g.packages;
+          p.totalPackageValue = g.totalPackageValue;
+          p.packageRevenue = g.packageRevenue;
+          p.singleSessionRevenue = g.singleSessionRevenue;
+          p.consultationRevenue = g.consultationRevenue;
+          p.totalPaid = g.totalPaid;
+          p.doctors = g.doctors;
+          p.agents = g.agents;
+          p.leadSources = g.leadSources;
+        } else {
+          p.services = finalServices;
+          p.status = determineStatus(p);
+          p.doctors = [...p.doctors];
+          p.agents = [...p.agents];
+          p.leadSources = [...p.leadSources];
+        }
         delete p._rawRows; // Clean up temporary data
-
-        // Determine final status
-        p.status = determineStatus(p);
-        p.doctors = [...p.doctors];
-        p.agents = [...p.agents];
-        p.leadSources = [...p.leadSources];
       }
 
       return patients;
@@ -2050,7 +2067,7 @@
         return true;
       });
 
-      filteredPatients = groupPatients(filtered);
+      filteredPatients = groupPatients(filtered, allPatients);
 
       // Apply status filter on grouped data
       if (status) {
