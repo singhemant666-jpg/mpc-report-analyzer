@@ -1718,9 +1718,10 @@
         }
 
         // Determine cumulative allocation across all packages for patient to set isRenewal accurately:
-        // Only patients with a Consultation in the same month (p.hasConsultation) qualify for renewals.
-        // The first package contract (up to initial package cost) is the Initial Conversion Package.
-        // Subsequent packages bought after initial package capacity is satisfied are flagged as isRenewal = true.
+        // A row is flagged as isRenewal = true ONLY if:
+        // 1. Patient has a Consultation in the same month (p.hasConsultation)
+        // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
+        // 3. Cumulative allocated revenue reached/exceeded the initial package cost (cumulativeAllocated >= initialUnitCost - 0.01)
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         allPkgRows.sort((a, b) => {
           const da = a.paymentDate instanceof Date ? a.paymentDate : new Date(a.paymentDate || 0);
@@ -1729,11 +1730,19 @@
         });
 
         if (allPkgRows.length > 0) {
+          const getRowDateStr = (r) => {
+            if (r.paymentDate instanceof Date) return r.paymentDate.toISOString().slice(0, 10);
+            if (typeof r.paymentDate === 'string') return r.paymentDate.slice(0, 10);
+            return '';
+          };
+
+          const firstDateStr = getRowDateStr(allPkgRows[0]);
           const initialUnitCost = allPkgRows[0].packageCost > 0 ? allPkgRows[0].packageCost : getPackagePrice(allPkgRows[0].packageName, 0);
           let cumulativeAllocated = 0;
 
           for (const row of allPkgRows) {
-            if (p.hasConsultation && initialUnitCost > 0 && cumulativeAllocated >= initialUnitCost - 0.01) {
+            const rowDateStr = getRowDateStr(row);
+            if (p.hasConsultation && firstDateStr && rowDateStr > firstDateStr && initialUnitCost > 0 && cumulativeAllocated >= initialUnitCost - 0.01) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
