@@ -1119,7 +1119,11 @@
       <!-- Data Tables -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; margin-bottom:12px;">
         <div class="section-title" style="margin-bottom:0;"><span class="icon">📋</span> Patient Data</div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <div class="patient-search-box" style="position:relative; display:flex; align-items:center;">
+            <input type="text" id="patient-data-search" class="search-input" style="padding:6px 30px 6px 12px; font-size:13px; min-width:220px; height:34px; border-radius:6px;" placeholder="🔍 Search patient name..." oninput="onPatientDataSearchInput()">
+            <span id="clear-patient-search" onclick="clearPatientDataSearch()" style="position:absolute; right:10px; cursor:pointer; display:none; color:var(--text-muted); font-size:14px;">✕</span>
+          </div>
           <button class="btn btn-success btn-sm" onclick="exportExcel()" id="patient-excel-btn">
             📥 Download Full Excel (14 Sheets)
           </button>
@@ -2728,12 +2732,40 @@
       </div>`;
     }
 
+    let patientSearchQuery = '';
+
+    function onPatientDataSearchInput() {
+      const input = document.getElementById('patient-data-search');
+      const val = input ? input.value.trim() : '';
+      patientSearchQuery = val.toLowerCase();
+      const clearBtn = document.getElementById('clear-patient-search');
+      if (clearBtn) clearBtn.style.display = val ? 'block' : 'none';
+
+      const activeTab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      renderTableContent(filteredPatients, activeTab);
+    }
+
+    function clearPatientDataSearch() {
+      const input = document.getElementById('patient-data-search');
+      if (input) input.value = '';
+      patientSearchQuery = '';
+      const clearBtn = document.getElementById('clear-patient-search');
+      if (clearBtn) clearBtn.style.display = 'none';
+
+      const activeTab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      renderTableContent(filteredPatients, activeTab);
+    }
+
     function renderTableContent(patients, tab) {
       const content = document.getElementById('table-content');
-      const filtered = Object.values(patients).filter(tab.filter);
+      let filtered = Object.values(patients).filter(tab.filter);
+
+      if (patientSearchQuery) {
+        filtered = filtered.filter(p => p.name && p.name.toLowerCase().includes(patientSearchQuery));
+      }
 
       if (filtered.length === 0) {
-        content.innerHTML = '<div class="no-data">No patients found in this category</div>';
+        content.innerHTML = '<div class="no-data">No patients found</div>';
         return;
       }
 
