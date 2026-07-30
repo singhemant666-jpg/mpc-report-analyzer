@@ -1439,9 +1439,21 @@
     }
 
     // ==================== SERVICE CLASSIFICATION ====================
-    function classifyService(packageName) {
+    function classifyService(packageName, amountPaid, totalPackageCost) {
       if (!packageName) return 'unknown';
-      const lower = packageName.toLowerCase();
+      const lower = packageName.toLowerCase().trim();
+
+      // Special Rule for Default Top Up / N/A / NA:
+      // If amountPaid or totalPackageCost equals consultation fee (₹499 or ₹1,500), classify as consultation.
+      // Any other amount (e.g. ₹300, ₹500, ₹600, ₹700, ₹800, ₹900, etc.) is extra wallet top-up money to give another service/convert to package.
+      if (lower === 'default top up' || lower === 'n/a' || lower === 'na' || lower === '') {
+        const amt = Math.round(amountPaid || 0);
+        const cost = Math.round(totalPackageCost || 0);
+        if (amt === 499 || amt === 1500 || cost === 499 || cost === 1500) {
+          return 'consultation';
+        }
+        return 'package';
+      }
 
       // Check consultation keywords
       for (const kw of config.consultationKeywords) {
@@ -1535,7 +1547,7 @@
         }
 
         const p = patients[key];
-        const serviceType = classifyService(row.packageName);
+        const serviceType = classifyService(row.packageName, row.amountPaid, row.totalPackageCost);
         const pkgName = (row.packageName || '').trim();
 
         let pkgPrice = row.packageCost;
@@ -1867,7 +1879,7 @@
 
       let totalConsultationRecords = 0;
       for (const r of rawRows) {
-        if (classifyService(r.packageName) === 'consultation') totalConsultationRecords++;
+        if (classifyService(r.packageName, r.amountPaid, r.totalPackageCost) === 'consultation') totalConsultationRecords++;
       }
 
       const totalPatients = pList.length;
