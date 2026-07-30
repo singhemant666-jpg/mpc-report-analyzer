@@ -3113,13 +3113,20 @@
         return sum + bmskRev;
       }, 0);
 
+      const renewalsTotal = sortedData.reduce((sum, p) => {
+        const renRev = p.services
+          .filter(s => s.isRenewal)
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        return sum + renRev;
+      }, 0);
+
       content.innerHTML = `
         <div class="table-wrapper">
           <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
         </div>
         <div class="table-info">
           <span>Showing ${sortedData.length} patients</span>
-          <span>Pain Mgmt Pkg Total: ${formatCurrency(pmTotal)} | Wellness Pkg Total: ${formatCurrency(wellnessTotal)} | Robotic Spine Total: ${formatCurrency(roboticSpineTotal)} | BMSK Total: ${formatCurrency(bmskTotal)}</span>
+          <span>Pain Mgmt Pkg Total: ${formatCurrency(pmTotal)} | Wellness Pkg Total: ${formatCurrency(wellnessTotal)} | Robotic Spine Total: ${formatCurrency(roboticSpineTotal)} | BMSK Total: ${formatCurrency(bmskTotal)} | Renewals Total: ${formatCurrency(renewalsTotal)}</span>
         </div>`;
     }
 
@@ -3283,7 +3290,7 @@
           { name: 'Only Package', status: 'Only Package' },
           { name: 'Only Single Session', status: 'Only Single Session' },
           { name: 'Package + SS', status: 'Package + Single Session' },
-          { name: 'Package Renewals', filter: p => p.services && p.services.some(s => s.isRenewal) }
+          { name: 'Package Renewals', filter: p => p.services && p.services.some(s => s.isRenewal), isRenewalsSheet: true }
         ];
 
         for (const cs of categorySheets) {
@@ -3300,22 +3307,28 @@
           applyHeaderStyle(ws, 1, headerStyle);
 
           for (const p of catPatients) {
-            const breakdownStr = p.services
+            const targetServices = cs.isRenewalsSheet ? p.services.filter(s => s.isRenewal) : p.services;
+            
+            const breakdownStr = targetServices
               .filter(s => s.type !== 'consultation')
               .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
               .join(' | ') || '-';
 
+            const pkgsStr = cs.isRenewalsSheet 
+              ? formatPackageList(targetServices.map(s => s.packageName)) 
+              : formatPackageList(p.packages);
+
             const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
-            const pmPkgRev = p.services
+            const pmPkgRev = targetServices
               .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-            const wellnessPkgRev = p.services
+            const wellnessPkgRev = targetServices
               .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-            const roboticSpinePkgRev = p.services
+            const roboticSpinePkgRev = targetServices
               .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-            const bmskPkgRev = p.services
+            const bmskPkgRev = targetServices
               .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
             const renewalsStr = p.services
@@ -3323,17 +3336,25 @@
               .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
               .join(' | ') || '-';
 
+            const displayPkgVal = cs.isRenewalsSheet 
+              ? targetServices.reduce((sum, s) => sum + (s.packageCost || 0), 0)
+              : p.totalPackageValue;
+
+            const displayPkgRev = cs.isRenewalsSheet
+              ? targetServices.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0)
+              : p.packageRevenue;
+
             ws.addRow([
               p.name,
-              formatPackageList(p.packages),
+              pkgsStr,
               p.doctors.join(', '),
               p.agents.join(', '),
               p.leadSources.join(', '),
-              p.totalPackageValue,
+              displayPkgVal,
               nonConsultPaid,
-              Math.round(p.consultationRevenue * 100) / 100,
-              Math.round(p.packageRevenue * 100) / 100,
-              Math.round(p.singleSessionRevenue * 100) / 100,
+              cs.isRenewalsSheet ? 0 : Math.round(p.consultationRevenue * 100) / 100,
+              Math.round(displayPkgRev * 100) / 100,
+              cs.isRenewalsSheet ? 0 : Math.round(p.singleSessionRevenue * 100) / 100,
               Math.round(pmPkgRev * 100) / 100,
               Math.round(wellnessPkgRev * 100) / 100,
               Math.round(roboticSpinePkgRev * 100) / 100,
