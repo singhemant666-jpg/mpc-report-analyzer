@@ -1717,30 +1717,23 @@
           }
         }
 
-        // Determine cumulative allocation per package to set isRenewal accurately:
-        // Installments for the initial contract capacity (unitCost) are NOT renewals.
-        // Payments exceeding unitCost (subsequent renewal contracts) are flagged as isRenewal = true.
-        const pkgRowMap = {};
-        for (const row of p._rawRows) {
-          if (row.type === 'package') {
-            const name = row.packageName || 'Unknown';
-            if (!pkgRowMap[name]) pkgRowMap[name] = [];
-            pkgRowMap[name].push(row);
-          }
-        }
+        // Determine cumulative allocation across all packages for patient to set isRenewal accurately:
+        // Only patients with a Consultation in the same month (p.hasConsultation) qualify for renewals.
+        // The first package contract (up to initial package cost) is the Initial Conversion Package.
+        // Subsequent packages bought after initial package capacity is satisfied are flagged as isRenewal = true.
+        const allPkgRows = p._rawRows.filter(r => r.type === 'package');
+        allPkgRows.sort((a, b) => {
+          const da = a.paymentDate instanceof Date ? a.paymentDate : new Date(a.paymentDate || 0);
+          const db = b.paymentDate instanceof Date ? b.paymentDate : new Date(b.paymentDate || 0);
+          return da - db;
+        });
 
-        for (const [pkgName, rows] of Object.entries(pkgRowMap)) {
-          rows.sort((a, b) => {
-            const da = a.paymentDate instanceof Date ? a.paymentDate : new Date(a.paymentDate || 0);
-            const db = b.paymentDate instanceof Date ? b.paymentDate : new Date(b.paymentDate || 0);
-            return da - db;
-          });
-
-          const unitCost = rows[0].packageCost > 0 ? rows[0].packageCost : getPackagePrice(pkgName, 0);
+        if (allPkgRows.length > 0) {
+          const initialUnitCost = allPkgRows[0].packageCost > 0 ? allPkgRows[0].packageCost : getPackagePrice(allPkgRows[0].packageName, 0);
           let cumulativeAllocated = 0;
 
-          for (const row of rows) {
-            if (unitCost > 0 && cumulativeAllocated >= unitCost - 0.01) {
+          for (const row of allPkgRows) {
+            if (p.hasConsultation && initialUnitCost > 0 && cumulativeAllocated >= initialUnitCost - 0.01) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
@@ -2618,7 +2611,7 @@
       { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
       { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
       { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' },
-      { id: 'renewals', label: 'Package Renewals', filter: p => p.services && p.services.some(s => s.isRenewal) }
+      { id: 'renewals', label: 'Package Renewals', filter: p => p.hasConsultation && p.services && p.services.some(s => s.isRenewal) }
     ];
 
     function renderTables(patients, metrics) {
@@ -3028,15 +3021,18 @@
       let tbody = sortedData.map(p => {
         const badgeClass = getBadgeClass(p.status);
 
-        // Filter services depending on current active tab
+        // Filter services depending on current active tab:
+        // - 'renewals' tab: show ONLY renewal packages
+        // - 'all' tab: show ALL services
+        // - category tabs ('consult_pkg', 'only_pkg', etc.): show ONLY initial services (EXCLUDE renewals!)
         let displayServices = p.services;
-        if (tab.id === 'consult_pkg' || tab.id === 'consult_pkg_ss' || tab.id === 'only_pkg') {
-          displayServices = p.services.filter(s => !s.isRenewal);
-        } else if (tab.id === 'renewals') {
+        if (tab.id === 'renewals') {
           displayServices = p.services.filter(s => s.isRenewal);
+        } else if (tab.id !== 'all') {
+          displayServices = p.services.filter(s => !s.isRenewal);
         }
 
-        const pkgVal = p.totalPackageValue || 0;
+        const pkgVal = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
         const nonConsultPaid = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
         const packagesList = displayServices.filter(s => s.type !== 'consultation').map(s => s.packageName);
@@ -3307,18 +3303,25 @@
           applyHeaderStyle(ws, 1, headerStyle);
 
           for (const p of catPatients) {
-            const targetServices = cs.isRenewalsSheet ? p.services.filter(s => s.isRenewal) : p.services;
+            const targetServices = cs.isRenewalsSheet 
+              ? p.services.filter(s => s.isRenewal) 
+              : p.services.filter(s => !s.isRenewal);
             
             const breakdownStr = targetServices
               .filter(s => s.type !== 'consultation')
               .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
               .join(' | ') || '-';
 
-            const pkgsStr = cs.isRenewalsSheet 
-              ? formatPackageList(targetServices.map(s => s.packageName)) 
-              : formatPackageList(p.packages);
+            const pkgsStr = formatPackageList(targetServices.filter(s => s.type !== 'consultation').map(s => s.packageName));
 
-            const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
+            const displayPkgRev = targetServices
+              .filter(s => s.type !== 'consultation')
+              .reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+            
+            const displayPkgVal = targetServices
+              .filter(s => s.type !== 'consultation')
+              .reduce((sum, s) => sum + (s.packageCost || 0), 0);
+
             const pmPkgRev = targetServices
               .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
@@ -3336,14 +3339,6 @@
               .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
               .join(' | ') || '-';
 
-            const displayPkgVal = cs.isRenewalsSheet 
-              ? targetServices.reduce((sum, s) => sum + (s.packageCost || 0), 0)
-              : p.totalPackageValue;
-
-            const displayPkgRev = cs.isRenewalsSheet
-              ? targetServices.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0)
-              : p.packageRevenue;
-
             ws.addRow([
               p.name,
               pkgsStr,
@@ -3351,7 +3346,7 @@
               p.agents.join(', '),
               p.leadSources.join(', '),
               displayPkgVal,
-              nonConsultPaid,
+              displayPkgRev,
               cs.isRenewalsSheet ? 0 : Math.round(p.consultationRevenue * 100) / 100,
               Math.round(displayPkgRev * 100) / 100,
               cs.isRenewalsSheet ? 0 : Math.round(p.singleSessionRevenue * 100) / 100,
@@ -3578,22 +3573,35 @@
         applyHeaderStyle(ws, 1, headerStyle);
 
         for (const p of pList) {
-          const breakdownStr = p.services
+          const targetServices = currentTab === 'renewals' 
+            ? p.services.filter(s => s.isRenewal) 
+            : (currentTab === 'all' ? p.services : p.services.filter(s => !s.isRenewal));
+
+          const breakdownStr = targetServices
             .filter(s => s.type !== 'consultation')
             .map(s => `${s.packageName}: ₹${s.proportionalPaid.toLocaleString()}`)
             .join(' | ') || '-';
 
-          const nonConsultPaid = Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
-          const pmPkgRev = p.services
+          const pkgsStr = formatPackageList(targetServices.filter(s => s.type !== 'consultation').map(s => s.packageName));
+
+          const displayPkgRev = targetServices
+            .filter(s => s.type !== 'consultation')
+            .reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+
+          const displayPkgVal = targetServices
+            .filter(s => s.type !== 'consultation')
+            .reduce((sum, s) => sum + (s.packageCost || 0), 0);
+
+          const pmPkgRev = targetServices
             .filter(s => s.type === 'package' && isPainManagementPackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-          const wellnessPkgRev = p.services
+          const wellnessPkgRev = targetServices
             .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-          const roboticSpinePkgRev = p.services
+          const roboticSpinePkgRev = targetServices
             .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
-          const bmskPkgRev = p.services
+          const bmskPkgRev = targetServices
             .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
           const renewalsStr = p.services
@@ -3603,15 +3611,15 @@
 
           ws.addRow([
             p.name,
-            formatPackageList(p.packages),
+            pkgsStr,
             p.doctors.join(', '),
             p.agents.join(', '),
             p.leadSources.join(', '),
-            p.totalPackageValue,
-            nonConsultPaid,
-            Math.round(p.consultationRevenue * 100) / 100,
-            Math.round(p.packageRevenue * 100) / 100,
-            Math.round(p.singleSessionRevenue * 100) / 100,
+            displayPkgVal,
+            displayPkgRev,
+            currentTab === 'renewals' ? 0 : Math.round(p.consultationRevenue * 100) / 100,
+            Math.round(displayPkgRev * 100) / 100,
+            currentTab === 'renewals' ? 0 : Math.round(p.singleSessionRevenue * 100) / 100,
             Math.round(pmPkgRev * 100) / 100,
             Math.round(wellnessPkgRev * 100) / 100,
             Math.round(roboticSpinePkgRev * 100) / 100,
