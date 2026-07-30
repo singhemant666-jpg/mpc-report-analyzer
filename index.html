@@ -1469,19 +1469,47 @@
       return 'package';
     }
 
+    // ==================== OFFICIAL SERVICES MASTER PRICE REGISTRY ====================
+    const SERVICES_MASTER_PRICE_LIST = [
+      { name: 'Home Visit', keywords: ['home visit'], singleSession: 2500, packageCostPerSession: 2500 },
+      { name: 'Online Consultation', keywords: ['online consultation', 'online consult'], singleSession: 2000, packageCostPerSession: 2000 },
+      { name: 'Prism', keywords: ['prism'], singleSession: 500, packageCostPerSession: 500 },
+      { name: 'HBOT (Soft Shell)', keywords: ['hbot (soft shell)', 'hbot soft', 'soft shell'], singleSession: 2000, packageCostPerSession: 1500 },
+      { name: 'HBOT (Hard Shell)', keywords: ['hbot (hard shell)', 'hbot hard', 'hard shell', 'hbot'], singleSession: 2000, packageCostPerSession: 1500 },
+      { name: 'EMS Training', keywords: ['ems', 'ems training'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Couple Ice Bath', keywords: ['couple ice bath'], singleSession: 2500, packageCostPerSession: 2500 },
+      { name: 'Ice Bath', keywords: ['ice bath'], singleSession: 2000, packageCostPerSession: 1500 },
+      { name: 'Women\'s Health Consultation', keywords: ['women\'s health consultation', 'womens health consultation', 'women health consultation'], singleSession: 1500, packageCostPerSession: 1500 },
+      { name: 'Focused Shockwave Therapy', keywords: ['focused shockwave', 'shockwave'], singleSession: 2000, packageCostPerSession: 1800 },
+      { name: 'Women\'s Health Therapy', keywords: ['women\'s health therapy', 'womens health therapy', 'women health therapy', 'women\'s health', 'womens health'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Consultation', keywords: ['consultation', 'pain management consultation'], singleSession: 499, packageCostPerSession: 499 },
+      { name: 'Foot Insoles', keywords: ['foot insole', 'foot insoles', 'foot in soles', 'insole', 'insoles'], singleSession: 2360, packageCostPerSession: 2360 },
+      { name: 'Pilates', keywords: ['pilates'], singleSession: 1000, packageCostPerSession: 800 },
+      { name: 'Pelvic Chair', keywords: ['pelvic chair', 'pelvic'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Gait Analysis', keywords: ['gait analysis', 'gait'], singleSession: 2500, packageCostPerSession: 2500 },
+      { name: 'Cardio Coach', keywords: ['cardio coach', 'cardio'], singleSession: 2500, packageCostPerSession: 2500 },
+      { name: 'Cryotherapy', keywords: ['cryotherapy', 'cryo'], singleSession: 2500, packageCostPerSession: 2250 },
+      { name: 'Red Light Therapy', keywords: ['red light', 'red light therapy'], singleSession: 2000, packageCostPerSession: 1500 },
+      { name: 'Basic Physiotherapy (BMSK)', keywords: ['bmsk', 'basic bmsk', 'basic physio', 'basic physiotherapy'], singleSession: 1000, packageCostPerSession: 800 },
+      { name: 'Advance Physiotherapy (AMSK)', keywords: ['amsk', 'advance amsk', 'advance physio', 'advance physiotherapy'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Spine Decompression', keywords: ['spine decompression', 'decompression'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Robotic Spine Aligner', keywords: ['robotic spine', 'robotic spine aligner', 'aligner'], singleSession: 2000, packageCostPerSession: 1800 },
+      { name: 'Acoustic Wave Therapy', keywords: ['acoustic wave', 'acoustic wave therapy'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Deep Tissue Thermotherapy', keywords: ['deep tissue', 'thermotherapy'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'High Intensity Laser', keywords: ['high intensity laser', 'hil laser'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'Magneto Laser', keywords: ['magneto', 'magneto laser'], singleSession: 1800, packageCostPerSession: 1500 },
+      { name: 'THOR Laser', keywords: ['thor laser', 'thor'], singleSession: 1800, packageCostPerSession: 1500 }
+    ];
+
     function getSingleSessionPrice(packageName, defaultCost) {
       if (!packageName) return defaultCost || 1800;
-      const lower = packageName.toLowerCase();
+      const lower = packageName.toLowerCase().trim();
 
-      if (lower.includes('focused shockwave') || lower.includes('shockwave')) return 2000;
-      if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('foot in soles')) return 2360;
-      if (lower.includes('prism')) return 500;
-      if (lower.includes('bmsk') || lower.includes('basic bmsk')) return 1000;
-      if (lower.includes('robotic spine') || lower.includes('aligner')) return 2000;
-      if (lower.includes('cryo') || lower.includes('cryotherapy')) return 2500;
-      if (lower.includes('ice bath')) return 2000;
-      if (lower.includes('red light')) return 2000;
-      if (lower.includes('hbot')) return 2000;
+      for (const item of SERVICES_MASTER_PRICE_LIST) {
+        for (const kw of item.keywords) {
+          if (lower.includes(kw)) return item.singleSession;
+        }
+      }
 
       if (defaultCost && defaultCost > 0) return defaultCost;
       return 1800;
@@ -1490,12 +1518,16 @@
     function getPackagePrice(packageName, defaultCost) {
       if (defaultCost && defaultCost > 0) return defaultCost;
       if (!packageName) return 0;
-      const lower = packageName.toLowerCase();
+      const lower = packageName.toLowerCase().trim();
 
-      if (lower.includes('focused shockwave') || lower.includes('shockwave')) {
-        const match = packageName.match(/(\d+)/);
-        const sessionCount = match ? parseInt(match[1], 10) : 1;
-        return sessionCount * 1800; // Focused Shockwave Package rate is ₹1,800 per session
+      for (const item of SERVICES_MASTER_PRICE_LIST) {
+        for (const kw of item.keywords) {
+          if (lower.includes(kw)) {
+            const match = packageName.match(/(\d+)/);
+            const sessionCount = match ? parseInt(match[1], 10) : 1;
+            return sessionCount * item.packageCostPerSession;
+          }
+        }
       }
 
       return defaultCost || 0;
