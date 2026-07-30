@@ -1545,6 +1545,18 @@
       return lower.includes('wellness') || lower.includes('w&r') || lower.includes('wellness & recovery') || lower.includes('wellness and recovery');
     }
 
+    function isRoboticSpinePackage(packageName) {
+      if (!packageName) return false;
+      const lower = packageName.toLowerCase();
+      return lower.includes('robotic spine') || lower.includes('robotic spine aligner');
+    }
+
+    function isBMSKPackage(packageName) {
+      if (!packageName) return false;
+      const lower = packageName.toLowerCase();
+      return lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
+    }
+
     // ==================== PATIENT GROUPING & REVENUE ALLOCATION ====================
     function groupPatients(rows, globalPatients = null) {
       const patients = {};
@@ -1783,6 +1795,33 @@
         p.packageRevenue = 0;
         p.singleSessionRevenue = 0;
 
+        // ── Bundle Total Detection ──
+        // The Excel "Total Cost of Package" (col7) represents the ACTUAL bundle total
+        // (which may be discounted vs. the sum of individual Package Cost values).
+        // Detect bundles and compute proportional effective costs per item.
+        //
+        // Example: T A MAHAMOOD has PM-10 (₹15k) + W&R-5 (₹7.5k) + RSA-3 (₹5.4k) = ₹27,900 sticker
+        //          but the EMR bundle total (col7) = ₹25,800
+        //          Each item's effective cost = (item sticker / total sticker) * bundle total.
+        const bundleTotalFromExcel = (() => {
+          // Find the first raw row that has a valid totalPackageCost (col7)
+          for (const row of p._rawRows) {
+            if (row.totalPackageCost && row.totalPackageCost > 0 && row.type !== 'consultation') {
+              return row.totalPackageCost;
+            }
+          }
+          return 0;
+        })();
+
+        // Sum of all non-consultation individual package costs (sticker prices)
+        const stickerTotal = mergedServices
+          .filter(s => s.type !== 'consultation')
+          .reduce((sum, s) => sum + (s.packageCost || 0), 0);
+
+        // If the bundle total is less than the sticker total, apply proportional scaling
+        const hasBundleDiscount = bundleTotalFromExcel > 0 && stickerTotal > 0 && bundleTotalFromExcel < stickerTotal;
+        const bundleScaleFactor = hasBundleDiscount ? (bundleTotalFromExcel / stickerTotal) : 1;
+
         for (const svc of mergedServices) {
           if (svc.type === 'consultation') {
             finalServices.push(svc);
@@ -1814,7 +1853,7 @@
                 proportionalPaid: perSessionPaid
               });
               p.packages.push(svc.packageName);
-              p.totalPackageValue += unitCost;
+              p.totalPackageValue += Math.round(unitCost * bundleScaleFactor * 100) / 100;
               p.singleSessionRevenue += perSessionPaid;
             }
             continue;
@@ -1837,7 +1876,7 @@
           if (pkgCount === 1) {
             finalServices.push(svc);
             p.packages.push(pkgLabelName);
-            p.totalPackageValue += svc.packageCost;
+            p.totalPackageValue += Math.round(svc.packageCost * bundleScaleFactor * 100) / 100;
             p.packageRevenue += svc.proportionalPaid;
           } else {
             // Split into separate entries for display
@@ -1857,7 +1896,7 @@
                 proportionalPaid: perPkgAllocated
               });
               p.packages.push(pkgLabelName);
-              p.totalPackageValue += svc.packageCost;
+              p.totalPackageValue += Math.round(svc.packageCost * bundleScaleFactor * 100) / 100;
               p.packageRevenue += perPkgAllocated;
             }
           }
@@ -2798,6 +2837,82 @@
       </div>`;
     }
 
+    function formatRoboticSpinePackageRevenueBreakdownFiltered(services) {
+      const rsServices = services.filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName));
+      if (rsServices.length === 0) return '-';
+
+      const pkgMap = {};
+      for (const s of rsServices) {
+        const name = s.packageName || 'Unknown';
+        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
+        pkgMap[name].count++;
+        pkgMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(pkgMap);
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div>
+          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
+          <strong style="color:var(--rose); font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+        </div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:var(--rose);">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      const rsTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total: <strong style="color:var(--rose);">${formatCurrency(rsTotal)}</strong>
+        </div>
+      </div>`;
+    }
+
+    function formatBMSKPackageRevenueBreakdownFiltered(services) {
+      const bmskServices = services.filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName));
+      if (bmskServices.length === 0) return '-';
+
+      const pkgMap = {};
+      for (const s of bmskServices) {
+        const name = s.packageName || 'Unknown';
+        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
+        pkgMap[name].count++;
+        pkgMap[name].revenue += s.proportionalPaid;
+      }
+
+      const entries = Object.entries(pkgMap);
+      if (entries.length === 1 && entries[0][1].count === 1) {
+        return `<div>
+          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
+          <strong style="color:#fb923c; font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+        </div>`;
+      }
+
+      const items = entries.map(([name, data]) => {
+        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+        return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
+          <strong style="color:#fb923c;">${formatCurrency(data.revenue)}</strong>
+        </div>`;
+      }).join('');
+
+      const bmskTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+
+      return `<div>
+        ${items}
+        <div style="font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.1); margin-top:3px; padding-top:2px;">
+          Total: <strong style="color:#fb923c;">${formatCurrency(bmskTotal)}</strong>
+        </div>
+      </div>`;
+    }
+
     let patientSearchQuery = '';
 
     function onPatientDataSearchInput() {
@@ -2849,6 +2964,8 @@
         { key: 'ssRev', label: 'SS Rev Breakdown' },
         { key: 'pmPkgRev', label: 'Pain Mgmt Pkg Rev' },
         { key: 'wellnessPkgRev', label: 'Wellness Pkg Rev' },
+        { key: 'roboticSpineRev', label: 'Robotic Spine Rev' },
+        { key: 'bmskRev', label: 'BMSK Rev' },
         { key: 'status', label: 'Status' }
       ];
 
@@ -2880,7 +2997,7 @@
           displayServices = p.services.filter(s => s.isRenewal);
         }
 
-        const pkgVal = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+        const pkgVal = p.totalPackageValue || 0;
         const nonConsultPaid = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
         const packagesList = displayServices.filter(s => s.type !== 'consultation').map(s => s.packageName);
@@ -2898,6 +3015,8 @@
           <td style="color:var(--amber)">${formatPackageRevenueBreakdownFiltered(displayServices, 'single_session')}</td>
           <td style="color:var(--emerald); font-weight:700;">${formatPainManagementPackageRevenueBreakdownFiltered(displayServices)}</td>
           <td style="color:var(--cyan); font-weight:700;">${formatWellnessPackageRevenueBreakdownFiltered(displayServices)}</td>
+          <td style="color:var(--rose); font-weight:700;">${formatRoboticSpinePackageRevenueBreakdownFiltered(displayServices)}</td>
+          <td style="color:#fb923c; font-weight:700;">${formatBMSKPackageRevenueBreakdownFiltered(displayServices)}</td>
           <td><span class="badge ${badgeClass}">${p.status}</span></td>
         </tr>`;
       }).join('');
@@ -2928,13 +3047,39 @@
         return sum + wRev;
       }, 0);
 
+      const roboticSpineTotal = sortedData.reduce((sum, p) => {
+        let svcs = p.services;
+        if (tab.id === 'consult_pkg' || tab.id === 'consult_pkg_ss' || tab.id === 'only_pkg') {
+          svcs = svcs.filter(s => !s.isRenewal);
+        } else if (tab.id === 'renewals') {
+          svcs = svcs.filter(s => s.isRenewal);
+        }
+        const rsRev = svcs
+          .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        return sum + rsRev;
+      }, 0);
+
+      const bmskTotal = sortedData.reduce((sum, p) => {
+        let svcs = p.services;
+        if (tab.id === 'consult_pkg' || tab.id === 'consult_pkg_ss' || tab.id === 'only_pkg') {
+          svcs = svcs.filter(s => !s.isRenewal);
+        } else if (tab.id === 'renewals') {
+          svcs = svcs.filter(s => s.isRenewal);
+        }
+        const bmskRev = svcs
+          .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        return sum + bmskRev;
+      }, 0);
+
       content.innerHTML = `
         <div class="table-wrapper">
           <table><thead>${thead}</thead><tbody>${tbody}</tbody></table>
         </div>
         <div class="table-info">
           <span>Showing ${sortedData.length} patients</span>
-          <span>Pain Mgmt Pkg Total: ${formatCurrency(pmTotal)} | Wellness Pkg Total: ${formatCurrency(wellnessTotal)}</span>
+          <span>Pain Mgmt Pkg Total: ${formatCurrency(pmTotal)} | Wellness Pkg Total: ${formatCurrency(wellnessTotal)} | Robotic Spine Total: ${formatCurrency(roboticSpineTotal)} | BMSK Total: ${formatCurrency(bmskTotal)}</span>
         </div>`;
     }
 
@@ -2955,6 +3100,12 @@
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         case 'wellnessPkgRev': return p.services
           .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        case 'roboticSpineRev': return p.services
+          .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+          .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+        case 'bmskRev': return p.services
+          .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         case 'status': return p.status;
         default: return '';
@@ -3096,10 +3247,10 @@
           const catPatients = pList.filter(p => p.status === cs.status);
 
           const cols = ['Patient Name', 'Package(s)', 'Doctor', 'Agent', 'Lead Source',
-            'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Per-Package Revenue Breakdown'];
+            'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Per-Package Revenue Breakdown'];
           ws.columns = [
             { width: 30 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 },
-            { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 45 }
+            { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 45 }
           ];
           const hRow = ws.addRow(cols);
           applyHeaderStyle(ws, 1, headerStyle);
@@ -3117,6 +3268,12 @@
             const wellnessPkgRev = p.services
               .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
               .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+            const roboticSpinePkgRev = p.services
+              .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+              .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+            const bmskPkgRev = p.services
+              .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
+              .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
 
             ws.addRow([
               p.name,
@@ -3131,12 +3288,14 @@
               Math.round(p.singleSessionRevenue * 100) / 100,
               Math.round(pmPkgRev * 100) / 100,
               Math.round(wellnessPkgRev * 100) / 100,
+              Math.round(roboticSpinePkgRev * 100) / 100,
+              Math.round(bmskPkgRev * 100) / 100,
               breakdownStr
             ]);
           }
 
           // Format amount columns
-          for (let c = 6; c <= 12; c++) ws.getColumn(c).numFmt = '#,##0.00';
+          for (let c = 6; c <= 14; c++) ws.getColumn(c).numFmt = '#,##0.00';
         }
 
         // Sheet 9: Doctor Summary
@@ -3194,12 +3353,12 @@
         const s13 = wb.addWorksheet('Raw Patient Summary');
         s13.columns = [
           { width: 30 }, { width: 14 }, { width: 14 }, { width: 14 },
-          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 },
+          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
           { width: 35 }
         ];
         s13.addRow([
           'Patient', 'Consultation', 'Package', 'Single Session',
-          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev',
+          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev',
           'Final Status'
         ]);
         applyHeaderStyle(s13, 1, headerStyle);
@@ -3210,6 +3369,12 @@
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
           const wellnessPkgRev = p.services
             .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
+            .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+          const roboticSpinePkgRev = p.services
+            .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+            .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+          const bmskPkgRev = p.services
+            .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
 
           s13.addRow([
@@ -3224,10 +3389,12 @@
             Math.round(p.singleSessionRevenue * 100) / 100,
             Math.round(pmPkgRev * 100) / 100,
             Math.round(wellnessPkgRev * 100) / 100,
+            Math.round(roboticSpinePkgRev * 100) / 100,
+            Math.round(bmskPkgRev * 100) / 100,
             p.status
           ]);
         }
-        for (let c = 5; c <= 11; c++) s13.getColumn(c).numFmt = '#,##0.00';
+        for (let c = 5; c <= 13; c++) s13.getColumn(c).numFmt = '#,##0.00';
 
         // Sheet 14: Doctor Incentives & Pain Mgmt
         const s14 = wb.addWorksheet('Doctor Incentives & Pain Mgmt');
@@ -3323,12 +3490,12 @@
 
         const cols = [
           'Patient Name', 'Packages', 'Doctor', 'Agent', 'Lead Source',
-          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev',
+          'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev',
           'Status', 'Per-Package Breakdown'
         ];
         ws.columns = [
           { width: 30 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 },
-          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 },
+          { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
           { width: 32 }, { width: 50 }
         ];
 
@@ -3348,6 +3515,12 @@
           const wellnessPkgRev = p.services
             .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
             .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+          const roboticSpinePkgRev = p.services
+            .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+            .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
+          const bmskPkgRev = p.services
+            .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
+            .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
 
           ws.addRow([
             p.name,
@@ -3362,12 +3535,14 @@
             Math.round(p.singleSessionRevenue * 100) / 100,
             Math.round(pmPkgRev * 100) / 100,
             Math.round(wellnessPkgRev * 100) / 100,
+            Math.round(roboticSpinePkgRev * 100) / 100,
+            Math.round(bmskPkgRev * 100) / 100,
             p.status,
             breakdownStr
           ]);
         }
 
-        for (let c = 6; c <= 12; c++) ws.getColumn(c).numFmt = '#,##0.00';
+        for (let c = 6; c <= 14; c++) ws.getColumn(c).numFmt = '#,##0.00';
 
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
