@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic v1.2</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.3</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1682,7 +1682,6 @@
 
         // Sort date keys chronologically
         const sortedDateKeys = Object.keys(dateGroups).sort();
-        const ssAllocatedMap = {}; // track cumulative allocated revenue per single session name
 
         // Allocate within each date group
         for (const dateKey of sortedDateKeys) {
@@ -1705,16 +1704,10 @@
           }
           dateRemaining = Math.max(0, dateRemaining - consultTotal);
 
-          // Step 2: Single Sessions get target fixed price, respecting already satisfied capacity on earlier dates
+          // Step 2: Single Sessions each get their own fixed price independently
           for (const sr of ssRows) {
-            const nameKey = (sr.packageName || 'SS').toLowerCase().trim();
             const price = sr.packageCost > 0 ? sr.packageCost : getSingleSessionPrice(sr.packageName, 0);
-            const prevAllocated = ssAllocatedMap[nameKey] || 0;
-
-            const needed = Math.max(0, price - prevAllocated);
-            sr.proportionalPaid = Math.min(needed, dateRemaining);
-            ssAllocatedMap[nameKey] = prevAllocated + sr.proportionalPaid;
-
+            sr.proportionalPaid = Math.min(price, dateRemaining);
             dateRemaining = Math.max(0, dateRemaining - sr.proportionalPaid);
           }
 
