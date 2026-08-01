@@ -1731,9 +1731,10 @@
 
         if (allPkgRows.length > 0) {
           const getRowDateStr = (r) => {
-            if (r.paymentDate instanceof Date) return r.paymentDate.toISOString().slice(0, 10);
-            if (typeof r.paymentDate === 'string') return r.paymentDate.slice(0, 10);
-            return '';
+            if (!r || !r.paymentDate) return '';
+            const d = r.paymentDate instanceof Date ? r.paymentDate : new Date(r.paymentDate);
+            if (isNaN(d.getTime())) return '';
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           };
 
           const firstDateStr = getRowDateStr(allPkgRows[0]);
