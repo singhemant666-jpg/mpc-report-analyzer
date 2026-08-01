@@ -1751,8 +1751,7 @@
         // A row is flagged as isRenewal = true ONLY if:
         // 1. Patient has a Consultation in the same month (p.hasConsultation)
         // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
-        // 3. It is the SAME package name as the initial package (same package renewal)
-        // 4. Cumulative allocated revenue for THAT SPECIFIC PACKAGE reached/exceeded its cost (pkgCumulative >= pkgCost - 0.01)
+        // 3. Cumulative allocated revenue for THAT SPECIFIC PACKAGE reached/exceeded its cost (pkgCumulative >= pkgCost - 0.01)
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1782,7 +1781,6 @@
             }
           }
 
-          const initialPkgName = allPkgRows[0].packageName;
           const pkgCumulative = {};
           const pkgCostMap = {};
 
@@ -1797,11 +1795,10 @@
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
-            const isSamePackage = row.packageName === initialPkgName;
             const pkgCost = pkgCostMap[row.packageName] || 0;
             const cumulativeForPkg = pkgCumulative[row.packageName] || 0;
             
-            if (p.hasConsultation && isLaterDate && isSamePackage && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01) {
+            if (p.hasConsultation && isLaterDate && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
