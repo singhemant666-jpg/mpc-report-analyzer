@@ -1353,8 +1353,38 @@
 
     function parseDate(val) {
       if (!val) return null;
-      const d = new Date(val);
-      return isNaN(d.getTime()) ? val : d;
+      if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+      const str = String(val).trim();
+      if (!str) return null;
+
+      let d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
+
+      const parts = str.split(/[\sT]+/);
+      const datePart = parts[0];
+      const timePart = parts[1] || '00:00:00';
+      
+      const dParts = datePart.split(/[-/]/);
+      if (dParts.length === 3) {
+        let year, month, day;
+        if (dParts[0].length === 4) {
+          year = parseInt(dParts[0], 10);
+          month = parseInt(dParts[1], 10) - 1;
+          day = parseInt(dParts[2], 10);
+        } else {
+          day = parseInt(dParts[0], 10);
+          month = parseInt(dParts[1], 10) - 1;
+          year = parseInt(dParts[2], 10);
+        }
+        const tParts = timePart.split(':');
+        const hours = parseInt(tParts[0] || 0, 10);
+        const mins = parseInt(tParts[1] || 0, 10);
+        const secs = parseInt(tParts[2] || 0, 10);
+        d = new Date(year, month, day, hours, mins, secs);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      return null;
     }
 
     function formatDate(d) {
@@ -1641,8 +1671,8 @@
         for (const row of p._rawRows) {
           let dateKey = 'no_date';
           if (row.paymentDate) {
-            const d = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
-            if (!isNaN(d.getTime())) {
+            const d = parseDate(row.paymentDate);
+            if (d) {
               dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
           }
@@ -1723,21 +1753,34 @@
         // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
         // 3. Cumulative allocated revenue reached/exceeded the initial package cost (cumulativeAllocated >= initialUnitCost - 0.01)
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
-        allPkgRows.sort((a, b) => {
-          const da = a.paymentDate instanceof Date ? a.paymentDate : new Date(a.paymentDate || 0);
-          const db = b.paymentDate instanceof Date ? b.paymentDate : new Date(b.paymentDate || 0);
-          return da - db;
-        });
+        
+        const parseTimestamp = (val) => {
+          const d = parseDate(val);
+          return d ? d.getTime() : 0;
+        };
+
+        allPkgRows.sort((a, b) => parseTimestamp(a.paymentDate) - parseTimestamp(b.paymentDate));
 
         if (allPkgRows.length > 0) {
           const getRowDateStr = (r) => {
             if (!r || !r.paymentDate) return '';
-            const d = r.paymentDate instanceof Date ? r.paymentDate : new Date(r.paymentDate);
-            if (isNaN(d.getTime())) return '';
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const d = parseDate(r.paymentDate);
+            if (!d) return '';
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
           };
 
-          const firstDateStr = getRowDateStr(allPkgRows[0]);
+          let firstDateStr = '';
+          for (const r of allPkgRows) {
+            const ds = getRowDateStr(r);
+            if (ds) {
+              firstDateStr = ds;
+              break;
+            }
+          }
+
           const initialUnitCost = allPkgRows[0].packageCost > 0 ? allPkgRows[0].packageCost : getPackagePrice(allPkgRows[0].packageName, 0);
           let cumulativeAllocated = 0;
 
