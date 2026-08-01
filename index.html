@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.2</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -4030,6 +4030,26 @@
         showToast('Error: ' + err.message, 'error');
       }
     });
+
+    // ==================== DEBUG HELPERS ====================
+    window.debugRenewals = function(patientName) {
+      const name = (patientName || '').toLowerCase();
+      const matches = Object.values(allPatients).filter(p => p.name.toLowerCase().includes(name));
+      if (matches.length === 0) {
+        console.log('No patients found matching:', patientName);
+        return;
+      }
+      matches.forEach(p => {
+        console.log(`\n=== ${p.name} ===`);
+        console.log(`hasConsultation: ${p.hasConsultation}`);
+        p.services.forEach(s => {
+          console.log(`  ${s.packageName} | type: ${s.type} | date: ${s.paymentDate} | isRenewal: ${s.isRenewal} | proportionalPaid: ${s.proportionalPaid}`);
+        });
+        const renewalServices = p.services.filter(s => s.isRenewal);
+        console.log(`Renewal services: ${renewalServices.length}`);
+        console.log(`Would show in Renewals tab: ${p.hasConsultation && renewalServices.length > 0}`);
+      });
+    };
 
     // ==================== INIT ====================
     document.addEventListener('DOMContentLoaded', () => {
