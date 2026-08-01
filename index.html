@@ -1752,7 +1752,7 @@
         // 1. Patient has a Consultation in the same month (p.hasConsultation)
         // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
         // 3. It is the SAME package name as the initial package (same package renewal)
-        // 4. Cumulative allocated revenue reached/exceeded the initial package cost (cumulativeAllocated >= initialUnitCost - 0.01)
+        // 4. Cumulative allocated revenue for THAT SPECIFIC PACKAGE reached/exceeded its cost (pkgCumulative >= pkgCost - 0.01)
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1783,19 +1783,30 @@
           }
 
           const initialPkgName = allPkgRows[0].packageName;
-          const initialUnitCost = allPkgRows[0].packageCost > 0 ? allPkgRows[0].packageCost : getPackagePrice(allPkgRows[0].packageName, 0);
-          let cumulativeAllocated = 0;
+          const pkgCumulative = {};
+          const pkgCostMap = {};
+
+          for (const row of allPkgRows) {
+            const pkgName = row.packageName;
+            if (!(pkgName in pkgCumulative)) {
+              pkgCumulative[pkgName] = 0;
+              pkgCostMap[pkgName] = row.packageCost > 0 ? row.packageCost : getPackagePrice(pkgName, 0);
+            }
+          }
 
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
             const isSamePackage = row.packageName === initialPkgName;
-            if (p.hasConsultation && isLaterDate && isSamePackage && initialUnitCost > 0 && cumulativeAllocated >= initialUnitCost - 0.01) {
+            const pkgCost = pkgCostMap[row.packageName] || 0;
+            const cumulativeForPkg = pkgCumulative[row.packageName] || 0;
+            
+            if (p.hasConsultation && isLaterDate && isSamePackage && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
             }
-            cumulativeAllocated += (row.proportionalPaid || 0);
+            pkgCumulative[row.packageName] = cumulativeForPkg + (row.proportionalPaid || 0);
           }
         }
 
