@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic v1.3</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.4</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3742,9 +3742,18 @@
     function exportPDF() {
       try {
         const { jsPDF } = window.jspdf;
+        if (!jsPDF) {
+          showToast('PDF library not loaded. Please check your internet connection and try again.', 'error');
+          return;
+        }
         const doc = new jsPDF('p', 'mm', 'a4');
-        const m = currentMetrics;
-        const pList = Object.values(filteredPatients);
+        const m = currentMetrics || {};
+        const pList = Object.values(filteredPatients || {});
+
+        if (pList.length === 0) {
+          showToast('No data to export. Please load a report first.', 'error');
+          return;
+        }
 
         // Title
         doc.setFontSize(20);
@@ -3763,13 +3772,13 @@
           startY: 46,
           head: [['Metric', 'Value']],
           body: [
-            ['Total Patients', m.totalPatients.toString()],
-            ['Total Consultation Patients', m.totalConsultationPatients.toString()],
-            ['Conversion Rate', m.conversionPct.toFixed(1) + '%'],
-            ['Total Revenue', formatCurrency(m.totalRevenue)],
-            ['Consultation Revenue', formatCurrency(m.consultationRevenue)],
-            ['Package Revenue', formatCurrency(m.packageRevenue)],
-            ['Single Session Revenue', formatCurrency(m.ssRevenue)]
+            ['Total Patients', (m.totalPatients || 0).toString()],
+            ['Total Consultation Patients', (m.totalConsultationPatients || 0).toString()],
+            ['Conversion Rate', (m.conversionPct || 0).toFixed(1) + '%'],
+            ['Total Revenue', formatCurrency(m.totalRevenue || 0)],
+            ['Consultation Revenue', formatCurrency(m.consultationRevenue || 0)],
+            ['Package Revenue', formatCurrency(m.packageRevenue || 0)],
+            ['Single Session Revenue', formatCurrency(m.ssRevenue || 0)]
           ],
           theme: 'grid',
           headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
@@ -3778,7 +3787,7 @@
         });
 
         // Category Breakdown
-        let y = doc.lastAutoTable.finalY + 14;
+        let y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : 46) + 14;
         doc.setFontSize(14);
         doc.setTextColor(241, 245, 249);
         doc.text('Category Breakdown', 14, y);
@@ -3786,7 +3795,7 @@
         doc.autoTable({
           startY: y + 4,
           head: [['Category', 'Count']],
-          body: m.STATUSES.map(s => [s, (m.statusCounts[s] || 0).toString()]),
+          body: (m.STATUSES || []).map(s => [s, (m.statusCounts && m.statusCounts[s] || 0).toString()]),
           theme: 'grid',
           headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
           bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
@@ -3794,16 +3803,17 @@
         });
 
         // Doctor Summary
-        y = doc.lastAutoTable.finalY + 14;
+        y = (doc.lastAutoTable && doc.lastAutoTable.finalY ? doc.lastAutoTable.finalY : y) + 14;
         if (y > 250) { doc.addPage(); y = 20; }
         doc.setFontSize(14);
+        doc.setTextColor(241, 245, 249);
         doc.text('Doctor Summary', 14, y);
 
         doc.autoTable({
           startY: y + 4,
           head: [['Doctor', 'Consultation', 'Package', 'Conversion %']],
-          body: Object.entries(m.doctorMap).sort((a,b) => b[1].total - a[1].total).map(([doc, d]) => [
-            doc, d.consultation.toString(), d.package.toString(),
+          body: Object.entries(m.doctorMap || {}).sort((a,b) => (b[1].total || 0) - (a[1].total || 0)).map(([docName, d]) => [
+            docName, (d.consultation || 0).toString(), (d.package || 0).toString(),
             d.consultation > 0 ? ((d.package / d.consultation) * 100).toFixed(1) + '%' : '0%'
           ]),
           theme: 'grid',
@@ -3815,7 +3825,7 @@
         doc.save('Daily_Collection_Analysis.pdf');
         showToast('PDF downloaded', 'success');
       } catch (err) {
-        console.error(err);
+        console.error('PDF export error:', err);
         showToast('Error generating PDF: ' + err.message, 'error');
       }
     }
