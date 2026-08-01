@@ -2027,11 +2027,7 @@
       }
 
       const totalPatients = pList.length;
-      const totalConsultationPatients =
-        (statusCounts['Only Consultation'] || 0) +
-        (statusCounts['Consultation + Package'] || 0) +
-        (statusCounts['Consultation + Single Session'] || 0) +
-        (statusCounts['Consultation + Package + Single Session'] || 0);
+      const totalConsultationPatients = pList.filter(p => p.hasConsultation).length;
 
       const converted =
         (statusCounts['Consultation + Package'] || 0) +
