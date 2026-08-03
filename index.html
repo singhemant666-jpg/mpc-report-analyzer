@@ -2083,24 +2083,6 @@
           return da - db;
         });
 
-        // Re-classify isRenewal strictly by matching prior purchases of the SAME package category
-        // CRITICAL RULE: ONLY treatment packages (s.type === 'package') can be renewals!
-        // Single Sessions (s.type === 'single_session') & Consultations (s.type === 'consultation') are NEVER renewals.
-        const seenPackageCategories = [];
-        for (const s of finalServices) {
-          if (s.type === 'package') {
-            const hasPriorSameCategory = seenPackageCategories.some(seenName => isSamePackageCategory(seenName, s.packageName));
-            if (hasPriorSameCategory) {
-              s.isRenewal = true;
-            } else {
-              s.isRenewal = false;
-              seenPackageCategories.push(s.packageName);
-            }
-          } else {
-            s.isRenewal = false;
-          }
-        }
-
         // Determine final status & preserve complete global patient profile if filtering
         if (globalPatients && globalPatients[key]) {
           const g = globalPatients[key];
