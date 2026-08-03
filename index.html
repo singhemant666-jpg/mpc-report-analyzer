@@ -1930,7 +1930,8 @@
         // ══════════════════════════════════════════════════════════════════
         const pkgMap = {};
         for (const row of p._rawRows) {
-          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}`.toLowerCase();
+          const dateStrKey = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
+          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${dateStrKey}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
