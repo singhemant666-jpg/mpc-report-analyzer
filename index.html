@@ -1879,30 +1879,14 @@
             }
 
             if (dateRemaining > 0) {
-              let allocatedTotal = 0;
-              const zeroPaidRows = [];
-              
-              for (const pr of packageRows) {
-                if (pr.amountPaid > 0) {
-                  pr.proportionalPaid = pr.amountPaid;
-                  allocatedTotal += pr.amountPaid;
-                } else {
-                  zeroPaidRows.push(pr);
+              if (totalPkgCost > 0) {
+                for (const pr of packageRows) {
+                  pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
                 }
-              }
-              
-              const remaining = dateRemaining - allocatedTotal;
-              if (remaining > 0 && zeroPaidRows.length > 0) {
-                const zeroPaidCost = zeroPaidRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
-                if (zeroPaidCost > 0) {
-                  for (const pr of zeroPaidRows) {
-                    pr.proportionalPaid = Math.round((pr.packageCost / zeroPaidCost * remaining) * 100) / 100;
-                  }
-                } else {
-                  const share = Math.round((remaining / zeroPaidRows.length) * 100) / 100;
-                  for (const pr of zeroPaidRows) {
-                    pr.proportionalPaid = share;
-                  }
+              } else {
+                const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
+                for (const pr of packageRows) {
+                  pr.proportionalPaid = share;
                 }
               }
             }
