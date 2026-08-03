@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic v1.4</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.5</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1867,6 +1867,7 @@
         // 1. Patient has a Consultation in the same month (p.hasConsultation)
         // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
         // 3. Cumulative allocated revenue for THAT SPECIFIC PACKAGE reached/exceeded its cost (pkgCumulative >= pkgCost - 0.01)
+        // 4. The same package name appears 2 times total (not 3+). If 3+ instances exist, treat as bundle/installment → no renewal.
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1886,6 +1887,12 @@
             const day = String(d.getDate()).padStart(2, '0');
             return `${y}-${m}-${day}`;
           };
+
+          const pkgCountMap = {};
+          for (const row of allPkgRows) {
+            const pkgName = row.packageName;
+            pkgCountMap[pkgName] = (pkgCountMap[pkgName] || 0) + 1;
+          }
 
           let firstDateStr = '';
           for (const r of allPkgRows) {
@@ -1912,8 +1919,9 @@
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
             const pkgCost = pkgCostMap[row.packageName] || 0;
             const cumulativeForPkg = pkgCumulative[row.packageName] || 0;
+            const pkgInstanceCount = pkgCountMap[row.packageName] || 0;
             
-            if (p.hasConsultation && isLaterDate && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01) {
+            if (p.hasConsultation && isLaterDate && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01 && pkgInstanceCount === 2) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
