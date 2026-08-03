@@ -1941,31 +1941,33 @@
           const firstDateStr = getRowDateStr(allPkgRows[0]);
           const initialPkgCategory = getPackageCategory(allPkgRows[0].packageName);
 
-          // Map package name to its cost
-          const pkgCostMap = {};
-          for (const row of allPkgRows) {
-            const pkgName = row.packageName;
-            if (!(pkgName in pkgCostMap)) {
-              pkgCostMap[pkgName] = row.packageCost > 0 ? row.packageCost : getPackagePrice(pkgName, 0);
-            }
-          }
+          // Track category-based cost and paid sums to identify installments
+          const categoryCostSum = {};
+          const categoryPaidSum = {};
 
-          // Track cumulative proportional paid per package name to identify installments
-          const pkgCumulativePaid = {};
           for (const row of allPkgRows) {
-            const pkgName = row.packageName;
+            const cat = getPackageCategory(row.packageName);
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
-            const pkgCost = pkgCostMap[pkgName] || 0;
-            const cumulativePaid = pkgCumulativePaid[pkgName] || 0;
 
-            if (isLaterDate && pkgCost > 0 && cumulativePaid < pkgCost - 0.01) {
-              row.isInstallment = true;
-            } else {
+            if (!(cat in categoryCostSum)) {
+              categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+              categoryPaidSum[cat] = 0;
               row.isInstallment = false;
+            } else {
+              const prevPaid = categoryPaidSum[cat];
+              const prevCost = categoryCostSum[cat];
+
+              if (isLaterDate && prevPaid < prevCost - 0.01) {
+                row.isInstallment = true;
+              } else {
+                row.isInstallment = false;
+                const pkgCost = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+                categoryCostSum[cat] += pkgCost;
+              }
             }
 
-            pkgCumulativePaid[pkgName] = cumulativePaid + (row.proportionalPaid || 0);
+            categoryPaidSum[cat] += (row.proportionalPaid || 0);
           }
 
           // Track the first purchase date of each package name
