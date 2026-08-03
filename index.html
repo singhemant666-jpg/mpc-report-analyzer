@@ -1818,6 +1818,13 @@
       for (const key of Object.keys(patients)) {
         const p = patients[key];
 
+        // Sort raw rows chronologically ascending
+        p._rawRows.sort((a, b) => {
+          const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+          const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+          return da - db;
+        });
+
         // Group raw rows by date
         const dateGroups = {};
         for (const row of p._rawRows) {
@@ -1941,11 +1948,12 @@
           const firstDateStr = getRowDateStr(allPkgRows[0]);
           const initialPkgCategory = getPackageCategory(allPkgRows[0].packageName);
 
-          // Track category-based cost and paid sums to identify installments
+          // Track category-based cost and paid sums to identify installments and renewals
           const categoryCostSum = {};
           const categoryPaidSum = {};
+          const categoryActivePurchase = {};
 
-          for (const row of allPkgRows) {
+          allPkgRows.forEach((row, index) => {
             const cat = getPackageCategory(row.packageName);
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
@@ -1954,21 +1962,43 @@
               categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
               categoryPaidSum[cat] = 0;
               row.isInstallment = false;
+              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+              
+              const isSameCategoryAsFirst = cat === initialPkgCategory;
+              if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+                row.isRenewal = true;
+              } else {
+                row.isRenewal = false;
+              }
+              
+              categoryActivePurchase[cat] = row;
             } else {
               const prevPaid = categoryPaidSum[cat];
               const prevCost = categoryCostSum[cat];
 
               if (isLaterDate && prevPaid < prevCost - 0.01) {
                 row.isInstallment = true;
+                row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+                row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
               } else {
                 row.isInstallment = false;
+                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+                
+                const isSameCategoryAsFirst = cat === initialPkgCategory;
+                if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+                  row.isRenewal = true;
+                } else {
+                  row.isRenewal = false;
+                }
+                
+                categoryActivePurchase[cat] = row;
                 const pkgCost = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
                 categoryCostSum[cat] += pkgCost;
               }
             }
 
             categoryPaidSum[cat] += (row.proportionalPaid || 0);
-          }
+          });
 
           // Track the first purchase date of each package name
           const firstPurchaseDateMap = {};
@@ -1981,19 +2011,6 @@
             }
           }
           p._firstPurchaseDateMap = firstPurchaseDateMap;
-
-          // Classify renewals
-          for (const row of allPkgRows) {
-            const rowDateStr = getRowDateStr(row);
-            const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
-            const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
-            
-            if (p.hasConsultation && isLaterDate && isSameCategory && !row.isInstallment) {
-              row.isRenewal = true;
-            } else {
-              row.isRenewal = false;
-            }
-          }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -2005,13 +2022,12 @@
         const pkgMap = {};
         for (const row of p._rawRows) {
           const dateStrKey = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
-          
-          let groupDateStr = dateStrKey;
-          if (row.type === 'package' && row.isInstallment) {
-            groupDateStr = (p._firstPurchaseDateMap && p._firstPurchaseDateMap[row.packageName]) || dateStrKey;
+          let groupKey = dateStrKey;
+          if (row.type === 'package') {
+            groupKey = row.purchaseId || dateStrKey;
           }
 
-          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupDateStr}`.toLowerCase();
+          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupKey}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
