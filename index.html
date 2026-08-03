@@ -1895,6 +1895,7 @@
         // 1. Patient must have a Consultation
         // 2. The FIRST package after consultation is always "Initial Package"
         // 3. ANY LATER package in the SAME CATEGORY is flagged as "Package Renewal"
+        // 4. BUT if a later date has the EXACT SAME BUNDLE as the first date, it's an installment → NOT renewal
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1927,12 +1928,27 @@
           const initialPkg = allPkgRows[0];
           const initialPkgCategory = getPackageCategory(initialPkg.packageName);
 
+          const dateGroups = {};
+          for (const row of allPkgRows) {
+            const dateKey = getRowDateStr(row);
+            if (!dateGroups[dateKey]) dateGroups[dateKey] = new Set();
+            dateGroups[dateKey].add(row.packageName);
+          }
+
+          const firstDatePkgs = [...(dateGroups[firstDateStr] || [])].sort();
+          const isSameBundle = (dateKey) => {
+            const pkgs = [...(dateGroups[dateKey] || [])].sort();
+            if (firstDatePkgs.length !== pkgs.length) return false;
+            return firstDatePkgs.every((pkg, i) => pkg === pkgs[i]);
+          };
+
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
             const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
+            const notSameBundle = !isSameBundle(rowDateStr);
             
-            if (p.hasConsultation && isLaterDate && isSameCategory) {
+            if (p.hasConsultation && isLaterDate && isSameCategory && notSameBundle) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
