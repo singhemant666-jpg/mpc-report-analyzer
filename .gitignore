@@ -1,0 +1,28 @@
+# Environment & Secret files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+env.js
+
+# Dependency directories
+node_modules/
+
+# Vercel deployment builds
+.vercel/
+
+# Excel data & report files containing real patient data
+*.xlsx
+*.xls
+*.csv
+
+# Python cache & temporary scripts
+__pycache__/
+*.py[cod]
+*$py.class
+scratch_*.py
+
+# OS generated files
+.DS_Store
+Thumbs.db
