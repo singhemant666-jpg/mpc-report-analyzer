@@ -1799,7 +1799,8 @@
           amountPaid: row.amountPaid,
           packageCost: pkgPrice,
           totalPackageCost: row.totalPackageCost,
-          proportionalPaid: 0
+          proportionalPaid: 0,
+          quantity: 1
         });
 
         p.totalPaid += row.amountPaid;
@@ -1905,18 +1906,34 @@
                 }
               }
             }
+
+            // Step 4: Determine package quantity factors
+            const stickerTotal = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+            let invoicePackageTotal = 0;
+            for (const r of packageRows) {
+              if (r.totalPackageCost && r.totalPackageCost > 0) {
+                invoicePackageTotal = r.totalPackageCost;
+                break;
+              }
+            }
+
+            let dateQtyFactor = 1;
+            if (invoicePackageTotal >= stickerTotal * 1.95 && stickerTotal > 0) {
+              dateQtyFactor = Math.round(invoicePackageTotal / stickerTotal);
+            } else {
+              const datePaid = packageRows.reduce((sum, r) => sum + (r.proportionalPaid || 0), 0);
+              if (datePaid >= stickerTotal * 1.95 && stickerTotal > 0) {
+                dateQtyFactor = Math.floor(datePaid / stickerTotal);
+              }
+            }
+
+            for (const pr of packageRows) {
+              pr.quantity = dateQtyFactor;
+            }
           }
         }
 
-        // Determine renewal status based on category:
-        // 1. Patient must have a Consultation
-        // 2. The FIRST package after consultation is always "Initial Package"
-        // 3. A later package is flagged as "Package Renewal" ONLY if:
-        //    a) It's a DIFFERENT package name from the first package
-        //    b) It's in the SAME CATEGORY as the first package
-        //    c) It's on a LATER DATE
-        //    d) It's NOT the exact same bundle as the first date (installment protection)
-        // If the patient buys the SAME package name again, it's NOT a renewal (could be installment/top-up)
+        // Determine renewal status based on category and installments:
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1937,39 +1954,55 @@
             return `${y}-${m}-${day}`;
           };
 
-          let firstDateStr = '';
-          for (const r of allPkgRows) {
-            const ds = getRowDateStr(r);
-            if (ds) {
-              firstDateStr = ds;
-              break;
+          const firstDateStr = getRowDateStr(allPkgRows[0]);
+          const initialPkgCategory = getPackageCategory(allPkgRows[0].packageName);
+
+          // Map package name to its cost
+          const pkgCostMap = {};
+          for (const row of allPkgRows) {
+            const pkgName = row.packageName;
+            if (!(pkgName in pkgCostMap)) {
+              pkgCostMap[pkgName] = row.packageCost > 0 ? row.packageCost : getPackagePrice(pkgName, 0);
             }
           }
 
-          const initialPkg = allPkgRows[0];
-          const initialPkgCategory = getPackageCategory(initialPkg.packageName);
-
-          const dateGroups = {};
+          // Track cumulative proportional paid per package name to identify installments
+          const pkgCumulativePaid = {};
           for (const row of allPkgRows) {
-            const dateKey = getRowDateStr(row);
-            if (!dateGroups[dateKey]) dateGroups[dateKey] = new Set();
-            dateGroups[dateKey].add(row.packageName);
+            const pkgName = row.packageName;
+            const rowDateStr = getRowDateStr(row);
+            const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
+            const pkgCost = pkgCostMap[pkgName] || 0;
+            const cumulativePaid = pkgCumulativePaid[pkgName] || 0;
+
+            if (isLaterDate && pkgCost > 0 && cumulativePaid < pkgCost - 0.01) {
+              row.isInstallment = true;
+            } else {
+              row.isInstallment = false;
+            }
+
+            pkgCumulativePaid[pkgName] = cumulativePaid + (row.proportionalPaid || 0);
           }
 
-          const firstDatePkgs = [...(dateGroups[firstDateStr] || [])].sort();
-          const isSameBundle = (dateKey) => {
-            const pkgs = [...(dateGroups[dateKey] || [])].sort();
-            if (firstDatePkgs.length !== pkgs.length) return false;
-            return firstDatePkgs.every((pkg, i) => pkg === pkgs[i]);
-          };
+          // Track the first purchase date of each package name
+          const firstPurchaseDateMap = {};
+          for (const row of allPkgRows) {
+            if (!row.isInstallment) {
+              const dateStr = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
+              if (!firstPurchaseDateMap[row.packageName]) {
+                firstPurchaseDateMap[row.packageName] = dateStr;
+              }
+            }
+          }
+          p._firstPurchaseDateMap = firstPurchaseDateMap;
 
+          // Classify renewals
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
             const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
-            const notSameBundle = !isSameBundle(rowDateStr);
             
-            if (p.hasConsultation && isLaterDate && isSameCategory && notSameBundle) {
+            if (p.hasConsultation && isLaterDate && isSameCategory && !row.isInstallment) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
@@ -1986,14 +2019,13 @@
         const pkgMap = {};
         for (const row of p._rawRows) {
           const dateStrKey = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
-          const isPartialPackage = row.type === 'package'
-            && row.packageCost > 0
-            && row.proportionalPaid < row.packageCost * 0.95;
-          const svcKey = row.type === 'consultation'
-            ? `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${dateStrKey}`.toLowerCase()
-            : isPartialPackage
-              ? `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}`.toLowerCase()
-              : `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${dateStrKey}`.toLowerCase();
+          
+          let groupDateStr = dateStrKey;
+          if (row.type === 'package' && row.isInstallment) {
+            groupDateStr = (p._firstPurchaseDateMap && p._firstPurchaseDateMap[row.packageName]) || dateStrKey;
+          }
+
+          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupDateStr}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
@@ -2008,7 +2040,8 @@
               packageCost: row.packageCost,
               totalPackageCost: row.totalPackageCost,
               effectiveTotalPkgCost: row.effectiveTotalPkgCost || row.packageCost,
-              proportionalPaid: row.proportionalPaid
+              proportionalPaid: row.proportionalPaid,
+              quantity: row.quantity || 1
             };
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
@@ -2096,13 +2129,7 @@
           }
 
           // Package type: detect multiple purchases (bundles from Excel totalPackageCost or proportionalPaid overflow)
-          let pkgCount = 1;
-          const isBundle = svc.totalPackageCost && svc.packageCost > 0 && svc.totalPackageCost >= svc.packageCost * 1.95;
-          if (isBundle) {
-            pkgCount = Math.round(svc.totalPackageCost / svc.packageCost);
-          } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
-            pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
-          }
+          let pkgCount = svc.quantity || 1;
 
           // Cap allocated revenue per package contract at packageCost * pkgCount
           const maxAllowedAllocated = svc.packageCost * pkgCount;
