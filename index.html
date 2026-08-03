@@ -2083,9 +2083,11 @@
         });
 
         // Re-classify isRenewal strictly by matching prior purchases of the SAME package category
+        // CRITICAL RULE: ONLY treatment packages (s.type === 'package') can be renewals!
+        // Single Sessions (s.type === 'single_session') & Consultations (s.type === 'consultation') are NEVER renewals.
         const seenPackageCategories = [];
         for (const s of finalServices) {
-          if (s.type !== 'consultation') {
+          if (s.type === 'package') {
             const hasPriorSameCategory = seenPackageCategories.some(seenName => isSamePackageCategory(seenName, s.packageName));
             if (hasPriorSameCategory) {
               s.isRenewal = true;
@@ -2093,6 +2095,8 @@
               s.isRenewal = false;
               seenPackageCategories.push(s.packageName);
             }
+          } else {
+            s.isRenewal = false;
           }
         }
 
@@ -2808,7 +2812,7 @@
       { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
       { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
       { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' },
-      { id: 'renewals', label: 'Package Renewals', filter: p => p.hasConsultation && p.services && p.services.some(s => s.isRenewal) }
+      { id: 'renewals', label: 'Package Renewals', filter: p => p.hasConsultation && p.services && p.services.some(s => s.type === 'package' && s.isRenewal) }
     ];
 
     function renderTables(patients, metrics) {
@@ -3296,7 +3300,7 @@
         // - category tabs ('consult_pkg', 'only_pkg', etc.): show ONLY initial services (EXCLUDE renewals!)
         let displayServices = p.services;
         if (tab.id === 'renewals') {
-          displayServices = p.services.filter(s => s.type !== 'consultation');
+          displayServices = p.services.filter(s => s.type === 'package');
         } else if (tab.id !== 'all') {
           displayServices = p.services.filter(s => !s.isRenewal);
         }
@@ -3310,7 +3314,7 @@
         let renewedPkgHTML = '-';
 
         if (isRenewalsTab) {
-          const pkgSvcs = p.services.filter(s => s.type !== 'consultation');
+          const pkgSvcs = p.services.filter(s => s.type === 'package');
           const initialSvcs = pkgSvcs.filter(s => !s.isRenewal);
           const renewalSvcs = pkgSvcs.filter(s => s.isRenewal);
 
@@ -3626,7 +3630,7 @@
 
           for (const p of catPatients) {
             const targetServices = isRenewals
-              ? p.services.filter(s => s.type !== 'consultation') 
+              ? p.services.filter(s => s.type === 'package') 
               : p.services.filter(s => !s.isRenewal);
 
             if (targetServices.length === 0) continue;
@@ -3951,7 +3955,7 @@
 
         for (const p of pList) {
           const targetServices = isRenewalsTab
-            ? p.services.filter(s => s.type !== 'consultation') 
+            ? p.services.filter(s => s.type === 'package') 
             : (currentTab === 'all' ? p.services : p.services.filter(s => !s.isRenewal));
 
           if (targetServices.length === 0) continue;
