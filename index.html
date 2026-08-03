@@ -3147,6 +3147,25 @@
       return n + (s[(v - 20) % 10] || s[v] || s[0]) + " Package";
     }
 
+    function getPackageStageLabel(s, allServices) {
+      if (!s || !s.isRenewal) return '1st Package';
+
+      const renSvcs = (allServices || []).filter(item => item.type !== 'consultation' && item.isRenewal);
+      const uniqueDates = [];
+      for (const item of renSvcs) {
+        const dStr = item.paymentDate ? formatDate(item.paymentDate) : 'no_date';
+        if (!uniqueDates.includes(dStr)) uniqueDates.push(dStr);
+      }
+
+      const sDateStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
+      let dateIdx = uniqueDates.indexOf(sDateStr);
+      if (dateIdx < 0) {
+        dateIdx = renSvcs.indexOf(s);
+      }
+
+      return getOrdinalLabel(dateIdx + 2);
+    }
+
     function getPatientConsultingDate(p) {
       if (!p || !p.services) return '-';
       const consultService = p.services.find(s => s.type === 'consultation');
@@ -3305,8 +3324,8 @@
           }
 
           if (renewalSvcs.length > 0) {
-            renewedPkgHTML = renewalSvcs.map((s, idx) => {
-              const label = getOrdinalLabel(idx + 2); // 2nd Package, 3rd Package...
+            renewedPkgHTML = renewalSvcs.map(s => {
+              const label = getPackageStageLabel(s, p.services);
               return `
                 <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
                   <span style="background:rgba(139,92,246,0.2); color:var(--purple); border:1px solid rgba(139,92,246,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">${label}</span>
@@ -3627,7 +3646,7 @@
               const roboticSpinePkgRev = ((s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
               const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
-              const stageLabel = isRenewals ? getOrdinalLabel(pkgIndex) : '1st Package';
+              const stageLabel = isRenewals ? getPackageStageLabel(s, p.services) : '1st Package';
               const initialPkgName = s.isRenewal ? '-' : s.packageName;
               const renewedPkgName = s.isRenewal ? s.packageName : '-';
 
@@ -3952,7 +3971,7 @@
             const roboticSpinePkgRev = ((s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
             const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
-            const stageLabel = isRenewalsTab ? getOrdinalLabel(pkgIndex) : '1st Package';
+            const stageLabel = isRenewalsTab ? getPackageStageLabel(s, p.services) : '1st Package';
             const initialPkgName = s.isRenewal ? '-' : s.packageName;
             const renewedPkgName = s.isRenewal ? s.packageName : '-';
 
