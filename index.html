@@ -1969,13 +1969,6 @@
             const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
             const notSameBundle = !isSameBundle(rowDateStr);
             
-            // Detect bundled purchases: totalPackageCost is a multiple of packageCost
-            if (row.type === 'package' && row.packageCost > 0 && row.totalPackageCost && row.totalPackageCost >= row.packageCost * 1.95) {
-              row.bundleCount = Math.round(row.totalPackageCost / row.packageCost);
-            } else {
-              row.bundleCount = 1;
-            }
-            
             if (p.hasConsultation && isLaterDate && isSameCategory && notSameBundle) {
               row.isRenewal = true;
             } else {
@@ -2128,11 +2121,10 @@
             // Split into separate entries for display
             const perPkgAllocated = Math.round((svc.proportionalPaid / pkgCount) * 100) / 100;
             for (let i = 0; i < pkgCount; i++) {
-              const isRenewal = isBundle ? (i > 0 || svc.isRenewal) : svc.isRenewal;
               finalServices.push({
                 packageName: svc.packageName,
                 type: svc.type,
-                isRenewal: isRenewal,
+                isRenewal: svc.isRenewal,
                 doctor: svc.doctor,
                 agent: svc.agent,
                 leadSource: svc.leadSource,
