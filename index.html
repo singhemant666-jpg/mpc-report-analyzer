@@ -2061,6 +2061,22 @@
           }
         }
 
+        // Sort finalServices chronologically by paymentDate ascending (Earliest date first!)
+        finalServices.sort((a, b) => {
+          const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+          const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+          return da - db;
+        });
+
+        // Re-classify isRenewal based on strict chronological order of non-consultation package services
+        let pkgCounter = 0;
+        for (const s of finalServices) {
+          if (s.type !== 'consultation') {
+            pkgCounter++;
+            s.isRenewal = (pkgCounter > 1);
+          }
+        }
+
         // Determine final status & preserve complete global patient profile if filtering
         if (globalPatients && globalPatients[key]) {
           const g = globalPatients[key];
