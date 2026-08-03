@@ -1862,7 +1862,8 @@
             dateRemaining = Math.max(0, dateRemaining - sr.proportionalPaid);
           }
 
-          // Step 3: Remaining Advance Payment is allocated proportionally to Treatment Packages
+          // Step 3: Remaining Advance Payment is allocated to Treatment Packages
+          // Priority: use explicit amountPaid per row when available, fallback to proportional by packageCost
           if (packageRows.length > 0) {
             const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
 
@@ -1877,14 +1878,30 @@
             }
 
             if (dateRemaining > 0) {
-              if (totalPkgCost > 0) {
-                for (const pr of packageRows) {
-                  pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
+              let allocatedTotal = 0;
+              const zeroPaidRows = [];
+              
+              for (const pr of packageRows) {
+                if (pr.amountPaid > 0) {
+                  pr.proportionalPaid = pr.amountPaid;
+                  allocatedTotal += pr.amountPaid;
+                } else {
+                  zeroPaidRows.push(pr);
                 }
-              } else {
-                const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
-                for (const pr of packageRows) {
-                  pr.proportionalPaid = share;
+              }
+              
+              const remaining = dateRemaining - allocatedTotal;
+              if (remaining > 0 && zeroPaidRows.length > 0) {
+                const zeroPaidCost = zeroPaidRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+                if (zeroPaidCost > 0) {
+                  for (const pr of zeroPaidRows) {
+                    pr.proportionalPaid = Math.round((pr.packageCost / zeroPaidCost * remaining) * 100) / 100;
+                  }
+                } else {
+                  const share = Math.round((remaining / zeroPaidRows.length) * 100) / 100;
+                  for (const pr of zeroPaidRows) {
+                    pr.proportionalPaid = share;
+                  }
                 }
               }
             }
@@ -1949,11 +1966,17 @@
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
-            const isDifferentPackage = row.packageName !== initialPkg.packageName;
             const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
             const notSameBundle = !isSameBundle(rowDateStr);
             
-            if (p.hasConsultation && isLaterDate && isDifferentPackage && isSameCategory && notSameBundle) {
+            // Detect bundled purchases: totalPackageCost is a multiple of packageCost
+            if (row.type === 'package' && row.packageCost > 0 && row.totalPackageCost && row.totalPackageCost >= row.packageCost * 1.95) {
+              row.bundleCount = Math.round(row.totalPackageCost / row.packageCost);
+            } else {
+              row.bundleCount = 1;
+            }
+            
+            if (p.hasConsultation && isLaterDate && isSameCategory && notSameBundle) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
@@ -2079,9 +2102,12 @@
             continue;
           }
 
-          // Package type: detect multiple purchases (e.g. renewals or explicit multi-contract purchases)
+          // Package type: detect multiple purchases (bundles from Excel totalPackageCost or proportionalPaid overflow)
           let pkgCount = 1;
-          if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
+          const isBundle = svc.totalPackageCost && svc.packageCost > 0 && svc.totalPackageCost >= svc.packageCost * 1.95;
+          if (isBundle) {
+            pkgCount = Math.round(svc.totalPackageCost / svc.packageCost);
+          } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
             pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
           }
 
@@ -2102,10 +2128,11 @@
             // Split into separate entries for display
             const perPkgAllocated = Math.round((svc.proportionalPaid / pkgCount) * 100) / 100;
             for (let i = 0; i < pkgCount; i++) {
+              const isRenewal = isBundle ? (i > 0 || svc.isRenewal) : svc.isRenewal;
               finalServices.push({
                 packageName: svc.packageName,
                 type: svc.type,
-                isRenewal: svc.isRenewal,
+                isRenewal: isRenewal,
                 doctor: svc.doctor,
                 agent: svc.agent,
                 leadSource: svc.leadSource,
@@ -2188,9 +2215,8 @@
       for (const p of pList) {
         if (p.services && p.services.some(s => s.isRenewal)) {
           statusCounts['Package Renewal']++;
-        } else {
-          statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
         }
+        statusCounts[p.status] = (statusCounts[p.status] || 0) + 1;
         totalRevenue += p.totalPaid;
         consultationRevenue += p.consultationRevenue;
         packageRevenue += p.packageRevenue;
@@ -4667,6 +4693,29 @@
     }
 
     function buildFullAIDatasetPrompt(m) {
+      // Compute missing category metrics from packageSales
+      const painMgmtPkgs = Object.entries(m.packageSales || {}).filter(([name]) => isPainManagementPackage(name));
+      const painMgmtCount = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const painMgmtRevenue = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+      const painMgmtConvPct = m.totalConsultationPatients > 0 ? Math.min(100, (painMgmtCount / m.totalConsultationPatients * 100)) : 0;
+
+      const wellnessPkgs = Object.entries(m.packageSales || {}).filter(([name]) => isWellnessPackage(name));
+      const wellnessCount = wellnessPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const wellnessRevenue = wellnessPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const roboticPkgs = Object.entries(m.packageSales || {}).filter(([name]) => isRoboticSpinePackage(name));
+      const roboticSpineCount = roboticPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const roboticSpineRevenue = roboticPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const bmskPkgs = Object.entries(m.packageSales || {}).filter(([name]) => isBMSKPackage(name));
+      const bmskCount = bmskPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const bmskRevenue = bmskPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const renewalCount = Object.values(allPatients || {}).filter(p => p.services && p.services.some(s => s.isRenewal)).length;
+      const renewalTotalRevenue = Object.values(allPatients || {}).reduce((sum, p) => {
+        return sum + (p.services || []).filter(s => s.isRenewal).reduce((s, svc) => s + (svc.proportionalPaid || 0), 0);
+      }, 0);
+
       // 1. Doctor Breakdown
       const docLines = Object.values(m.doctorMap || {})
         .sort((a,b) => b.painMgmtCount - a.painMgmtCount)
@@ -4691,11 +4740,33 @@
         .map(([pkg, d]) => `  * ${pkg}: Count=${d.count}, Revenue=${formatCurrency(d.revenue)}`)
         .join('\n');
 
-      // 5. Renewal Patient Samples with exact 1st -> 2nd -> 3rd package series
+      // 5. Status Breakdown
+      const statusLines = (m.STATUSES || []).map(s => `  * ${s}: ${m.statusCounts[s] || 0} patients`).join('\n');
+
+      // 6. Revenue by Date
+      const revenueDateLines = Object.entries(m.revenueByDate || {})
+        .sort((a,b) => a[0].localeCompare(b[0]))
+        .map(([date, d]) => `  * ${date}: Total=${formatCurrency(d.total)}, Consultation=${formatCurrency(d.consultation)}, Package=${formatCurrency(d.package)}, SingleSession=${formatCurrency(d.singleSession)}`)
+        .join('\n');
+
+      // 7. Renewal Patient Samples with exact 1st -> 2nd -> 3rd package series
       const renewalPatients = Object.values(allPatients || {}).filter(p => p.hasConsultation && p.services && p.services.some(s => s.isRenewal));
       const renewalLines = renewalPatients.slice(0, 15).map(p => {
         const pkgChain = p.services.filter(s => s.type !== 'consultation').map((s, idx) => `${getOrdinalLabel(idx+1)}: ${s.packageName} (${formatCurrency(s.proportionalPaid)}, ${formatDate(s.paymentDate)})`).join(' -> ');
         return `  * ${p.name}: ${pkgChain}`;
+      }).join('\n');
+
+      // 8. Patient-level details (first 20 patients with their exact package sequences)
+      const patientLines = Object.values(allPatients || {}).slice(0, 20).map(p => {
+        const services = p.services.map(s => `${s.type}: ${s.packageName} (${formatCurrency(s.proportionalPaid)}, ${formatDate(s.paymentDate)})`).join('; ');
+        return `  * ${p.name} [${p.status}]: ${services}`;
+      }).join('\n');
+
+      // 9. Single Session breakdown
+      const ssPatients = Object.values(allPatients || {}).filter(p => p.services && p.services.some(s => s.type === 'single_session'));
+      const ssLines = ssPatients.slice(0, 10).map(p => {
+        const ssSvcs = p.services.filter(s => s.type === 'single_session').map(s => `${s.packageName} (${formatCurrency(s.proportionalPaid)}, ${formatDate(s.paymentDate)})`).join('; ');
+        return `  * ${p.name}: ${ssSvcs}`;
       }).join('\n');
 
       return `You are an expert executive healthcare dataset auditor & analyst for My Pain Clinic (MPC).
@@ -4703,13 +4774,18 @@
 --- COMPLETE AUDITED DATASET METRICS ---
 - Total Unique Patients: ${m.totalPatients}
 - Total Collection Revenue: ${formatCurrency(m.totalRevenue)}
-- Consultation Patients: ${m.consultationPatients} (Revenue: ${formatCurrency(m.consultationRevenue)})
-- Converted Package Patients: ${m.packagePatients} (Overall Conversion Rate: ${m.overallConversionRate.toFixed(1)}%)
-- Pain Management Category: ${m.painMgmtCount} packages sold, Revenue: ${formatCurrency(m.painMgmtRevenue)} (Conversion Rate: ${m.painMgmtConvPct.toFixed(1)}%)
-- Wellness Category: ${m.wellnessCount} packages sold, Revenue: ${formatCurrency(m.wellnessRevenue)}
-- Robotic Spine Category: ${m.roboticSpineRevenue}
-- BMSK Category: ${m.bmskRevenue}
-- Package Renewals: ${m.renewalCount} patients renewed, Total Renewal Revenue: ${formatCurrency(m.renewalTotalRevenue)}
+- Consultation Patients: ${m.totalConsultationPatients} (Revenue: ${formatCurrency(m.consultationRevenue)})
+- Total Consultation Records: ${m.totalConsultationRecords}
+- Converted Package Patients: ${m.converted} (Overall Conversion Rate: ${m.conversionPct.toFixed(1)}%)
+- Pain Management Category: ${painMgmtCount} packages sold, Revenue: ${formatCurrency(painMgmtRevenue)} (Conversion Rate: ${painMgmtConvPct.toFixed(1)}%)
+- Wellness Category: ${wellnessCount} packages sold, Revenue: ${formatCurrency(wellnessRevenue)}
+- Robotic Spine Category: ${roboticSpineCount} packages sold, Revenue: ${formatCurrency(roboticSpineRevenue)}
+- BMSK Category: ${bmskCount} packages sold, Revenue: ${formatCurrency(bmskRevenue)}
+- Single Session Revenue: ${formatCurrency(m.ssRevenue)}
+- Package Renewals: ${renewalCount} patients renewed, Total Renewal Revenue: ${formatCurrency(renewalTotalRevenue)}
+
+--- PATIENT STATUS BREAKDOWN ---
+${statusLines || 'None'}
 
 --- DOCTOR PERFORMANCE LEADERBOARD ---
 ${docLines || 'None'}
@@ -4723,13 +4799,35 @@ ${sourceLines || 'None'}
 --- TOP PACKAGE SALES BREAKDOWN ---
 ${packageLines || 'None'}
 
+--- REVENUE BY DATE ---
+${revenueDateLines || 'None'}
+
 --- RENEWAL PATIENT SERIES SAMPLE (1st Package -> 2nd Package -> 3rd Package) ---
 ${renewalLines || 'None'}
 
---- MATHEMATICAL INTEGRITY AUDIT INSTRUCTIONS ---
-1. Verify math totals (Sum of consultation + package + single session revenue = ${formatCurrency(m.totalRevenue)}).
-2. Audit doctor pain management conversion calculations.
-3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package series).`;
+--- PATIENT-LEVEL DETAILS SAMPLE (First 20 Patients) ---
+${patientLines || 'None'}
+
+--- SINGLE SESSION PATIENTS SAMPLE ---
+${ssLines || 'None'}
+
+      --- MATHEMATICAL INTEGRITY & LOGIC AUDIT INSTRUCTIONS ---
+      1. Verify math totals: Sum of consultation + package + single session revenue should equal total revenue (${formatCurrency(m.totalRevenue)}).
+      2. Audit doctor pain management conversion calculations: painMgmtCount / consultation * 100 should match reported conversion %.
+      3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package series).
+      4. Cross-check status counts sum equals total patients.
+      5. Verify package count totals match package revenue / average package price.
+      6. CRITICAL: Audit Renewal Detection Logic - Verify that renewals are NOT false positives from:
+         a. Same-bundle installments (same package paid in parts on different dates)
+         b. Same-day partial payments (same package partially paid multiple times on same date)
+         c. Women's health packages (Womens Health-3/4/6, Women's Health-SS-1) should NOT be classified as renewals
+      7. CRITICAL: Audit Package Merging Logic - Verify that:
+         a. Full packages (proportionalPaid >= 95% of packageCost) are merged across dates into 1 row
+         b. Partial packages (proportionalPaid < 95% of packageCost) retain their date in the service key to show separate rows
+      8. CRITICAL: Audit Consultation Classification - Verify that ONLY "Consultation" and "Women's Health Consultation" are consultations, and that women's health packages (Womens Health-3/4/6, Women's Health-SS-1) are classified as packages, not consultations.
+      9. CRITICAL: Audit Single-Session Aggregation - Verify that multiple single-session entries for the same patient are aggregated correctly into 1 row with summed amounts.
+      10. Verify PDF export data matches dashboard data exactly.
+      11. Flag any mathematical anomalies, logic errors, or data inconsistencies found with specific patient names and amounts.`;
     }
 
     async function generateAIExecutiveReport() {
