@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic v1.6</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.7</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1970,7 +1970,9 @@
         const pkgMap = {};
         for (const row of p._rawRows) {
           const dateStrKey = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
-          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${dateStrKey}`.toLowerCase();
+          const svcKey = row.type === 'consultation'
+            ? `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${dateStrKey}`.toLowerCase()
+            : `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
