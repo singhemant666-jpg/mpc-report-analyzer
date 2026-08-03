@@ -552,6 +552,47 @@
 
     .chart-container.pie-container { height: 320px; }
 
+    /* ==================== ANALYTICS INSIGHTS ==================== */
+    .insight-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: var(--transition);
+    }
+
+    .insight-card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .insight-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .insight-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .insight-item {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .insight-item strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
     /* ==================== DATA TABLES ==================== */
     .tables-section {
       margin-bottom: 28px;
@@ -1269,32 +1310,41 @@
         </div>
       </div>
 
-      <!-- Charts (Analytics) -->
+      <!-- Analytics -->
       <div class="section-title"><span class="icon">📊</span> Analytics</div>
+
+      <!-- Summary Insights -->
+      <div id="analytics-insights" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:24px;"></div>
+
+      <!-- Charts -->
       <div class="charts-grid">
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Patient Distribution</div>
+          <div class="chart-title"><div class="dot"></div>Patient Distribution by Status</div>
           <div class="chart-container pie-container"><canvas id="chart-pie"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Doctor-wise Conversion</div>
+          <div class="chart-title"><div class="dot"></div>Revenue Breakdown by Category</div>
+          <div class="chart-container pie-container"><canvas id="chart-revenue-pie"></canvas></div>
+        </div>
+        <div class="chart-card full-width">
+          <div class="chart-title"><div class="dot"></div>Revenue Trend Over Time</div>
+          <div class="chart-container"><canvas id="chart-revenue"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Top Doctors by Consultations</div>
           <div class="chart-container"><canvas id="chart-doctor"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Agent-wise Conversion</div>
+          <div class="chart-title"><div class="dot"></div>Top Agents by Conversions</div>
           <div class="chart-container"><canvas id="chart-agent"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Lead Source-wise Conversion</div>
+          <div class="chart-title"><div class="dot"></div>Lead Source Performance</div>
           <div class="chart-container"><canvas id="chart-source"></canvas></div>
         </div>
         <div class="chart-card">
           <div class="chart-title"><div class="dot"></div>Package Sales (Top 15)</div>
           <div class="chart-container"><canvas id="chart-package"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Revenue Trend</div>
-          <div class="chart-container"><canvas id="chart-revenue"></canvas></div>
         </div>
       </div>
 
@@ -2130,8 +2180,24 @@
             continue;
           }
 
-          // Package type: detect multiple purchases (bundles from Excel totalPackageCost or proportionalPaid overflow)
+          // Package type: detect multiple purchases
+          // IMPORTANT: totalPackageCost may represent a CART BUNDLE total (sum of all packages same date)
+          // Only trust it for splitting if there are NO other different packages on the same date.
+          const sameDatePackages = mergedServices.filter(s =>
+            s.type === 'package' &&
+            formatDate(s.paymentDate) === formatDate(svc.paymentDate)
+          );
+          const isCartBundle = sameDatePackages.length > 1;
+
           let pkgCount = svc.quantity || 1;
+          if (!isCartBundle && pkgCount === 1) {
+            const isBundle = svc.totalPackageCost && svc.packageCost > 0 && svc.totalPackageCost >= svc.packageCost * 1.95;
+            if (isBundle) {
+              pkgCount = Math.round(svc.totalPackageCost / svc.packageCost);
+            } else if (svc.packageCost > 0 && svc.proportionalPaid >= svc.packageCost * 1.95) {
+              pkgCount = Math.floor(svc.proportionalPaid / svc.packageCost);
+            }
+          }
 
           // Cap allocated revenue per package contract at packageCost * pkgCount
           const maxAllowedAllocated = svc.packageCost * pkgCount;
@@ -2490,16 +2556,24 @@
       const grid = document.getElementById('metrics-grid');
       grid.innerHTML = '';
 
+      const avgRevenuePerPatient = m.totalPatients > 0 ? m.totalRevenue / m.totalPatients : 0;
+      const renewalRate = m.totalConsultationPatients > 0 ? ((m.statusCounts['Package Renewal'] || 0) / m.totalConsultationPatients * 100) : 0;
+      const renewalRevenue = m.renewalTotalRevenue || 0;
+      const renewalCount = m.renewalCount || 0;
+
       const cards = [
         { label: 'Total Patients', value: m.totalPatients, color: 'cyan', icon: '👥', fmt: 'num' },
         { label: 'Consultation Patients', value: m.totalConsultationPatients, color: 'purple', icon: '🩺', fmt: 'num',
-          sub: `${m.totalConsultationRecords || 362} consultation records (incl. Women's Health @ ₹1,500)` },
+          sub: `${m.totalConsultationRecords || 0} consultation records` },
         { label: 'Conversion Rate', value: m.conversionPct, color: 'emerald', icon: '📈', fmt: 'pct',
           sub: `${m.converted} of ${m.totalConsultationPatients} converted` },
         { label: 'Total Revenue', value: m.totalRevenue, color: 'amber', icon: '💰', fmt: 'currency' },
-        { label: 'Consultation Revenue', value: m.consultationRevenue, color: 'cyan', icon: '🩺', fmt: 'currency' },
+        { label: 'Avg Revenue/Patient', value: avgRevenuePerPatient, color: 'cyan', icon: '💵', fmt: 'currency' },
         { label: 'Package Revenue', value: m.packageRevenue, color: 'purple', icon: '📦', fmt: 'currency' },
-        { label: 'Single Session Revenue', value: m.ssRevenue, color: 'amber', icon: '⚡', fmt: 'currency' }
+        { label: 'Consultation Revenue', value: m.consultationRevenue, color: 'emerald', icon: '🩺', fmt: 'currency' },
+        { label: 'Single Session Revenue', value: m.ssRevenue, color: 'amber', icon: '⚡', fmt: 'currency' },
+        { label: 'Renewals', value: renewalCount, color: 'purple', icon: '🔄', fmt: 'num',
+          sub: `Revenue: ${formatCurrency(renewalRevenue)} | Rate: ${renewalRate.toFixed(1)}%` }
       ];
 
       cards.forEach((c, i) => {
@@ -2585,12 +2659,164 @@
       Chart.defaults.font.family = 'Inter';
       Chart.defaults.font.size = 11;
 
+      renderInsights(m);
       renderPieChart(m);
+      renderRevenuePieChart(m);
       renderDoctorChart(m);
       renderAgentChart(m);
       renderSourceChart(m);
       renderPackageChart(m);
       renderRevenueChart(m);
+    }
+
+    function renderInsights(m) {
+      const container = document.getElementById('analytics-insights');
+      if (!container) return;
+
+      const renewalRate = m.totalConsultationPatients > 0 ? ((m.statusCounts['Package Renewal'] || 0) / m.totalConsultationPatients * 100) : 0;
+      const topPackage = Object.entries(m.packageSales || {}).sort((a, b) => b[1].revenue - a[1].revenue)[0];
+      const avgRevenue = m.totalPatients > 0 ? m.totalRevenue / m.totalPatients : 0;
+      const topDoctor = Object.values(m.doctorMap || {}).sort((a, b) => b.painMgmtCount - a.painMgmtCount)[0];
+
+      const insights = [
+        {
+          title: '💰 Revenue Snapshot',
+          items: [
+            `Total: ${formatCurrency(m.totalRevenue)}`,
+            `Avg/Patient: ${formatCurrency(avgRevenue)}`,
+            `Package: ${formatCurrency(m.packageRevenue)} (${m.totalPatients > 0 ? (m.packageRevenue / m.totalRevenue * 100).toFixed(1) : 0}%)`,
+            `Consultation: ${formatCurrency(m.consultationRevenue)}`
+          ]
+        },
+        {
+          title: '🔄 Renewal Health',
+          items: [
+            `Renewed Patients: ${m.renewalCount || 0}`,
+            `Renewal Revenue: ${formatCurrency(m.renewalTotalRevenue || 0)}`,
+            `Renewal Rate: ${renewalRate.toFixed(1)}%`,
+            `Of ${m.totalConsultationPatients} consultation patients`
+          ]
+        },
+        {
+          title: '🏆 Top Performer',
+          items: topDoctor ? [
+            `Doctor: ${topDoctor.doctor}`,
+            `PM Packages: ${topDoctor.painMgmtCount}`,
+            `Conversion: ${topDoctor.painMgmtConvPct.toFixed(1)}%`,
+            `Revenue: ${formatCurrency(topDoctor.painMgmtRevenue)}`
+          ] : ['No doctor data available']
+        },
+        {
+          title: '📦 Top Package',
+          items: topPackage ? [
+            `Package: ${topPackage[0]}`,
+            `Patients: ${topPackage[1].count}`,
+            `Revenue: ${formatCurrency(topPackage[1].revenue)}`,
+            `Avg: ${formatCurrency(topPackage[1].revenue / topPackage[1].count)}`
+          ] : ['No package data available']
+        }
+      ];
+
+      container.innerHTML = insights.map(insight => `
+        <div class="insight-card">
+          <div class="insight-title">${insight.title}</div>
+          <div class="insight-items">
+            ${insight.items.map(item => `<div class="insight-item">${item}</div>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPieChart(m) {
+      const labels = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
+      const data = labels.map(s => m.statusCounts[s] || 0);
+
+      chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: CHART_COLORS.slice(0, labels.length),
+            borderWidth: 0,
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => {
+                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
+                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                  return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '60%'
+        }
+      });
+    }
+
+    function renderRevenuePieChart(m) {
+      const categories = [
+        { name: 'Pain Management', value: m.painMgmtRevenue || 0, color: '#8b5cf6' },
+        { name: 'Wellness', value: m.wellnessRevenue || 0, color: '#06b6d4' },
+        { name: 'Robotic Spine', value: m.roboticSpineRevenue || 0, color: '#f43f5e' },
+        { name: 'BMSK', value: m.bmskRevenue || 0, color: '#fb923c' },
+        { name: 'Consultation', value: m.consultationRevenue || 0, color: '#10b981' },
+        { name: 'Single Session', value: m.ssRevenue || 0, color: '#f59e0b' }
+      ].filter(c => c.value > 0);
+
+      if (categories.length === 0) {
+        const ctx = document.getElementById('chart-revenue-pie');
+        if (ctx) {
+          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No revenue data available</div>';
+        }
+        return;
+      }
+
+      chartInstances.revenuePie = new Chart(document.getElementById('chart-revenue-pie'), {
+        type: 'doughnut',
+        data: {
+          labels: categories.map(c => c.name),
+          datasets: [{
+            data: categories.map(c => c.value),
+            backgroundColor: categories.map(c => c.color),
+            borderWidth: 0,
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => {
+                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
+                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                  return ` ${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '55%'
+        }
+      });
     }
 
     function renderPieChart(m) {
