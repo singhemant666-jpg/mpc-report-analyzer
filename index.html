@@ -3174,7 +3174,28 @@
       }
 
       // Build table
-      const cols = [
+      const isRenewalsTab = tab.id === 'renewals';
+      const cols = isRenewalsTab ? [
+        { key: 'name', label: 'Patient Name' },
+        { key: 'consultDate', label: 'Consulting Date' },
+        { key: 'paymentDate', label: 'Payment Date' },
+        { key: 'initialPackage', label: 'Initial Package' },
+        { key: 'renewedPackage', label: 'Renewed Package(s)' },
+        { key: 'doctor', label: 'Doctor' },
+        { key: 'agent', label: 'Agent' },
+        { key: 'leadSource', label: 'Lead Source' },
+        { key: 'pkgValue', label: 'Pkg Value' },
+        { key: 'amountPaid', label: 'Amount Paid' },
+        { key: 'consultRev', label: 'Consult Rev' },
+        { key: 'pkgRev', label: 'Pkg Rev Breakdown' },
+        { key: 'ssRev', label: 'SS Rev Breakdown' },
+        { key: 'pmPkgRev', label: 'Pain Mgmt Pkg Rev' },
+        { key: 'wellnessPkgRev', label: 'Wellness Pkg Rev' },
+        { key: 'roboticSpineRev', label: 'Robotic Spine Rev' },
+        { key: 'bmskRev', label: 'BMSK Rev' },
+        { key: 'renewals', label: 'Renewals' },
+        { key: 'status', label: 'Status' }
+      ] : [
         { key: 'name', label: 'Patient Name' },
         { key: 'consultDate', label: 'Consulting Date' },
         { key: 'paymentDate', label: 'Payment Date' },
@@ -3231,30 +3252,48 @@
         const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
         
         let pkgCellHTML = '-';
-        if (tab.id === 'renewals') {
-          const pkgSvcs = p.services.filter(s => s.type !== 'consultation');
-          pkgCellHTML = pkgSvcs.map((s, idx) => {
-            const label = getOrdinalLabel(idx + 1);
-            const isFirst = idx === 0;
-            const bg = isFirst ? 'rgba(6,182,212,0.2)' : 'rgba(139,92,246,0.2)';
-            const color = isFirst ? 'var(--cyan)' : 'var(--purple)';
-            const border = isFirst ? 'rgba(6,182,212,0.4)' : 'rgba(139,92,246,0.4)';
+        let initialPkgHTML = '-';
+        let renewedPkgHTML = '-';
 
-            return `<div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
-              <span style="background:${bg}; color:${color}; border:1px solid ${border}; padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">${label}</span>
-              <span style="color:var(--text-primary); font-weight:600;">${s.packageName}</span>
-            </div>`;
-          }).join('');
+        if (isRenewalsTab) {
+          const pkgSvcs = p.services.filter(s => s.type !== 'consultation');
+          const initialSvcs = pkgSvcs.filter(s => !s.isRenewal);
+          const renewalSvcs = pkgSvcs.filter(s => s.isRenewal);
+
+          if (initialSvcs.length > 0) {
+            initialPkgHTML = initialSvcs.map(s => `
+              <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                <span style="background:rgba(6,182,212,0.2); color:var(--cyan); border:1px solid rgba(6,182,212,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">1st Package</span>
+                <span style="color:var(--text-primary); font-weight:600;">${s.packageName}</span>
+              </div>
+            `).join('');
+          }
+
+          if (renewalSvcs.length > 0) {
+            renewedPkgHTML = renewalSvcs.map((s, idx) => {
+              const label = getOrdinalLabel(idx + 2); // 2nd Package, 3rd Package...
+              return `
+                <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:rgba(139,92,246,0.2); color:var(--purple); border:1px solid rgba(139,92,246,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">${label}</span>
+                  <span style="color:var(--text-primary); font-weight:600;">${s.packageName}</span>
+                </div>
+              `;
+            }).join('');
+          }
         } else {
           const packagesList = displayServices.filter(s => s.type !== 'consultation').map(s => s.packageName);
           pkgCellHTML = formatPackageList(packagesList);
         }
 
+        const packageColsHTML = isRenewalsTab
+          ? `<td>${initialPkgHTML}</td><td>${renewedPkgHTML}</td>`
+          : `<td>${pkgCellHTML}</td>`;
+
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
           <td style="color:var(--cyan);font-weight:500">${getPatientConsultingDate(p)}</td>
           <td style="color:var(--text-secondary);font-weight:500">${getPatientPaymentDates(p)}</td>
-          <td>${pkgCellHTML}</td>
+          ${packageColsHTML}
           <td>${p.doctors.join(', ') || '-'}</td>
           <td>${p.agents.join(', ') || '-'}</td>
           <td>${p.leadSources.join(', ') || '-'}</td>
@@ -3512,14 +3551,14 @@
 
           const isRenewals = cs.isRenewalsSheet;
           const cols = isRenewals 
-            ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Package Stage', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
+            ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source',
                'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
             : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
                'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal', 'Status'];
 
           ws.columns = isRenewals
             ? [
-                { width: 30 }, { width: 18 }, { width: 22 }, { width: 22 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 },
+                { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 },
                 { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
               ]
             : [
@@ -3554,13 +3593,16 @@
               const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
               const stageLabel = isRenewals ? getOrdinalLabel(pkgIndex) : '1st Package';
+              const initialPkgName = s.isRenewal ? '-' : s.packageName;
+              const renewedPkgName = s.isRenewal ? s.packageName : '-';
 
               const rowCells = isRenewals ? [
                 p.name,
                 getPatientConsultingDate(p),
                 formatDate(s.paymentDate) || getPatientPaymentDates(p),
+                initialPkgName,
+                renewedPkgName,
                 stageLabel,
-                s.packageName,
                 s.doctor || p.doctors.join(', '),
                 s.agent || p.agents.join(', '),
                 s.leadSource || p.leadSources.join(', '),
@@ -3600,7 +3642,7 @@
 
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
-              const mergeCols = isRenewals ? [1, 2, 6, 7, 8, 18] : [1, 2, 5, 6, 7, 18];
+              const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 19] : [1, 2, 5, 6, 7, 18];
               mergeCols.forEach(colIdx => {
                 try {
                   ws.mergeCells(startRow, colIdx, endRow, colIdx);
@@ -3832,7 +3874,7 @@
 
         const isRenewalsTab = currentTab === 'renewals';
         const cols = isRenewalsTab
-          ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Package Stage', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
+          ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source',
              'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
           : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
              'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal',
@@ -3840,7 +3882,7 @@
 
         ws.columns = isRenewalsTab
           ? [
-              { width: 30 }, { width: 18 }, { width: 22 }, { width: 22 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 },
+              { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 25 }, { width: 25 }, { width: 20 },
               { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
             ]
           : [
@@ -3876,13 +3918,16 @@
             const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
             const stageLabel = isRenewalsTab ? getOrdinalLabel(pkgIndex) : '1st Package';
+            const initialPkgName = s.isRenewal ? '-' : s.packageName;
+            const renewedPkgName = s.isRenewal ? s.packageName : '-';
 
             const rowCells = isRenewalsTab ? [
               p.name,
               getPatientConsultingDate(p),
               formatDate(s.paymentDate) || getPatientPaymentDates(p),
+              initialPkgName,
+              renewedPkgName,
               stageLabel,
-              s.packageName,
               s.doctor || p.doctors.join(', '),
               s.agent || p.agents.join(', '),
               s.leadSource || p.leadSources.join(', '),
@@ -3922,7 +3967,7 @@
 
           const endRow = ws.lastRow ? ws.lastRow.number : startRow;
           if (endRow > startRow) {
-            const mergeCols = isRenewalsTab ? [1, 2, 6, 7, 8, 18] : [1, 2, 5, 6, 7, 18];
+            const mergeCols = isRenewalsTab ? [1, 2, 7, 8, 9, 19] : [1, 2, 5, 6, 7, 18];
             mergeCols.forEach(colIdx => {
               try {
                 ws.mergeCells(startRow, colIdx, endRow, colIdx);
