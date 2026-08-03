@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily Collection Report Analyzer | MPC Clinic v1.5</title>
+  <title>Daily Collection Report Analyzer | MPC Clinic v1.6</title>
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1695,6 +1695,35 @@
       return lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
     }
 
+    function getPackageCategory(packageName) {
+      if (!packageName) return 'Other';
+      const lower = packageName.toLowerCase();
+      if (isPainManagementPackage(packageName)) return 'Pain Management';
+      if (isWellnessPackage(packageName)) return 'Wellness';
+      if (isRoboticSpinePackage(packageName)) return 'Robotic Spine';
+      if (isBMSKPackage(packageName)) return 'BMSK';
+      if (lower.includes('foot insole') || lower.includes('insoles')) return 'Foot Insoles';
+      if (lower.includes('shockwave')) return 'Shockwave';
+      if (lower.includes('ice bath')) return 'Ice Bath';
+      if (lower.includes('hbot')) return 'HBOT';
+      if (lower.includes('ems')) return 'EMS';
+      if (lower.includes('cryo')) return 'Cryotherapy';
+      if (lower.includes('red light')) return 'Red Light';
+      if (lower.includes('laser')) return 'Laser';
+      if (lower.includes('magneto')) return 'Magneto';
+      if (lower.includes('thor')) return 'THOR';
+      if (lower.includes('acoustic wave')) return 'Acoustic Wave';
+      if (lower.includes('deep tissue')) return 'Deep Tissue';
+      if (lower.includes('pelvic')) return 'Pelvic';
+      if (lower.includes('pilates')) return 'Pilates';
+      if (lower.includes('gait')) return 'Gait Analysis';
+      if (lower.includes('cardio')) return 'Cardio Coach';
+      if (lower.includes('prism')) return 'Prism';
+      if (lower.includes('couple ice bath')) return 'Couple Ice Bath';
+      if (lower.includes('women') && !lower.includes('consultation')) return 'Womens Health';
+      return 'Other';
+    }
+
     function isSamePackageCategory(pkg1, pkg2) {
       if (!pkg1 || !pkg2) return false;
       const p1 = pkg1.trim().toLowerCase();
@@ -1862,12 +1891,10 @@
           }
         }
 
-        // Determine cumulative allocation across all packages for patient to set isRenewal accurately:
-        // A row is flagged as isRenewal = true ONLY if:
-        // 1. Patient has a Consultation in the same month (p.hasConsultation)
-        // 2. The package was purchased on a LATER DATE than the initial conversion purchase date (rowDateStr > firstDateStr)
-        // 3. Cumulative allocated revenue for THAT SPECIFIC PACKAGE reached/exceeded its cost (pkgCumulative >= pkgCost - 0.01)
-        // 4. The same package name appears 2 times total (not 3+). If 3+ instances exist, treat as bundle/installment → no renewal.
+        // Determine renewal status based on category:
+        // 1. Patient must have a Consultation
+        // 2. The FIRST package after consultation is always "Initial Package"
+        // 3. ANY LATER package in the SAME CATEGORY is flagged as "Package Renewal"
         const allPkgRows = p._rawRows.filter(r => r.type === 'package');
         
         const parseTimestamp = (val) => {
@@ -1888,12 +1915,6 @@
             return `${y}-${m}-${day}`;
           };
 
-          const pkgCountMap = {};
-          for (const row of allPkgRows) {
-            const pkgName = row.packageName;
-            pkgCountMap[pkgName] = (pkgCountMap[pkgName] || 0) + 1;
-          }
-
           let firstDateStr = '';
           for (const r of allPkgRows) {
             const ds = getRowDateStr(r);
@@ -1903,30 +1924,19 @@
             }
           }
 
-          const pkgCumulative = {};
-          const pkgCostMap = {};
-
-          for (const row of allPkgRows) {
-            const pkgName = row.packageName;
-            if (!(pkgName in pkgCumulative)) {
-              pkgCumulative[pkgName] = 0;
-              pkgCostMap[pkgName] = row.packageCost > 0 ? row.packageCost : getPackagePrice(pkgName, 0);
-            }
-          }
+          const initialPkg = allPkgRows[0];
+          const initialPkgCategory = getPackageCategory(initialPkg.packageName);
 
           for (const row of allPkgRows) {
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
-            const pkgCost = pkgCostMap[row.packageName] || 0;
-            const cumulativeForPkg = pkgCumulative[row.packageName] || 0;
-            const pkgInstanceCount = pkgCountMap[row.packageName] || 0;
+            const isSameCategory = getPackageCategory(row.packageName) === initialPkgCategory;
             
-            if (p.hasConsultation && isLaterDate && pkgCost > 0 && cumulativeForPkg >= pkgCost - 0.01 && pkgInstanceCount === 2) {
+            if (p.hasConsultation && isLaterDate && isSameCategory) {
               row.isRenewal = true;
             } else {
               row.isRenewal = false;
             }
-            pkgCumulative[row.packageName] = cumulativeForPkg + (row.proportionalPaid || 0);
           }
         }
 
