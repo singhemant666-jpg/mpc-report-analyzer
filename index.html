@@ -4420,6 +4420,72 @@
       return null;
     }
 
+    function buildFullAIDatasetPrompt(m) {
+      // 1. Doctor Breakdown
+      const docLines = Object.values(m.doctorMap || {})
+        .sort((a,b) => b.painMgmtCount - a.painMgmtCount)
+        .map(d => `  * ${d.doctor}: Consultations=${d.consultation}, Total Pkgs=${d.totalPackages}, PM Pkgs=${d.painMgmtCount}, PM Conv=${d.painMgmtConvPct.toFixed(1)}%, PM Revenue=${formatCurrency(d.painMgmtRevenue)}, PM Breakdown=[${Object.entries(d.pmBreakdown || {}).map(([k,v]) => `${k}:${v}`).join(', ')}]`)
+        .join('\n');
+
+      // 2. Agent Breakdown
+      const agentLines = Object.entries(m.agentMap || {})
+        .sort((a,b) => b[1].total - a[1].total)
+        .map(([agent, d]) => `  * ${agent}: Consultations=${d.consultation}, Packages=${d.package}, Total=${d.total}`)
+        .join('\n');
+
+      // 3. Lead Source Breakdown
+      const sourceLines = Object.entries(m.sourceMap || {})
+        .sort((a,b) => b[1].total - a[1].total)
+        .map(([src, d]) => `  * ${src}: Consultations=${d.consultation}, Packages=${d.package}, Total=${d.total}`)
+        .join('\n');
+
+      // 4. Package Sales Breakdown
+      const packageLines = Object.entries(m.packageSales || {})
+        .sort((a,b) => b[1].revenue - a[1].revenue)
+        .map(([pkg, d]) => `  * ${pkg}: Count=${d.count}, Revenue=${formatCurrency(d.revenue)}`)
+        .join('\n');
+
+      // 5. Renewal Patient Samples with exact 1st -> 2nd -> 3rd package series
+      const renewalPatients = Object.values(allPatients || {}).filter(p => p.hasConsultation && p.services && p.services.some(s => s.isRenewal));
+      const renewalLines = renewalPatients.slice(0, 15).map(p => {
+        const pkgChain = p.services.filter(s => s.type !== 'consultation').map((s, idx) => `${getOrdinalLabel(idx+1)}: ${s.packageName} (${formatCurrency(s.proportionalPaid)}, ${formatDate(s.paymentDate)})`).join(' -> ');
+        return `  * ${p.name}: ${pkgChain}`;
+      }).join('\n');
+
+      return `You are an expert executive healthcare dataset auditor & analyst for My Pain Clinic (MPC).
+
+--- COMPLETE AUDITED DATASET METRICS ---
+- Total Unique Patients: ${m.totalPatients}
+- Total Collection Revenue: ${formatCurrency(m.totalRevenue)}
+- Consultation Patients: ${m.consultationPatients} (Revenue: ${formatCurrency(m.consultationRevenue)})
+- Converted Package Patients: ${m.packagePatients} (Overall Conversion Rate: ${m.overallConversionRate.toFixed(1)}%)
+- Pain Management Category: ${m.painMgmtCount} packages sold, Revenue: ${formatCurrency(m.painMgmtRevenue)} (Conversion Rate: ${m.painMgmtConvPct.toFixed(1)}%)
+- Wellness Category: ${m.wellnessCount} packages sold, Revenue: ${formatCurrency(m.wellnessRevenue)}
+- Robotic Spine Category: ${m.roboticSpineRevenue}
+- BMSK Category: ${m.bmskRevenue}
+- Package Renewals: ${m.renewalCount} patients renewed, Total Renewal Revenue: ${formatCurrency(m.renewalTotalRevenue)}
+
+--- DOCTOR PERFORMANCE LEADERBOARD ---
+${docLines || 'None'}
+
+--- SALES AGENT BREAKDOWN ---
+${agentLines || 'None'}
+
+--- LEAD SOURCE CHANNEL BREAKDOWN ---
+${sourceLines || 'None'}
+
+--- TOP PACKAGE SALES BREAKDOWN ---
+${packageLines || 'None'}
+
+--- RENEWAL PATIENT SERIES SAMPLE (1st Package -> 2nd Package -> 3rd Package) ---
+${renewalLines || 'None'}
+
+--- MATHEMATICAL INTEGRITY AUDIT INSTRUCTIONS ---
+1. Verify math totals (Sum of consultation + package + single session revenue = ${formatCurrency(m.totalRevenue)}).
+2. Audit doctor pain management conversion calculations.
+3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package series).`;
+    }
+
     async function generateAIExecutiveReport() {
       const box = document.getElementById('ai-insights-box');
       if (!box) return;
@@ -4430,21 +4496,12 @@
         return;
       }
 
-      box.innerHTML = '<div style="color:var(--cyan); display:flex; align-items:center; gap:8px;">⌛ <span>Analyzing dataset & running mathematical accuracy checks...</span></div>';
+      box.innerHTML = '<div style="color:var(--cyan); display:flex; align-items:center; gap:8px;">⌛ <span>Analyzing dataset & running mathematical accuracy checks via Groq AI...</span></div>';
 
-      const promptText = `You are an expert executive healthcare analyst auditing the Daily Collection Report of My Pain Clinic (MPC).
-Dataset Summary:
-- Total Unique Patients: ${m.totalPatients}
-- Total Collection Revenue: ${formatCurrency(m.totalRevenue)}
-- Consultation Patients: ${m.consultationPatients} (Revenue: ${formatCurrency(m.consultationRevenue)})
-- Converted Package Patients: ${m.packagePatients} (${m.overallConversionRate.toFixed(1)}% Conversion Rate)
-- Pain Management Packages: ${m.painMgmtCount} packages sold, Revenue: ${formatCurrency(m.painMgmtRevenue)} (${m.painMgmtConvPct.toFixed(1)}% PM Conv Rate)
-- Wellness Packages: ${m.wellnessCount} packages sold, Revenue: ${formatCurrency(m.wellnessRevenue)}
-- Robotic Spine Revenue: ${formatCurrency(m.roboticSpineRevenue)}
-- BMSK Revenue: ${formatCurrency(m.bmskRevenue)}
-- Package Renewals: ${m.renewalCount} patients renewed, Renewal Revenue: ${formatCurrency(m.renewalTotalRevenue)}
+      const datasetContext = buildFullAIDatasetPrompt(m);
+      const promptText = `${datasetContext}
 
-Provide a concise, professional Executive Insights Report covering:
+Task: Provide a concise, professional Executive Insights Report covering:
 1. Executive Summary & Conversion Highlights
 2. Doctor & Incentive Leaderboard Analysis
 3. Package Renewals Sequence Analysis (1st Package -> 2nd Package -> 3rd Package pattern)
@@ -4505,11 +4562,11 @@ Provide a concise, professional Executive Insights Report covering:
       const m = currentMetrics || {};
       box.innerHTML = `<div style="color:var(--cyan);">⌛ Processing AI Query: "${query}"...</div>`;
 
-      const promptText = `You are an AI assistant for My Pain Clinic's Daily Collection Report.
-Metrics: Total Patients: ${m.totalPatients}, Revenue: ${formatCurrency(m.totalRevenue)}, Consultation Patients: ${m.consultationPatients}, Package Patients: ${m.packagePatients}, Conv Rate: ${m.overallConversionRate.toFixed(1)}%, Pain Mgmt Revenue: ${formatCurrency(m.painMgmtRevenue)}, Renewals: ${m.renewalCount} (${formatCurrency(m.renewalTotalRevenue)}).
+      const datasetContext = buildFullAIDatasetPrompt(m);
+      const promptText = `${datasetContext}
 
 User Question: ${query}
-Provide a clear, accurate, quantitative response based on the dataset.`;
+Task: Provide a precise, mathematically accurate, quantitative answer based strictly on the audited dataset above.`;
 
       let aiResponseText = await callAIProviderAPI(promptText);
 
