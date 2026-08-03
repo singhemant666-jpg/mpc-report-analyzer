@@ -1695,6 +1695,20 @@
       return lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
     }
 
+    function isSamePackageCategory(pkg1, pkg2) {
+      if (!pkg1 || !pkg2) return false;
+      const p1 = pkg1.trim().toLowerCase();
+      const p2 = pkg2.trim().toLowerCase();
+      if (p1 === p2) return true;
+
+      if (isPainManagementPackage(pkg1) && isPainManagementPackage(pkg2)) return true;
+      if (isWellnessPackage(pkg1) && isWellnessPackage(pkg2)) return true;
+      if (isRoboticSpinePackage(pkg1) && isRoboticSpinePackage(pkg2)) return true;
+      if (isBMSKPackage(pkg1) && isBMSKPackage(pkg2)) return true;
+
+      return false;
+    }
+
     // ==================== PATIENT GROUPING & REVENUE ALLOCATION ====================
     function groupPatients(rows, globalPatients = null) {
       const patients = {};
@@ -2068,12 +2082,17 @@
           return da - db;
         });
 
-        // Re-classify isRenewal based on strict chronological order of non-consultation package services
-        let pkgCounter = 0;
+        // Re-classify isRenewal strictly by matching prior purchases of the SAME package category
+        const seenPackageCategories = [];
         for (const s of finalServices) {
           if (s.type !== 'consultation') {
-            pkgCounter++;
-            s.isRenewal = (pkgCounter > 1);
+            const hasPriorSameCategory = seenPackageCategories.some(seenName => isSamePackageCategory(seenName, s.packageName));
+            if (hasPriorSameCategory) {
+              s.isRenewal = true;
+            } else {
+              s.isRenewal = false;
+              seenPackageCategories.push(s.packageName);
+            }
           }
         }
 
