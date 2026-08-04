@@ -984,33 +984,68 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
     if (filterSvc) relevantRows = relevantRows.filter(r => r.service === filterSvc);
     if (filterSt)  relevantRows = relevantRows.filter(r => r.status  === filterSt);
 
-    // Derive displayed doctors and services from the filtered rows only
+    if (!relevantRows.length) continue;
+
     const shownDoctors  = [...new Set(relevantRows.map(r => r.doctor).filter(Boolean))];
     const shownServices = [...new Set(relevantRows.map(r => r.service).filter(Boolean))];
+
+    // In Cross-Doctor view, ONLY include patients with 2 or more doctors for the active filter
+    if (shownDoctors.length < 2) continue;
+
     const shownSessions = relevantRows.reduce((s, r) => s + r.done, 0);
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
-    const docTags = shownDoctors.map(doc => `<span class="doctor-tag ${docColor(doc)}">${doc}</span>`).join(' ');
-    const svcs    = shownServices.join(', ');
-    const stHtml  = shownStatuses.map(s => `<span class="status-${s}">${s}</span>`).join(' / ');
-    // Still show total doctor count badge (to indicate this patient sees more doctors overall)
-    const multiLabel = d.doctors.size > 1 ? `<span class="multi-pill" title="Patient has ${d.doctors.size} doctors total">🔀 ${d.doctors.size} total</span>` : '';
+    matched.push({
+      pt,
+      d,
+      shownDoctors,
+      shownServices,
+      shownSessions,
+      shownPending,
+      shownStatuses
+    });
+  }
+
+  matched.sort((a, b) => b.shownDoctors.length - a.shownDoctors.length || (b.shownSessions - a.shownSessions));
+
+  // Update result count bar
+  const bar = document.getElementById('crossResultBar');
+  const activeFilters = [
+    filterDoc && `Doctor: ${filterDoc}`,
+    filterSvc && `Service: ${filterSvc}`,
+    filterSt  && `Status: ${filterSt}`
+  ].filter(Boolean);
+
+  if (activeFilters.length) {
+    bar.innerHTML = `<span style="color:var(--accent); font-weight:600">${matched.length}</span> multi-doctor patients shown &nbsp;·&nbsp; Filter: <span style="color:var(--amber)">${activeFilters.join(' + ')}</span>`;
+  } else {
+    bar.innerHTML = `Showing <span style="color:var(--accent); font-weight:600">${matched.length}</span> patients with 2+ doctors`;
+  }
+
+  if (!matched.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="no-data">No multi-doctor patients match the selected filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = matched.map(item => {
+    const docTags = item.shownDoctors.map(doc => `<span class="doctor-tag ${docColor(doc)}">${doc}</span>`).join(' ');
+    const svcs    = item.shownServices.join(', ');
+    const stHtml  = item.shownStatuses.map(s => `<span class="status-${s}">${s}</span>`).join(' / ');
+    const multiLabel = `<span class="multi-pill" title="${item.shownDoctors.length} doctors for selected filter">🔀 ${item.shownDoctors.length} docs</span>`;
 
     return `<tr>
-      <td><strong>${pt}</strong> ${multiLabel}</td>
+      <td><strong>${item.pt}</strong> ${multiLabel}</td>
       <td>${docTags}</td>
       <td style="color:var(--muted);font-size:12px">${svcs}</td>
-      <td style="text-align:center;font-weight:700;color:var(--accent)">${shownSessions}</td>
-      <td style="text-align:center;color:${shownPending>0?'var(--red)':'var(--muted)'}">₹${Math.round(shownPending).toLocaleString('en-IN')}</td>
+      <td style="text-align:center;font-weight:700;color:var(--accent)">${item.shownSessions}</td>
+      <td style="text-align:center;color:${item.shownPending>0?'var(--red)':'var(--muted)'}">₹${Math.round(item.shownPending).toLocaleString('en-IN')}</td>
       <td>${stHtml}</td>
     </tr>`;
   }).join('');
 }
 
-// ════════════════════════════════════════
-// TABS
-// ════════════════════════════════════════
+
 function showTab(t) {
   ['patients','doctors','cross'].forEach(n=>{
     document.getElementById('tab-'+n).classList.toggle('active', n===t);
