@@ -262,6 +262,7 @@
     <div id="panelPatients">
       <div class="section-header">
         <h2>Patient Appointments & Package Status</h2>
+        <span class="badge badge-blue" id="ptCountBadge" style="font-size:12px; padding:6px 12px;"></span>
         <div class="controls">
           <input type="search" id="srchMain" placeholder="🔍 Search patient / doctor…" oninput="applyFilters()" style="width:220px">
           <select id="fltDoctor" onchange="applyFilters()"><option value="">All Doctors</option></select>
@@ -477,7 +478,7 @@ function handleFile(file) {
       filteredRows = [...allRows];
       renderMetrics();
       renderCharts();
-      renderMainTable();
+      applyFilters(); // Updates patient badge & table
       renderDoctorCards();
       renderDoctorPerformance();
       renderCross();
@@ -559,6 +560,10 @@ function applyFilters() {
     (!ft || r.status  === ft)
   );
   currentPage = 1;
+
+  const uniquePts = new Set(filteredRows.map(r => r.patient)).size;
+  document.getElementById('ptCountBadge').textContent = `Total Patients: ${uniquePts} (${filteredRows.length} Appointment Records)`;
+
   renderMainTable();
 }
 
@@ -747,14 +752,11 @@ function renderDoctorPerformance() {
     rows.forEach(r => { if (r.service) svcSess[r.service] = (svcSess[r.service]||0) + 1; });
     const svcBreakdown = Object.entries(svcSess).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`${s} (${n})`).join(', ');
 
-    // Balanced performance formula (out of 100)
-    // 300 visits = 50 pts
     const volumeScore = Math.min(50, (visits / 300) * 50);
     const ratingScore = (avgRat / 5) * 25;
     const progressScore = (avgProg / 100) * 25;
     const perfScore = Math.round(volumeScore + ratingScore + progressScore);
 
-    // Performance Rank Tier
     let rankBadge = '<span class="rank-pill rank-normal">Standard</span>';
     let incentiveBand = 'Tier C (Standard)';
     if (perfScore >= 80) { rankBadge = '<span class="rank-pill rank-gold">🥇 Top Performer</span>'; incentiveBand = 'Tier A+ (Maximum Incentive)'; }
@@ -851,7 +853,6 @@ function renderDocPerfTable() {
 // EXCEL EXPORTS
 // ════════════════════════════════════════
 
-// 1. Export All Patients Excel (Filtered or All)
 function exportAllPatientsExcel() {
   if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
 
@@ -880,7 +881,6 @@ function exportAllPatientsExcel() {
   XLSX.writeFile(wb, `All_Patients_Appointments_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-// 2. Export Cross-Doctor Patients Excel
 function exportCrossDoctorExcel() {
   if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
 
@@ -905,8 +905,8 @@ function exportCrossDoctorExcel() {
 
     if (shownDoctors.length < 2) continue;
 
-    const shownVisits   = relevantRows.length; // Doctor Visits
-    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0); // Patient Package Sessions
+    const shownVisits   = relevantRows.length;
+    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0);
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
@@ -935,13 +935,11 @@ function exportCrossDoctorExcel() {
   XLSX.writeFile(wb, `Cross_Doctor_Patients_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-// 3. Export Executive Doctor Performance & Incentive Excel (Multi-Sheet)
 function exportDoctorPerformanceExcel() {
   if (!allRows || !allRows.length) { alert('Please upload an appointment report first.'); return; }
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Executive AMSK Doctor Incentive Ranking
   const amskData = [];
   for (const [doc, data] of Object.entries(doctorMap)) {
     const amskRows = data.rows.filter(r => isAMSKService(r.service));
@@ -949,8 +947,8 @@ function exportDoctorPerformanceExcel() {
 
     const totalVisitsAll = data.rows.length;
     const patients = new Set(amskRows.map(r => r.patient)).size;
-    const visits = amskRows.length; // AMSK Visits
-    const packageSessions = amskRows.reduce((s, r) => s + r.patientSessions, 0); // AMSK Patient Package Sessions
+    const visits = amskRows.length;
+    const packageSessions = amskRows.reduce((s, r) => s + r.patientSessions, 0);
     const amskShare = totalVisitsAll ? Math.round((visits / totalVisitsAll) * 100) : 0;
     const ratArr = amskRows.filter(r => r.rating > 0);
     const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
@@ -988,7 +986,6 @@ function exportDoctorPerformanceExcel() {
   ws1['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 24 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }, { wch: 30 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'AMSK Performance & Incentive');
 
-  // Sheet 2: Doctor Service-Wise Breakdown
   const svcBreakdownRows = [];
   for (const [doc, data] of Object.entries(doctorMap)) {
     const svcSessions = {};
@@ -1016,7 +1013,6 @@ function exportDoctorPerformanceExcel() {
   ws2['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 18 }, { wch: 18 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Doctor Service Breakdown');
 
-  // Sheet 3: Doctor Patient List
   const docPatientRows = [];
   for (const [doc, data] of Object.entries(doctorMap)) {
     for (const r of data.rows) {
@@ -1042,13 +1038,11 @@ function exportDoctorPerformanceExcel() {
   XLSX.writeFile(wb, filename);
 }
 
-// 4. Export Complete Master Excel Report (All 4 Sheets in 1 Workbook)
 function exportMasterAnalyzerExcel() {
   if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: All Patients
   const ptData = allRows.map(r => ({
     'Date': r.dateStr, 'Patient Name': r.patient, 'Service': r.service, 'Doctor': r.doctor,
     'Patient Package Sessions Completed': r.patientSessions, 'Future Sessions Left': r.future, 'Pending (₹)': Math.round(r.pending),
@@ -1058,7 +1052,6 @@ function exportMasterAnalyzerExcel() {
   ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'All Patients');
 
-  // Sheet 2: Cross Doctor Matrix (Multi-Doctor Patients)
   const crossData = [];
   for (const [pt, d] of Object.entries(patientMap)) {
     if (d.doctors.size < 2) continue;
@@ -1072,7 +1065,6 @@ function exportMasterAnalyzerExcel() {
   ws2['!cols'] = [{ wch: 24 }, { wch: 16 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 24 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Cross Doctor Patients');
 
-  // Sheet 3: AMSK Doctor Performance & Incentives
   const amskData = [];
   for (const [doc, data] of Object.entries(doctorMap)) {
     const amskRows = data.rows.filter(r => isAMSKService(r.service));
@@ -1149,8 +1141,8 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
 
     if (shownDoctors.length < 2) continue;
 
-    const shownVisits   = relevantRows.length; // Doctor Visits
-    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0); // Patient Package Sessions
+    const shownVisits   = relevantRows.length;
+    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0);
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
