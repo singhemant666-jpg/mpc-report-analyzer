@@ -3524,22 +3524,33 @@
     }
 
     function getPackageStageLabel(s, allServices) {
-      if (!s || !s.isRenewal) return '1st Package';
-
-      const renSvcs = (allServices || []).filter(item => item.type !== 'consultation' && item.isRenewal);
-      const uniqueDates = [];
-      for (const item of renSvcs) {
-        const dStr = item.paymentDate ? formatDate(item.paymentDate) : 'no_date';
-        if (!uniqueDates.includes(dStr)) uniqueDates.push(dStr);
-      }
-
-      const sDateStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
-      let dateIdx = uniqueDates.indexOf(sDateStr);
-      if (dateIdx < 0) {
-        dateIdx = renSvcs.indexOf(s);
-      }
-
-      return getOrdinalLabel(dateIdx + 2);
+      if (!s) return '1st Package';
+      
+      const categoryOfS = getPackageCategory(s.packageName);
+      
+      // Filter packages of the same category
+      const sameCategoryPkgSvcs = (allServices || []).filter(item => 
+        item.type === 'package' && 
+        getPackageCategory(item.packageName) === categoryOfS
+      );
+      
+      // Sort them chronologically ascending by paymentDate
+      sameCategoryPkgSvcs.sort((a, b) => {
+        const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+        const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+        return da - db;
+      });
+      
+      // Find the index of s
+      const index = sameCategoryPkgSvcs.findIndex(item => 
+        item === s || 
+        (item.packageName === s.packageName && 
+         item.paymentDate === s.paymentDate && 
+         item.proportionalPaid === s.proportionalPaid)
+      );
+      
+      const finalIndex = index >= 0 ? index : 0;
+      return getOrdinalLabel(finalIndex + 1);
     }
 
     function getPatientConsultingDate(p) {
