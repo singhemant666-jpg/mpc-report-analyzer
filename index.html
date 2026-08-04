@@ -4376,19 +4376,19 @@
 
         const isRenewalsTab = currentTab === 'renewals';
         const cols = isRenewalsTab
-          ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source',
+          ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
              'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
-          : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
+          : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
              'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal',
              'Status'];
 
         ws.columns = isRenewalsTab
           ? [
-              { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 25 }, { width: 25 }, { width: 20 },
+              { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 25 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
               { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
             ]
           : [
-              { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 },
+              { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
               { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 },
               { width: 32 }
             ];
@@ -4433,6 +4433,8 @@
               s.doctor || p.doctors.join(', '),
               s.agent || p.agents.join(', '),
               s.leadSource || p.leadSources.join(', '),
+              s.paymentMode || '-',
+              s.invoiceNo || '-',
               pkgVal,
               pkgPaid,
               0,
@@ -4451,6 +4453,8 @@
               s.doctor || p.doctors.join(', '),
               s.agent || p.agents.join(', '),
               s.leadSource || p.leadSources.join(', '),
+              s.paymentMode || '-',
+              s.invoiceNo || '-',
               pkgVal,
               pkgPaid,
               currentTab === 'renewals' ? 0 : Math.round(consultRev * 100) / 100,
@@ -4469,7 +4473,7 @@
 
           const endRow = ws.lastRow ? ws.lastRow.number : startRow;
           if (endRow > startRow) {
-            const mergeCols = isRenewalsTab ? [1, 2, 7, 8, 9, 19] : [1, 2, 5, 6, 7, 18];
+            const mergeCols = isRenewalsTab ? [1, 2, 7, 8, 9, 21] : [1, 2, 5, 6, 7, 20];
             mergeCols.forEach(colIdx => {
               try {
                 ws.mergeCells(startRow, colIdx, endRow, colIdx);
@@ -4480,8 +4484,8 @@
           }
         }
 
-        const numFmtStart = isRenewalsTab ? 9 : 8;
-        const numFmtEnd = isRenewalsTab ? 17 : 16;
+        const numFmtStart = isRenewalsTab ? 12 : 10;
+        const numFmtEnd = isRenewalsTab ? 20 : 18;
         for (let c = numFmtStart; c <= numFmtEnd; c++) ws.getColumn(c).numFmt = '#,##0.00';
 
         const buffer = await wb.xlsx.writeBuffer();
