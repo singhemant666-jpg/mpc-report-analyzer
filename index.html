@@ -2526,6 +2526,21 @@
         }
       }
 
+      let renewalCount = 0;
+      let renewalTotalRevenue = 0;
+      for (const p of pList) {
+        let hasRenewal = false;
+        for (const s of p.services) {
+          if (s.isRenewal) {
+            hasRenewal = true;
+            renewalTotalRevenue += (s.proportionalPaid || 0);
+          }
+        }
+        if (hasRenewal) {
+          renewalCount++;
+        }
+      }
+
       return {
         totalPatients,
         totalConsultationPatients,
@@ -2542,6 +2557,8 @@
         sourceMap,
         packageSales,
         revenueByDate,
+        renewalCount,
+        renewalTotalRevenue,
         STATUSES: [...STATUSES, 'Package Renewal']
       };
     }
