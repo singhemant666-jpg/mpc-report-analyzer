@@ -108,7 +108,7 @@
     /* SECTION HEADER */
     .section-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0 14px; }
     .section-header h2 { font-size: 18px; font-weight: 700; }
-    .section-header .controls { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+    .section-header .controls { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     /* DOCTOR TAGS */
     .doctor-tag {
@@ -246,7 +246,7 @@
     <!-- TABS -->
     <div class="tabs">
       <div class="tab active" id="tab-patients" onclick="showTab('patients')">👥 All Patients</div>
-      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Performance</div>
+      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Performance & Incentives</div>
       <div class="tab" id="tab-cross" onclick="showTab('cross')">🔀 Cross-Doctor Patients</div>
     </div>
 
@@ -290,12 +290,15 @@
     <!-- ── TAB: DOCTORS & PERFORMANCE ── -->
     <div id="panelDoctors" style="display:none">
       <div class="section-header">
-        <h2>Doctor Performance Report</h2>
+        <h2>Doctor Performance & Incentive Report</h2>
         <div class="controls">
           <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:200px">
             <option value="amsk">🔬 Advanced MSK (AMSK) Only</option>
             <option value="all">📋 All Services</option>
           </select>
+          <button class="btn btn-primary" onclick="exportDoctorPerformanceExcel()" style="padding:8px 16px; font-size:12px;">
+            📥 Download Excel Report (.xlsx)
+          </button>
         </div>
       </div>
       <div class="metrics" id="docPerfMetrics"></div>
@@ -309,7 +312,8 @@
               <th>AMSK Sessions</th>
               <th onclick="sortDocPerf('avgRating')">Avg Rating ↕</th>
               <th onclick="sortDocPerf('avgProgress')">Avg Progress ↕</th>
-              <th onclick="sortDocPerf('pending')">Pending ↕</th>
+              <th onclick="sortDocPerf('pending')">Pending (₹) ↕</th>
+              <th onclick="sortDocPerf('perfScore')">Incentive Score ↕</th>
             </tr>
           </thead>
           <tbody id="docPerfBody"></tbody>
@@ -680,7 +684,7 @@ function renderDoctorCards(q='') {
 function filterDocCards() { renderDoctorCards(document.getElementById('srchDoc').value.toLowerCase()); }
 
 // ════════════════════════════════════════
-// DOCTOR PERFORMANCE
+// DOCTOR PERFORMANCE & INCENTIVES
 // ════════════════════════════════════════
 let docPerfData = [], docPerfPage = 1, docPerfSortCol = 'sessions', docPerfSortDir = 1;
 
@@ -709,7 +713,14 @@ function renderDoctorPerformance() {
     const svcSess = {};
     rows.forEach(r => { if (r.service) svcSess[r.service] = (svcSess[r.service]||0) + r.done; });
     const svcBreakdown = Object.entries(svcSess).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`${s} (${n})`).join(', ');
-    perfMap[doc] = { doc, patients: patients.size, sessions, avgRating: avgRat, avgProgress: avgProg, pending: totalPending, amskSessions: amskRows.reduce((s,r)=>s+r.done,0), svcBreakdown };
+
+    // Calculate performance score out of 100
+    const volumeScore = Math.min(50, (sessions / 100) * 50);
+    const ratingScore = (avgRat / 5) * 25;
+    const progressScore = (avgProg / 100) * 25;
+    const perfScore = Math.round(volumeScore + ratingScore + progressScore);
+
+    perfMap[doc] = { doc, patients: patients.size, sessions, avgRating: avgRat, avgProgress: avgProg, pending: totalPending, amskSessions: amskRows.reduce((s,r)=>s+r.done,0), perfScore, svcBreakdown };
   }
   docPerfData = Object.values(perfMap).sort((a,b)=>b.sessions-a.sessions);
   docPerfPage = 1; docPerfSortCol = 'sessions'; docPerfSortDir = 1;
@@ -754,9 +765,10 @@ function renderDocPerfTable() {
   const start = (docPerfPage-1) * PAGE_SIZE;
   const slice = sorted.slice(start, start + PAGE_SIZE);
   const tbody = document.getElementById('docPerfBody');
-  if (!slice.length) { tbody.innerHTML='<tr><td colspan="7" class="no-data">No doctors found.</td></tr>'; document.getElementById('docPerfPager').innerHTML=''; return; }
+  if (!slice.length) { tbody.innerHTML='<tr><td colspan="8" class="no-data">No doctors found.</td></tr>'; document.getElementById('docPerfPager').innerHTML=''; return; }
   tbody.innerHTML = slice.map(d => {
     const ratHtml = d.avgRating ? `<span class="rating">${d.avgRating.toFixed(1)}★</span>` : '<span style="color:var(--muted)">—</span>';
+    const scoreColor = d.perfScore >= 75 ? 'var(--green)' : d.perfScore >= 50 ? 'var(--amber)' : 'var(--accent)';
     return `<tr>
       <td><span class="doctor-tag ${docColor(d.doc)}" title="${d.svcBreakdown}">${d.doc}</span></td>
       <td>${d.patients}</td>
@@ -768,6 +780,7 @@ function renderDocPerfTable() {
         <span style="font-size:10px;color:var(--muted);margin-left:4px">${d.avgProgress.toFixed(1)}%</span>
       </td>
       <td style="color:${d.pending>0?'var(--red)':'var(--muted)'}">₹${Math.round(d.pending).toLocaleString('en-IN')}</td>
+      <td><strong style="color:${scoreColor}">${d.perfScore}/100</strong></td>
     </tr>`;
   }).join('');
   const total = Math.ceil(sorted.length / PAGE_SIZE);
@@ -779,6 +792,106 @@ function renderDocPerfTable() {
   for (let i=s2; i<=e2; i++) h += `<button class="page-btn${i===docPerfPage?' active':''}" onclick="docPerfPage=${i}; renderDocPerfTable()">${i}</button>`;
   if (docPerfPage < total) h += `<button class="page-btn" onclick="docPerfPage++; renderDocPerfTable()">Next ›</button>`;
   pg.innerHTML = h;
+}
+
+// ════════════════════════════════════════
+// EXCEL EXPORT FOR DOCTOR PERFORMANCE
+// ════════════════════════════════════════
+function exportDoctorPerformanceExcel() {
+  if (!allRows || !allRows.length) {
+    alert('Please upload an appointment report first.');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: AMSK Doctor Performance & Incentive Summary
+  const amskData = [];
+  for (const [doc, data] of Object.entries(doctorMap)) {
+    const amskRows = data.rows.filter(r => isAMSKService(r.service));
+    if (!amskRows.length) continue;
+
+    const patients = new Set(amskRows.map(r => r.patient)).size;
+    const sessions = amskRows.reduce((s, r) => s + r.done, 0);
+    const ratArr = amskRows.filter(r => r.rating > 0);
+    const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
+    const avgProgress = amskRows.reduce((s, r) => s + r.progress, 0) / amskRows.length;
+    const totalPending = amskRows.reduce((s, r) => s + r.pending, 0);
+
+    const volumeScore = Math.min(50, (sessions / 100) * 50);
+    const ratingScore = (avgRating / 5) * 25;
+    const progressScore = (avgProgress / 100) * 25;
+    const perfScore = Math.round(volumeScore + ratingScore + progressScore);
+
+    amskData.push({
+      'Doctor Name': doc,
+      'AMSK Patients Treated': patients,
+      'AMSK Sessions Completed': sessions,
+      'Average Star Rating': avgRating ? avgRating.toFixed(1) + ' ★' : 'N/A',
+      'Average Recovery Progress (%)': Math.round(avgProgress) + '%',
+      'Pending Revenue (₹)': Math.round(totalPending),
+      'Incentive Score (out of 100)': perfScore
+    });
+  }
+
+  amskData.sort((a, b) => b['AMSK Sessions Completed'] - a['AMSK Sessions Completed']);
+  const ws1 = XLSX.utils.json_to_sheet(amskData);
+  ws1['!cols'] = [
+    { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, 'AMSK Performance & Incentive');
+
+  // Sheet 2: All Doctors Performance Overview
+  const allDocData = [];
+  for (const [doc, data] of Object.entries(doctorMap)) {
+    const amskRows = data.rows.filter(r => isAMSKService(r.service));
+    const patients = data.patients.size;
+    const sessions = data.totalSessions;
+    const amskSessions = amskRows.reduce((s, r) => s + r.done, 0);
+    const ratArr = data.rows.filter(r => r.rating > 0);
+    const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
+    const avgProgress = data.rows.reduce((s, r) => s + r.progress, 0) / (data.rows.length || 1);
+    const totalPending = data.rows.reduce((s, r) => s + r.pending, 0);
+
+    allDocData.push({
+      'Doctor Name': doc,
+      'Total Patients': patients,
+      'Total Sessions': sessions,
+      'AMSK Sessions': amskSessions,
+      'Average Star Rating': avgRating ? avgRating.toFixed(1) + ' ★' : 'N/A',
+      'Average Progress (%)': Math.round(avgProgress) + '%',
+      'Pending Revenue (₹)': Math.round(totalPending)
+    });
+  }
+  allDocData.sort((a, b) => b['Total Sessions'] - a['Total Sessions']);
+  const ws2 = XLSX.utils.json_to_sheet(allDocData);
+  ws2['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'All Doctors Summary');
+
+  // Sheet 3: AMSK Patient Treatment Records
+  const amskPatientRows = [];
+  for (const r of allRows) {
+    if (isAMSKService(r.service)) {
+      amskPatientRows.push({
+        'Date': r.dateStr,
+        'Patient Name': r.patient,
+        'Doctor Name': r.doctor,
+        'Service': r.service,
+        'Completed Sessions': r.done,
+        'Future Sessions': r.future,
+        'Pending (₹)': Math.round(r.pending),
+        'Status': r.status,
+        'Progress (%)': Math.round(r.progress) + '%',
+        'Star Rating': r.rating ? r.rating + ' ★' : 'N/A'
+      });
+    }
+  }
+  const ws3 = XLSX.utils.json_to_sheet(amskPatientRows);
+  ws3['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 26 }, { wch: 30 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'AMSK Patient Records');
+
+  const filename = `AMSK_Doctor_Performance_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
 }
 
 // ════════════════════════════════════════
@@ -822,7 +935,6 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
     const shownDoctors  = [...new Set(relevantRows.map(r => r.doctor).filter(Boolean))];
     const shownServices = [...new Set(relevantRows.map(r => r.service).filter(Boolean))];
 
-    // In Cross-Doctor view, ONLY include patients with 2 or more doctors for the active filter
     if (shownDoctors.length < 2) continue;
 
     const shownSessions = relevantRows.reduce((s, r) => s + r.done, 0);
@@ -842,7 +954,6 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
 
   matched.sort((a, b) => b.shownDoctors.length - a.shownDoctors.length || (b.shownSessions - a.shownSessions));
 
-  // Update result count bar
   const bar = document.getElementById('crossResultBar');
   const activeFilters = [
     filterDoc && `Doctor: ${filterDoc}`,
