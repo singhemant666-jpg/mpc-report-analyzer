@@ -309,16 +309,9 @@
     <!-- ── TAB: CROSS ── -->
     <div id="panelCross" style="display:none">
       <div class="section-header">
-        <h2>🔀 Patients Seen by Multiple Doctors</h2>
-        <div class="controls">
-          <input type="search" id="srchCross" placeholder="🔍 Search patient…" oninput="filterCross()" style="width:220px">
-        </div>
-      </div>
-      <div class="summary-box" id="multiSummary"></div>
-
-      <div class="section-header" style="margin-top:24px">
         <h2>Full Patient ↔ Doctor Matrix</h2>
         <div class="controls">
+          <input type="search" id="srchCross" placeholder="🔍 Search patient…" oninput="filterCross()" style="width:220px">
           <select id="crossFltDoctor" onchange="filterCross()" style="min-width:180px">
             <option value="">All Doctors</option>
           </select>
@@ -665,16 +658,6 @@ function filterDocCards() { renderDoctorCards(document.getElementById('srchDoc')
 // CROSS TAB
 // ════════════════════════════════════════
 function renderCross(q='') {
-  // Summary: multi-doctor patients
-  const multi = Object.entries(patientMap).filter(([,d])=>d.doctors.size>1).sort((a,b)=>b[1].doctors.size-a[1].doctors.size);
-  const box = document.getElementById('multiSummary');
-  box.innerHTML = `<h3>⚡ ${multi.length} patients are being seen by multiple doctors</h3>` +
-    (multi.length ? multi.map(([pt,d])=>`<div class="cp-row">
-      <div class="cp-name">${pt} <span class="multi-pill">🔀 ${d.doctors.size} docs</span></div>
-      <div class="cp-docs">${[...d.doctors].map(doc=>`<span class="doctor-tag ${docColor(doc)}">${doc}</span>`).join('')}</div>
-    </div>`).join('')
-    : '<p style="color:var(--muted);font-size:13px">No patients with multiple doctors found.</p>');
-
   renderCrossTable(q);
 }
 
