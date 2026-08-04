@@ -205,6 +205,7 @@
   </div>
   <div class="nav-right">
     <span class="badge badge-blue" id="rowBadge" style="display:none"></span>
+    <button class="btn btn-primary" id="masterExportBtn" style="display:none" onclick="exportMasterAnalyzerExcel()">📥 Download Master Report (.xlsx)</button>
     <button class="btn btn-outline" id="resetBtn" style="display:none" onclick="resetApp()">↺ New File</button>
     <a href="index.html" class="btn btn-outline">← Collection Report</a>
   </div>
@@ -263,6 +264,9 @@
             <option value="Active">Active</option>
             <option value="Expired">Expired</option>
           </select>
+          <button class="btn btn-primary" onclick="exportAllPatientsExcel()" style="padding:8px 16px; font-size:12px;">
+            📥 Export All Patients (.xlsx)
+          </button>
         </div>
       </div>
       <div class="table-wrap">
@@ -297,7 +301,7 @@
             <option value="all">📋 All Services</option>
           </select>
           <button class="btn btn-primary" onclick="exportDoctorPerformanceExcel()" style="padding:8px 16px; font-size:12px;">
-            📥 Download Excel Report (.xlsx)
+            📥 Download Performance Excel (.xlsx)
           </button>
         </div>
       </div>
@@ -333,7 +337,7 @@
     <!-- ── TAB: CROSS-DOCTOR PATIENTS ── -->
     <div id="panelCross" style="display:none">
       <div class="section-header">
-        <h2>Full Patient ↔ Doctor Matrix</h2>
+        <h2>Full Patient ↔ Doctor Matrix (Multi-Doctor Patients)</h2>
         <div class="controls">
           <input type="search" id="srchCross" placeholder="🔍 Search patient…" oninput="filterCross()" style="width:220px">
           <select id="crossFltDoctor" onchange="filterCross()" style="min-width:180px">
@@ -348,6 +352,9 @@
             <option value="Expired">Expired</option>
           </select>
           <button onclick="resetCrossFilters()" style="padding:8px 14px; border-radius:8px; background:rgba(239,68,68,0.15); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); font-size:12px; font-weight:600; cursor:pointer;">✕ Reset</button>
+          <button class="btn btn-primary" onclick="exportCrossDoctorExcel()" style="padding:8px 16px; font-size:12px;">
+            📥 Export Cross-Doctor Excel (.xlsx)
+          </button>
         </div>
       </div>
       <div id="crossResultBar" style="font-size:12px; color:var(--muted); margin-bottom:10px; padding:6px 2px;"></div>
@@ -467,6 +474,7 @@ function handleFile(file) {
       document.getElementById('appContent').style.display = 'block';
       document.getElementById('rowBadge').textContent = allRows.length + ' records';
       document.getElementById('rowBadge').style.display = 'inline';
+      document.getElementById('masterExportBtn').style.display = 'inline-flex';
       document.getElementById('resetBtn').style.display = 'inline-flex';
     } catch(err) {
       alert('Error: ' + err.message);
@@ -486,6 +494,7 @@ function resetApp() {
   document.getElementById('loader').style.display = 'none';
   document.getElementById('appContent').style.display = 'none';
   document.getElementById('rowBadge').style.display = 'none';
+  document.getElementById('masterExportBtn').style.display = 'none';
   document.getElementById('resetBtn').style.display = 'none';
   document.getElementById('fileInput').value = '';
 }
@@ -714,7 +723,6 @@ function renderDoctorPerformance() {
     rows.forEach(r => { if (r.service) svcSess[r.service] = (svcSess[r.service]||0) + r.done; });
     const svcBreakdown = Object.entries(svcSess).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`${s} (${n})`).join(', ');
 
-    // Calculate performance score out of 100
     const volumeScore = Math.min(50, (sessions / 100) * 50);
     const ratingScore = (avgRat / 5) * 25;
     const progressScore = (avgProg / 100) * 25;
@@ -795,13 +803,94 @@ function renderDocPerfTable() {
 }
 
 // ════════════════════════════════════════
-// EXCEL EXPORT FOR DOCTOR PERFORMANCE
+// EXCEL EXPORTS
 // ════════════════════════════════════════
-function exportDoctorPerformanceExcel() {
-  if (!allRows || !allRows.length) {
-    alert('Please upload an appointment report first.');
-    return;
+
+// 1. Export All Patients Excel (Filtered or All)
+function exportAllPatientsExcel() {
+  if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
+
+  const rowsToExport = filteredRows.length ? filteredRows : allRows;
+  const data = rowsToExport.map(r => ({
+    'Date': r.dateStr,
+    'Time': r.time,
+    'Patient Name': r.patient,
+    'Service Name': r.service,
+    'Treating Doctor': r.doctor,
+    'Completed Sessions': r.done,
+    'Future Sessions': r.future,
+    'Pending Revenue (₹)': Math.round(r.pending),
+    'Status': r.status,
+    'Progress (%)': Math.round(r.progress) + '%',
+    'Star Rating': r.rating ? r.rating + ' ★' : 'N/A'
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    { wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
+    { wch: 18 }, { wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Patient Appointments');
+  XLSX.writeFile(wb, `All_Patients_Appointments_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// 2. Export Cross-Doctor Patients Excel
+function exportCrossDoctorExcel() {
+  if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
+
+  const q   = document.getElementById('srchCross').value.toLowerCase();
+  const doc = document.getElementById('crossFltDoctor').value;
+  const svc = document.getElementById('crossFltService').value;
+  const st  = document.getElementById('crossFltStatus').value;
+
+  const exportData = [];
+  for (const [pt, d] of Object.entries(patientMap)) {
+    if (q && !pt.toLowerCase().includes(q)) continue;
+
+    let relevantRows = d.rows;
+    if (doc) relevantRows = relevantRows.filter(r => r.doctor === doc);
+    if (svc) relevantRows = relevantRows.filter(r => r.service === svc);
+    if (st)  relevantRows = relevantRows.filter(r => r.status  === st);
+
+    if (!relevantRows.length) continue;
+
+    const shownDoctors  = [...new Set(relevantRows.map(r => r.doctor).filter(Boolean))];
+    const shownServices = [...new Set(relevantRows.map(r => r.service).filter(Boolean))];
+
+    if (shownDoctors.length < 2) continue;
+
+    const shownSessions = relevantRows.reduce((s, r) => s + r.done, 0);
+    const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
+    const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
+
+    exportData.push({
+      'Patient Name': pt,
+      'Total Doctors Count': shownDoctors.length,
+      'Treating Doctors': shownDoctors.join(', '),
+      'Services Received': shownServices.join(', '),
+      'Total Completed Sessions': shownSessions,
+      'Pending Amount (₹)': Math.round(shownPending),
+      'Package Status': shownStatuses.join(' / ')
+    });
   }
+
+  exportData.sort((a, b) => b['Total Doctors Count'] - a['Total Doctors Count'] || (b['Total Completed Sessions'] - a['Total Completed Sessions']));
+
+  if (!exportData.length) { alert('No multi-doctor patients found for export.'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(exportData);
+  ws['!cols'] = [
+    { wch: 24 }, { wch: 20 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Cross Doctor Matrix');
+  XLSX.writeFile(wb, `Cross_Doctor_Patients_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// 3. Export Doctor Performance Excel
+function exportDoctorPerformanceExcel() {
+  if (!allRows || !allRows.length) { alert('Please upload an appointment report first.'); return; }
 
   const wb = XLSX.utils.book_new();
 
@@ -836,9 +925,7 @@ function exportDoctorPerformanceExcel() {
 
   amskData.sort((a, b) => b['AMSK Sessions Completed'] - a['AMSK Sessions Completed']);
   const ws1 = XLSX.utils.json_to_sheet(amskData);
-  ws1['!cols'] = [
-    { wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }
-  ];
+  ws1['!cols'] = [{ wch: 28 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'AMSK Performance & Incentive');
 
   // Sheet 2: All Doctors Performance Overview
@@ -868,7 +955,7 @@ function exportDoctorPerformanceExcel() {
   ws2['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'All Doctors Summary');
 
-  // Sheet 3: AMSK Patient Treatment Records
+  // Sheet 3: AMSK Patient Records
   const amskPatientRows = [];
   for (const r of allRows) {
     if (isAMSKService(r.service)) {
@@ -891,6 +978,70 @@ function exportDoctorPerformanceExcel() {
   XLSX.utils.book_append_sheet(wb, ws3, 'AMSK Patient Records');
 
   const filename = `AMSK_Doctor_Performance_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
+
+// 4. Export Complete Master Excel Report (All 4 Sheets in 1 Workbook)
+function exportMasterAnalyzerExcel() {
+  if (!allRows || !allRows.length) { alert('Please upload a report first.'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: All Patients
+  const ptData = allRows.map(r => ({
+    'Date': r.dateStr, 'Patient Name': r.patient, 'Service': r.service, 'Doctor': r.doctor,
+    'Completed Sessions': r.done, 'Future Sessions': r.future, 'Pending (₹)': Math.round(r.pending),
+    'Status': r.status, 'Progress (%)': Math.round(r.progress) + '%', 'Rating': r.rating ? r.rating + ' ★' : 'N/A'
+  }));
+  const ws1 = XLSX.utils.json_to_sheet(ptData);
+  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'All Patients');
+
+  // Sheet 2: Cross Doctor Matrix (Multi-Doctor Patients)
+  const crossData = [];
+  for (const [pt, d] of Object.entries(patientMap)) {
+    if (d.doctors.size < 2) continue;
+    crossData.push({
+      'Patient Name': pt, 'Doctor Count': d.doctors.size, 'Doctors': [...d.doctors].join(', '),
+      'Services': [...d.services].join(', '), 'Total Sessions': d.totalDone, 'Pending Amount (₹)': Math.round(d.totalPending)
+    });
+  }
+  crossData.sort((a,b) => b['Doctor Count'] - a['Doctor Count']);
+  const ws2 = XLSX.utils.json_to_sheet(crossData);
+  ws2['!cols'] = [{ wch: 24 }, { wch: 16 }, { wch: 45 }, { wch: 45 }, { wch: 16 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Cross Doctor Patients');
+
+  // Sheet 3: AMSK Doctor Performance & Incentives
+  const amskData = [];
+  for (const [doc, data] of Object.entries(doctorMap)) {
+    const amskRows = data.rows.filter(r => isAMSKService(r.service));
+    if (!amskRows.length) continue;
+
+    const patients = new Set(amskRows.map(r => r.patient)).size;
+    const sessions = amskRows.reduce((s, r) => s + r.done, 0);
+    const ratArr = amskRows.filter(r => r.rating > 0);
+    const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
+    const avgProgress = amskRows.reduce((s, r) => s + r.progress, 0) / amskRows.length;
+    const totalPending = amskRows.reduce((s, r) => s + r.pending, 0);
+
+    const volumeScore = Math.min(50, (sessions / 100) * 50);
+    const ratingScore = (avgRating / 5) * 25;
+    const progressScore = (avgProgress / 100) * 25;
+    const perfScore = Math.round(volumeScore + ratingScore + progressScore);
+
+    amskData.push({
+      'Doctor Name': doc, 'AMSK Patients': patients, 'AMSK Sessions': sessions,
+      'Average Rating': avgRating ? avgRating.toFixed(1) + ' ★' : 'N/A',
+      'Average Progress (%)': Math.round(avgProgress) + '%',
+      'Pending Amount (₹)': Math.round(totalPending), 'Incentive Score (/100)': perfScore
+    });
+  }
+  amskData.sort((a,b) => b['AMSK Sessions'] - a['AMSK Sessions']);
+  const ws3 = XLSX.utils.json_to_sheet(amskData);
+  ws3['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'AMSK Doctor Performance');
+
+  const filename = `Master_Appointment_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
