@@ -3003,7 +3003,7 @@
       const consultData = entries.map(e => e[1].consultation);
       const packageData = entries.map(e => e[1].package);
       const convData = entries.map(e => {
-        return e[1].consultation > 0 ? ((e[1].package / e[1].consultation) * 100).toFixed(1) : 0;
+        return e[1].consultation > 0 ? Math.min(100, (e[1].package / e[1].consultation) * 100).toFixed(1) : 0;
       });
 
       chartInstances[chartKey] = new Chart(document.getElementById(canvasId), {
