@@ -3354,7 +3354,7 @@
     }
 
     function formatRoboticSpinePackageRevenueBreakdownFiltered(services) {
-      const rsServices = services.filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName));
+      const rsServices = services.filter(s => s.type === 'package' && isRoboticSpinePackage(s.packageName));
       if (rsServices.length === 0) return '-';
 
       const pkgMap = {};
@@ -3392,7 +3392,7 @@
     }
 
     function formatBMSKPackageRevenueBreakdownFiltered(services) {
-      const bmskServices = services.filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName));
+      const bmskServices = services.filter(s => s.type === 'package' && isBMSKPackage(s.packageName));
       if (bmskServices.length === 0) return '-';
 
       const pkgMap = {};
@@ -3725,7 +3725,7 @@
           svcs = svcs.filter(s => s.isRenewal);
         }
         const rsRev = svcs
-          .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+          .filter(s => s.type === 'package' && isRoboticSpinePackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         return sum + rsRev;
       }, 0);
@@ -3738,7 +3738,7 @@
           svcs = svcs.filter(s => s.isRenewal);
         }
         const bmskRev = svcs
-          .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
+          .filter(s => s.type === 'package' && isBMSKPackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         return sum + bmskRev;
       }, 0);
@@ -3781,10 +3781,10 @@
           .filter(s => s.type === 'package' && isWellnessPackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         case 'roboticSpineRev': return p.services
-          .filter(s => (s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName))
+          .filter(s => s.type === 'package' && isRoboticSpinePackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         case 'bmskRev': return p.services
-          .filter(s => (s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName))
+          .filter(s => s.type === 'package' && isBMSKPackage(s.packageName))
           .reduce((sSum, s) => sSum + (s.proportionalPaid || 0), 0);
         case 'renewals': return p.services
           .filter(s => s.isRenewal)
@@ -3969,8 +3969,8 @@
 
               const pmPkgRev = (s.type === 'package' && isPainManagementPackage(s.packageName)) ? pkgPaid : 0;
               const wellnessPkgRev = (s.type === 'package' && isWellnessPackage(s.packageName)) ? pkgPaid : 0;
-              const roboticSpinePkgRev = ((s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
-              const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
+              const roboticSpinePkgRev = (s.type === 'package' && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
+              const bmskPkgRev = (s.type === 'package' && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
               const stageLabel = isRenewals ? getPackageStageLabel(s, p.services) : '1st Package';
               const initialPkgName = s.isRenewal ? '-' : s.packageName;
@@ -4122,8 +4122,8 @@
 
             const pmPkgRev = (s.type === 'package' && isPainManagementPackage(s.packageName)) ? pkgPaid : 0;
             const wellnessPkgRev = (s.type === 'package' && isWellnessPackage(s.packageName)) ? pkgPaid : 0;
-            const roboticSpinePkgRev = ((s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
-            const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
+            const roboticSpinePkgRev = (s.type === 'package' && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
+            const bmskPkgRev = (s.type === 'package' && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
             s14.addRow([
               p.name,
@@ -4294,8 +4294,8 @@
 
             const pmPkgRev = (s.type === 'package' && isPainManagementPackage(s.packageName)) ? pkgPaid : 0;
             const wellnessPkgRev = (s.type === 'package' && isWellnessPackage(s.packageName)) ? pkgPaid : 0;
-            const roboticSpinePkgRev = ((s.type === 'package' || s.type === 'single_session') && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
-            const bmskPkgRev = ((s.type === 'package' || s.type === 'single_session') && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
+            const roboticSpinePkgRev = (s.type === 'package' && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
+            const bmskPkgRev = (s.type === 'package' && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
 
             const stageLabel = isRenewalsTab ? getPackageStageLabel(s, p.services) : '1st Package';
             const initialPkgName = s.isRenewal ? '-' : s.packageName;
