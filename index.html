@@ -1421,7 +1421,9 @@
        amountPaid:      [/amount\s*paid/i, /amount/i, /paid/i, /collection/i],
        totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i],
        paymentMode:     [/payment\s*mode/i, /mode/i, /payment\s*method/i],
-       invoiceNo:       [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i]
+       invoiceNo:       [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i],
+       userplanId:      [/userplan\s*id/i, /user\s*plan\s*id/i, /plan\s*id/i],
+       cartId:          [/cart\s*id/i]
      };
 
     function detectColumns(headers) {
@@ -1488,7 +1490,9 @@
                 amountPaid:     parseNumber(getVal(row, colMap.amountPaid)),
                 totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost)),
                 paymentMode:    getVal(row, colMap.paymentMode),
-                invoiceNo:      getVal(row, colMap.invoiceNo)
+                invoiceNo:      getVal(row, colMap.invoiceNo),
+                userplanId:     getVal(row, colMap.userplanId),
+                cartId:         getVal(row, colMap.cartId)
               });
             }
 
@@ -1868,7 +1872,9 @@
           paymentMode: row.paymentMode,
           invoiceNo: row.invoiceNo,
           proportionalPaid: 0,
-          quantity: 1
+          quantity: 1,
+          userplanId: row.userplanId,
+          cartId: row.cartId
         });
 
         p.totalPaid += row.amountPaid;
@@ -1885,6 +1891,51 @@
       // ══════════════════════════════════════════════════════════════════
       for (const key of Object.keys(patients)) {
         const p = patients[key];
+
+        // Merge installment rows belonging to the same unique purchase (Userplan ID or Cart ID + Package Name + Type)
+        const groups = {};
+        for (const row of p._rawRows) {
+          const upId = row.userplanId || (row.cartId ? `cart_${row.cartId}_${row.packageName}_${row.type}` : null);
+          if (upId) {
+            const cleanUpId = upId.toString().trim().toLowerCase();
+            if (!groups[cleanUpId]) {
+              groups[cleanUpId] = [];
+            }
+            groups[cleanUpId].push(row);
+          }
+        }
+
+        const mergedRawRows = [];
+        const processedGroups = new Set();
+
+        for (const row of p._rawRows) {
+          const upId = row.userplanId || (row.cartId ? `cart_${row.cartId}_${row.packageName}_${row.type}` : null);
+          if (upId) {
+            const cleanUpId = upId.toString().trim().toLowerCase();
+            if (processedGroups.has(cleanUpId)) continue;
+            processedGroups.add(cleanUpId);
+
+            const group = groups[cleanUpId];
+            group.sort((a, b) => {
+              const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+              const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+              return da - db;
+            });
+
+            const baseRow = group[0];
+            baseRow.amountPaid = group.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+
+            const modes = new Set(group.map(r => r.paymentMode).filter(Boolean));
+            const invoices = new Set(group.map(r => r.invoiceNo).filter(Boolean));
+            if (modes.size > 0) baseRow.paymentMode = Array.from(modes).join(', ');
+            if (invoices.size > 0) baseRow.invoiceNo = Array.from(invoices).join(', ');
+
+            mergedRawRows.push(baseRow);
+          } else {
+            mergedRawRows.push(row);
+          }
+        }
+        p._rawRows = mergedRawRows;
 
         // Sort raw rows chronologically ascending
         p._rawRows.sort((a, b) => {
