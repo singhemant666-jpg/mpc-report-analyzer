@@ -5203,22 +5203,23 @@ ${patientLines || 'None'}
 ${ssLines || 'None'}
 
       --- MATHEMATICAL INTEGRITY & LOGIC AUDIT INSTRUCTIONS ---
-      1. Verify math totals: Sum of consultation + package + single session revenue should equal total revenue (${formatCurrency(m.totalRevenue)}).
+      1. Verify math totals: Sum of consultation + package + single session revenue should equal total collection revenue (${formatCurrency(m.totalRevenue)}).
       2. Audit doctor pain management conversion calculations: painMgmtCount / consultation * 100 should match reported conversion %.
-      3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package series).
-      4. Cross-check status counts sum equals total patients.
-      5. Verify package count totals match package revenue / average package price.
-      6. CRITICAL: Audit Renewal Detection Logic - Verify that renewals are NOT false positives from:
-         a. Same-bundle installments (same package paid in parts on different dates)
-         b. Same-day partial payments (same package partially paid multiple times on same date)
-         c. Women's health packages (Womens Health-3/4/6, Women's Health-SS-1) should NOT be classified as renewals
-      7. CRITICAL: Audit Package Merging Logic - Verify that:
-         a. Full packages (proportionalPaid >= 95% of packageCost) are merged across dates into 1 row
-         b. Partial packages (proportionalPaid < 95% of packageCost) retain their date in the service key to show separate rows
-      8. CRITICAL: Audit Consultation Classification - Verify that ONLY "Consultation" and "Women's Health Consultation" are consultations, and that women's health packages (Womens Health-3/4/6, Women's Health-SS-1) are classified as packages, not consultations.
-      9. CRITICAL: Audit Single-Session Aggregation - Verify that multiple single-session entries for the same patient are aggregated correctly into 1 row with summed amounts.
-      10. Verify PDF export data matches dashboard data exactly.
-      11. Flag any mathematical anomalies, logic errors, or data inconsistencies found with specific patient names and amounts.`;
+      3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package -> 4th Package series).
+      4. Verify that each patient's payment dates, payment modes, and invoice numbers are correctly listed.
+      5. Cross-check status counts sum equals total patients.
+      6. CRITICAL: Audit Renewal Detection Logic:
+         a. Verify that renewals are NOT false positives from installments (unpaid balance payments for the same package contract are grouped together until fully paid).
+         b. Only when a package contract's cost is fully paid, the subsequent transaction in the same category counts as a renewal (e.g. 2nd Package, 3rd Package).
+         c. Single sessions (e.g., Wellness and Recovery-SS-1, Pain Management-SS-1) and consultations do not count as renewals.
+      7. CRITICAL: Audit Package & Single Session Bifurcation:
+         a. Single sessions are kept separate from packages.
+         b. If a patient purchases multiple packages of the same category, they auto-increment sequentially (1st Package -> 2nd Package -> 3rd Package -> 4th Package).
+      8. CRITICAL: Audit Consultation Classification:
+         a. Only "Consultation" and "Women's Health Consultation" are consultations.
+         b. Women's health treatment packages (e.g. Womens Health-3/4/6) are classified under packages, not consultations.
+      9. Verify PDF and Excel export columns (now including Payment Mode and Invoice No.) match dashboard data exactly.
+      10. Flag any mathematical anomalies, logic errors, or data inconsistencies found with specific patient names and amounts.`;
     }
 
     async function generateAIExecutiveReport() {
