@@ -304,46 +304,224 @@
         </div>
       </div>
       <div class="doctor-grid" id="doctorGrid"></div>
+
+      <div class="section-header">
+        <h2>Doctor Performance Report</h2>
+        <div class="controls">
+          <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:180px">
+            <option value="amsk">🔬 Advanced MSK (AMSK) Only</option>
+            <option value="all">📋 All Services</option>
+          </select>
+        </div>
+      </div>
+      <div class="metrics" id="docPerfMetrics"></div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+             <th onclick="sortDocPerf('name')">Doctor ↕</th>
+<content>
+    .dt-10 { background: rgba(168,85,247,0.15); color: #d8b4fe; }
+    .dt-11 { background: rgba(132,204,22,0.15); color: #bef264; }
+
+    /* TABLES */
+    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 20px; }
+    table.tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
+    table.tbl th {
+      background: var(--surface2); padding: 11px 14px; font-size: 12px; font-weight: 600;
+      color: var(--muted); text-align: left; border-bottom: 1px solid var(--border);
+      white-space: nowrap; cursor: pointer;
+    }
+    table.tbl th:hover { color: var(--accent); }
+    table.tbl td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(30,45,69,0.5); }
+    table.tbl tr:hover td { background: rgba(59,130,246,0.04); }
+    table.tbl tr:last-child td { border-bottom: none; }
+
+    /* PROGRESS */
+    .prog-wrap { background: var(--subtle); border-radius: 4px; height: 6px; width: 80px; overflow: hidden; display: inline-block; vertical-align: middle; }
+    .prog-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+    .status-Active { color: var(--green); font-weight: 600; }
+    .status-Expired { color: var(--muted); }
+    .rating { color: var(--amber); font-size: 12px; }
+
+    /* PAGINATION */
+    .pagination { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 14px; }
+    .page-btn {
+      padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .page-btn.active, .page-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .page-info { font-size: 12px; color: var(--muted); }
+
+    /* DOCTOR CARDS */
+    .doctor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; margin-bottom: 28px; }
+    .doc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; transition: transform 0.2s, border-color 0.2s; }
+    .doc-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .doc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .doc-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .doc-name { font-size: 14px; font-weight: 700; }
+    .doc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .doc-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0; }
+    .doc-stat { text-align: center; }
+    .doc-stat-val { font-size: 22px; font-weight: 800; color: var(--accent); }
+    .doc-stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+    .doc-pts-list { max-height: 150px; overflow-y: auto; margin-top: 8px; }
+    .doc-pt-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(30,45,69,0.4); font-size: 12px; }
+    .doc-pt-row:last-child { border-bottom: none; }
+
+    /* CROSS TABLE */
+    .cross-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 28px; }
+    .cross-table { width: 100%; border-collapse: collapse; }
+    .cross-table th { background: var(--surface2); padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--muted); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .cross-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(30,45,69,0.5); vertical-align: middle; }
+    .cross-table tr:hover td { background: rgba(59,130,246,0.04); }
+    .cross-table tr:last-child td { border-bottom: none; }
+    .multi-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; background: rgba(245,158,11,0.15); color: var(--amber); font-size: 10px; font-weight: 700; margin-left: 6px; }
+
+    /* SUMMARY BOX */
+    .summary-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+    .summary-box h3 { font-size: 14px; font-weight: 700; color: var(--amber); margin-bottom: 14px; }
+    .cp-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(30,45,69,0.4); }
+    .cp-row:last-child { border-bottom: none; }
+    .cp-name { min-width: 220px; font-weight: 600; font-size: 13px; flex-shrink: 0; }
+    .cp-docs { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+    #appContent { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="icon">📅</div>
+    <div>
+      <h1>Appointment Analyzer</h1>
+      <p>Patient ↔ Doctor Mapping • MPC Clinic</p>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span class="badge badge-blue" id="rowBadge" style="display:none"></span>
+    <button class="btn btn-outline" id="resetBtn" style="display:none" onclick="resetApp()">↺ New File</button>
+    <a href="index.html" class="btn btn-outline">← Collection Report</a>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div id="uploadSection">
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="emoji">📋</span>
+      <h2>Drop your Day-Wise Appointment Report here</h2>
+      <p>Upload the APPOINTMENT_DAY_WISE .xlsx export from MPC</p>
+      <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+        📂 Choose File
+      </button>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <p style="color:var(--muted); margin-top:8px">Parsing appointments…</p>
+  </div>
+
+  <!-- APP -->
+  <div id="appContent">
+
+    <!-- METRICS -->
+    <div class="metrics" id="metricsGrid"></div>
+
+    <!-- CHARTS -->
+    <div class="charts-row">
+      <div class="chart-card"><h3>📊 Sessions by Doctor</h3><canvas id="doctorChart"></canvas></div>
+      <div class="chart-card"><h3>🩺 Top Services</h3><canvas id="serviceChart"></canvas></div>
     </div>
 
-    <!-- ── TAB: CROSS ── -->
-    <div id="panelCross" style="display:none">
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" id="tab-patients" onclick="showTab('patients')">👥 All Patients</div>
+      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Cards</div>
+      <div class="tab" id="tab-cross" onclick="showTab('cross')">🔀 Cross-Doctor Patients</div>
+    </div>
+
+    <!-- ── TAB: ALL PATIENTS ── -->
+    <div id="panelPatients">
       <div class="section-header">
-        <h2>Full Patient ↔ Doctor Matrix</h2>
+        <h2>Patient Appointments</h2>
         <div class="controls">
-          <input type="search" id="srchCross" placeholder="🔍 Search patient…" oninput="filterCross()" style="width:220px">
-          <select id="crossFltDoctor" onchange="filterCross()" style="min-width:180px">
-            <option value="">All Doctors</option>
-          </select>
-          <select id="crossFltService" onchange="filterCross()" style="min-width:180px">
-            <option value="">All Services</option>
-          </select>
-          <select id="crossFltStatus" onchange="filterCross()">
+          <input type="search" id="srchMain" placeholder="🔍 Search patient / doctor…" oninput="applyFilters()" style="width:220px">
+          <select id="fltDoctor" onchange="applyFilters()"><option value="">All Doctors</option></select>
+          <select id="fltService" onchange="applyFilters()"><option value="">All Services</option></select>
+          <select id="fltStatus" onchange="applyFilters()">
             <option value="">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Expired">Expired</option>
           </select>
-          <button onclick="resetCrossFilters()" style="padding:8px 14px; border-radius:8px; background:rgba(239,68,68,0.15); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); font-size:12px; font-weight:600; cursor:pointer;">✕ Reset</button>
         </div>
       </div>
-      <div id="crossResultBar" style="font-size:12px; color:var(--muted); margin-bottom:10px; padding:6px 2px;"></div>
-      <div class="cross-wrap">
-        <table class="cross-table">
+      <div class="table-wrap">
+        <table class="tbl">
           <thead>
             <tr>
-              <th>Patient Name</th>
-              <th>Doctor(s)</th>
-              <th>Services</th>
-              <th style="text-align:center">Total Sessions</th>
-              <th style="text-align:center">Pending (₹)</th>
+              <th onclick="doSort('date')">Date ↕</th>
+              <th onclick="doSort('patient')">Patient ↕</th>
+              <th>Service</th>
+              <th onclick="doSort('doctor')">Doctor ↕</th>
+              <th style="text-align:center">Done</th>
+              <th style="text-align:center">Future</th>
+              <th style="text-align:right">Pending</th>
               <th>Status</th>
+              <th>Progress</th>
+              <th>Rating</th>
             </tr>
           </thead>
-          <tbody id="crossTbody"></tbody>
+          <tbody id="mainTbody"></tbody>
         </table>
       </div>
+      <div class="pagination" id="mainPager"></div>
     </div>
 
+    <!-- ── TAB: DOCTORS ── -->
+    <div id="panelDoctors" style="display:none">
+      <div class="section-header">
+        <h2>Doctor Summary Cards</h2>
+        <div class="controls">
+          <input type="search" id="srchDoc" placeholder="🔍 Search doctor…" oninput="filterDocCards()" style="width:220px">
+        </div>
+      </div>
+      <div class="doctor-grid" id="doctorGrid"></div>
+
+      <div class="section-header">
+        <h2>Doctor Performance Report</h2>
+        <div class="controls">
+          <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:180px">
+            <option value="amsk">🔬 Advanced MSK (AMSK) Only</option>
+            <option value="all">📋 All Services</option>
+          </select>
+        </div>
+      </div>
+      <div class="metrics" id="docPerfMetrics"></div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+             <th onclick="sortDocPerf('name')">Doctor ↕</th>
+             <th onclick="sortDocPerf('patients')" id="hdrPerfPatients">Patients ↕</th>
+             <th onclick="sortDocPerf('sessions')" id="hdrPerfSessions">Sessions ↕</th>
+             <th>AMSK Sessions</th>
+             <th onclick="sortDocPerf('avgRating')">Avg Rating ↕</th>
+             <th onclick="sortDocPerf('avgProgress')">Avg Progress ↕</th>
+             <th onclick="sortDocPerf('pending')">Pending ↕</th>
   </div><!-- /appContent -->
 </div>
 
@@ -362,6 +540,12 @@ let docColorMap = {}, docColorIdx = 0;
 function docColor(d) {
   if (!(d in docColorMap)) { docColorMap[d] = docColorIdx++ % 12; }
   return 'dt-' + docColorMap[d];
+}
+
+// Strip the trailing role suffix ("Consulting"/"Treatment") so the same
+// doctor isn't split into separate entries by role.
+function normalizeDoctor(name) {
+  return name.replace(/\s+(Consulting|Treatment)$/i, '').trim();
 }
 
 // ════════════════════════════════════════
@@ -415,7 +599,7 @@ function handleFile(file) {
           time:    (r[cTime] || '').toString().trim(),
           patient: pt,
           service: (r[cSvc] || '').toString().trim(),
-          doctor:  (r[cDoc] || '').toString().trim(),
+          doctor:  normalizeDoctor((r[cDoc] || '').toString().trim()),
           done:    parseInt(r[cDone]) || 0,
           future:  parseInt(r[cFut])  || 0,
           pending: parseFloat((r[cPend] || '0').toString().replace(/[^0-9.-]/g,'')) || 0,
@@ -432,6 +616,7 @@ function handleFile(file) {
       renderCharts();
       renderMainTable();
       renderDoctorCards();
+      renderDoctorPerformance();
       renderCross();
       document.getElementById('loader').style.display = 'none';
       document.getElementById('appContent').style.display = 'block';
@@ -448,6 +633,7 @@ function handleFile(file) {
 
 function resetApp() {
   allRows = []; patientMap = {}; doctorMap = {}; filteredRows = []; currentPage = 1;
+  docPerfData = []; docPerfPage = 1; docPerfSortCol = 'sessions'; docPerfSortDir = 1;
   docColorMap = {}; docColorIdx = 0;
   if (chartDoc) { chartDoc.destroy(); chartDoc = null; }
   if (chartSvc) { chartSvc.destroy(); chartSvc = null; }
@@ -625,26 +811,32 @@ function renderDoctorCards(q='') {
   if (!entries.length) { grid.innerHTML='<p class="no-data">No doctors found.</p>'; return; }
   grid.innerHTML = entries.map(([doc, data]) => {
     const init = doc.replace('Dr.','').trim().split(' ').filter(Boolean).map(w=>w[0]).join('').substring(0,2).toUpperCase();
-    const pts   = [...data.patients].slice(0,5);
-    const svcs  = [...data.services].slice(0,3).join(' · ');
     const ratArr = data.rows.filter(r=>r.rating>0);
     const avgRat = ratArr.length ? (ratArr.reduce((s,r)=>s+r.rating,0)/ratArr.length).toFixed(1) : '—';
     const actPts = [...data.patients].filter(pt=>patientMap[pt]&&patientMap[pt].rows.some(r=>r.status==='Active'&&r.doctor===doc)).length;
+
+    // Per-service session breakdown
+    const svcSessions = {};
+    data.rows.forEach(r => { if (r.service) svcSessions[r.service] = (svcSessions[r.service]||0) + r.done; });
+    const svcEntries = Object.entries(svcSessions).sort((a,b)=>b[1]-a[1]);
+    const amskSessions = svcEntries.filter(([s])=>isAMSKService(s)).reduce((s,[,v])=>s+v,0);
+
     return `<div class="doc-card">
       <div class="doc-header">
         <div class="doc-avatar">${init}</div>
-        <div><div class="doc-name">${doc}</div><div class="doc-meta">${svcs||'—'}</div></div>
+        <div><div class="doc-name">${doc}</div><div class="doc-meta">${[...data.services].slice(0,3).join(' · ')||'—'}</div></div>
       </div>
       <div class="doc-stats">
         <div class="doc-stat"><div class="doc-stat-val">${data.patients.size}</div><div class="doc-stat-lbl">Patients</div></div>
         <div class="doc-stat"><div class="doc-stat-val" style="color:var(--accent2)">${data.totalSessions}</div><div class="doc-stat-lbl">Sessions</div></div>
+        <div class="doc-stat"><div class="doc-stat-val" style="color:var(--purple)">${amskSessions}</div><div class="doc-stat-lbl">AMSK</div></div>
         <div class="doc-stat"><div class="doc-stat-val" style="color:var(--amber); font-size:16px">${avgRat}★</div><div class="doc-stat-lbl">Avg Rating</div></div>
       </div>
       <div style="font-size:11px; color:var(--muted); margin:6px 0 4px">Active: <strong style="color:var(--green)">${actPts}</strong> · Services: <strong style="color:var(--text)">${data.services.size}</strong></div>
       <div class="doc-pts-list">
-        ${pts.map(pt=>`<div class="doc-pt-row">
-          <span style="font-weight:500">${pt}</span>
-          <span style="color:var(--muted); font-size:11px">${[...patientMap[pt].services].find(s=>data.services.has(s))||''}</span>
+        ${svcEntries.slice(0,4).map(([s,n])=>`<div class="doc-pt-row">
+          <span style="font-weight:500">${s}</span>
+          <span style="color:var(--muted); font-size:11px">${n} sessions</span>
         </div>`).join('')}
         ${data.patients.size>5?`<div style="font-size:11px;color:var(--muted);margin-top:4px">+${data.patients.size-5} more patients…</div>`:''}
       </div>
@@ -653,6 +845,108 @@ function renderDoctorCards(q='') {
 }
 
 function filterDocCards() { renderDoctorCards(document.getElementById('srchDoc').value.toLowerCase()); }
+
+// ════════════════════════════════════════
+// DOCTOR PERFORMANCE
+// ════════════════════════════════════════
+let docPerfData = [], docPerfPage = 1, docPerfSortCol = 'sessions', docPerfSortDir = 1;
+
+const AMSK_KEYWORDS = ['amsk', 'advance msk', 'advance msk physio', 'advance msk physiotherapy', 'advance physio', 'advance physiotherapy', 'advanced msk', 'advanced msk physiotherapy', 'advanced physio', 'advanced physiotherapy'];
+
+function isAMSKService(svc) {
+  if (!svc) return false;
+  const lower = svc.toLowerCase();
+  return AMSK_KEYWORDS.some(k => lower.includes(k));
+}
+
+function renderDoctorPerformance() {
+  const svcFilter = document.getElementById('docPerfSvc').value;
+  const perfMap = {};
+  for (const [doc, data] of Object.entries(doctorMap)) {
+    const amskRows = data.rows.filter(r => isAMSKService(r.service));
+    let rows = data.rows;
+    if (svcFilter === 'amsk') rows = amskRows;
+    if (!rows.length) continue;
+    const patients = new Set(rows.map(r=>r.patient));
+    const sessions = rows.reduce((s,r)=>s+r.done,0);
+    const ratArr = rows.filter(r=>r.rating>0);
+    const avgRat = ratArr.length ? (ratArr.reduce((s,r)=>s+r.rating,0)/ratArr.length) : 0;
+    const avgProg = rows.reduce((s,r)=>s+r.progress,0)/rows.length;
+    const totalPending = rows.reduce((s,r)=>s+r.pending,0);
+    const svcSess = {};
+    rows.forEach(r => { if (r.service) svcSess[r.service] = (svcSess[r.service]||0) + r.done; });
+    const svcBreakdown = Object.entries(svcSess).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`${s} (${n})`).join(', ');
+    perfMap[doc] = { doc, patients: patients.size, sessions, avgRating: avgRat, avgProgress: avgProg, pending: totalPending, amskSessions: amskRows.reduce((s,r)=>s+r.done,0), svcBreakdown };
+  }
+  docPerfData = Object.values(perfMap).sort((a,b)=>b.sessions-a.sessions);
+  docPerfPage = 1; docPerfSortCol = 'sessions'; docPerfSortDir = 1;
+  renderDocPerfMetrics();
+  renderDocPerfTable();
+}
+
+function renderDocPerfMetrics() {
+  const svcFilter = document.getElementById('docPerfSvc').value;
+  const scopeLabel = svcFilter === 'amsk' ? 'Advanced MSK' : 'All Services';
+  const bySess = [...docPerfData].sort((a,b)=>b.sessions-a.sessions);
+  const byRat  = [...docPerfData].filter(d=>d.avgRating>0).sort((a,b)=>b.avgRating-a.avgRating);
+  const byProg = [...docPerfData].sort((a,b)=>b.avgProgress-a.avgProgress);
+  const s = bySess[0], r = byRat[0], p = byProg[0];
+  const totSess = docPerfData.reduce((s,d)=>s+d.sessions,0);
+  const avgRat = docPerfData.filter(d=>d.avgRating>0).reduce((s,d)=>s+d.avgRating,0) / (byRat.length||1);
+  const sessLabel = svcFilter === 'amsk' ? 'AMSK Sessions' : 'Sessions';
+  document.getElementById('docPerfMetrics').innerHTML = `
+    <div class="metric-card mc-blue"><div class="metric-label">Total Sessions</div><div class="metric-value">${totSess.toLocaleString()}</div><div class="metric-sub">${scopeLabel}</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Overall Avg Rating</div><div class="metric-value">${avgRat.toFixed(1)}★</div><div class="metric-sub">${byRat.length} doctors rated</div></div>
+    <div class="metric-card mc-amber"><div class="metric-label">Top by ${sessLabel}</div><div class="metric-value">${s?s.sessions||0:0}</div><div class="metric-sub">${s?s.doc:'—'}</div></div>
+    <div class="metric-card mc-green"><div class="metric-label">Top by Rating</div><div class="metric-value">${r?r.avgRating.toFixed(1)+'★':'—'}</div><div class="metric-sub">${r?r.doc:'—'}</div></div>
+    <div class="metric-card mc-teal"><div class="metric-label">Top Pain Progress</div><div class="metric-value">${p?p.avgProgress.toFixed(0)+'%':'—'}</div><div class="metric-sub">${p?p.doc:'—'}</div></div>`;
+}
+
+function sortDocPerf(col) {
+  docPerfSortDir = docPerfSortCol === col ? -docPerfSortDir : 1;
+  docPerfSortCol = col;
+  renderDocPerfTable();
+}
+
+function renderDocPerfTable() {
+  const svcFilter = document.getElementById('docPerfSvc').value;
+  const pfx = svcFilter === 'amsk' ? 'AMSK' : 'Total';
+  document.getElementById('hdrPerfPatients').textContent = pfx + ' Patients ↕';
+  document.getElementById('hdrPerfSessions').textContent = pfx + ' Sessions ↕';
+  const sorted = [...docPerfData].sort((a,b)=>{
+    const va = a[docPerfSortCol], vb = b[docPerfSortCol];
+    if (typeof va === 'string') return va < vb ? -docPerfSortDir : va > vb ? docPerfSortDir : 0;
+    return va < vb ? -docPerfSortDir : va > vb ? docPerfSortDir : 0;
+  });
+  const start = (docPerfPage-1) * PAGE_SIZE;
+  const slice = sorted.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById('docPerfBody');
+  if (!slice.length) { tbody.innerHTML='<tr><td colspan="7" class="no-data">No doctors found.</td></tr>'; document.getElementById('docPerfPager').innerHTML=''; return; }
+  tbody.innerHTML = slice.map(d => {
+    const ratHtml = d.avgRating ? `<span class="rating">${d.avgRating.toFixed(1)}★</span>` : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td><span class="doctor-tag ${docColor(d.doc)}" title="${d.svcBreakdown}">${d.doc}</span></td>
+      <td>${d.patients}</td>
+      <td style="color:var(--accent);font-weight:700">${d.sessions.toLocaleString()}</td>
+      <td style="color:var(--purple);font-weight:700">${d.amskSessions.toLocaleString()}</td>
+      <td>${ratHtml}</td>
+      <td>
+        <div class="prog-wrap"><div class="prog-bar" style="width:${d.avgProgress}%"></div></div>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px">${d.avgProgress.toFixed(1)}%</span>
+      </td>
+      <td style="color:${d.pending>0?'var(--red)':'var(--muted)'}">₹${Math.round(d.pending).toLocaleString('en-IN')}</td>
+    </tr>`;
+  }).join('');
+  const total = Math.ceil(sorted.length / PAGE_SIZE);
+  const pg = document.getElementById('docPerfPager');
+  if (total <= 1) { pg.innerHTML = `<span class="page-info">${sorted.length} doctors</span>`; return; }
+  let h = `<span class="page-info">${sorted.length} doctors · Page ${docPerfPage}/${total}</span>`;
+  if (docPerfPage > 1) h += `<button class="page-btn" onclick="docPerfPage(--docPerfPage); renderDocPerfTable()">‹ Prev</button>`;
+  const s2 = Math.max(1, docPerfPage-2), e2 = Math.min(total, docPerfPage+2);
+  for (let i=s2; i<=e2; i++) h += `<button class="page-btn${i===docPerfPage?' active':''}" onclick="docPerfPage=${i}; renderDocPerfTable()">${i}</button>`;
+  if (docPerfPage < total) h += `<button class="page-btn" onclick="docPerfPage++; renderDocPerfTable()">Next ›</button>`;
+  pg.innerHTML = h;
+}
 
 // ════════════════════════════════════════
 // CROSS TAB
@@ -680,40 +974,11 @@ function resetCrossFilters() {
 function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
   const tbody = document.getElementById('crossTbody');
   const totalAll = Object.keys(patientMap).length;
-  let entries = Object.entries(patientMap);
+  const matched = [];
 
-  // Step 1: Filter which PATIENTS to show
-  if (q) entries = entries.filter(([pt]) => pt.toLowerCase().includes(q));
+  for (const [pt, d] of Object.entries(patientMap)) {
+    if (q && !pt.toLowerCase().includes(q)) continue;
 
-  if (filterDoc) {
-    // Only show patients who have AT LEAST ONE row with this doctor
-    entries = entries.filter(([, d]) => d.rows.some(r => r.doctor === filterDoc));
-  }
-  if (filterSvc) {
-    // Only show patients who have AT LEAST ONE row with this service
-    entries = entries.filter(([, d]) => d.rows.some(r => r.service === filterSvc));
-  }
-  if (filterSt) {
-    // Only show patients who have AT LEAST ONE row with this status
-    entries = entries.filter(([, d]) => d.rows.some(r => r.status === filterSt));
-  }
-
-  entries.sort((a,b) => b[1].doctors.size - a[1].doctors.size || (b[1].totalDone - a[1].totalDone));
-
-  // Update result count bar
-  const bar = document.getElementById('crossResultBar');
-  const activeFilters = [filterDoc && `Doctor: ${filterDoc}`, filterSvc && `Service: ${filterSvc}`, filterSt && `Status: ${filterSt}`].filter(Boolean);
-  if (activeFilters.length) {
-    bar.innerHTML = `<span style="color:var(--accent); font-weight:600">${entries.length}</span> of ${totalAll} patients shown &nbsp;·&nbsp; Filter: <span style="color:var(--amber)">${activeFilters.join(' + ')}</span>`;
-  } else {
-    bar.innerHTML = `Showing all <span style="color:var(--accent); font-weight:600">${totalAll}</span> patients`;
-  }
-
-  if (!entries.length) { tbody.innerHTML='<tr><td colspan="6" class="no-data">No patients match the selected filters.</td></tr>'; return; }
-
-  tbody.innerHTML = entries.map(([pt, d]) => {
-    // Step 2: For each matched patient, show ONLY the relevant doctors/services
-    // based on the active filters
     let relevantRows = d.rows;
     if (filterDoc) relevantRows = relevantRows.filter(r => r.doctor === filterDoc);
     if (filterSvc) relevantRows = relevantRows.filter(r => r.service === filterSvc);
