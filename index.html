@@ -1300,6 +1300,7 @@
                 <tr>
                   <th>Patient</th><th>Package</th><th>Type</th>
                   <th>Doctor</th><th>Agent</th><th>Lead Source</th>
+                  <th>Payment Mode</th><th>Invoice No.</th>
                   <th>Pkg Cost</th><th>Amount Paid</th><th>Proportional Rev</th>
                   <th>Date</th><th>Final Status</th>
                 </tr>
@@ -1408,18 +1409,20 @@
     }
 
     // ==================== COLUMN DETECTION ====================
-    const COLUMN_PATTERNS = {
-      patientName:     [/patient\s*name/i, /patient/i, /^name$/i],
-      patientId:       [/patient\s*id/i, /pat.*id/i, /^id$/i],
-      packageName:     [/package\s*name/i, /package/i, /service/i],
-      doctor:          [/consult.*doctor/i, /doctor/i, /^dr$/i, /physician/i],
-      agent:           [/agent\s*name/i, /agent/i, /counsellor/i, /counselor/i],
-      leadSource:      [/lead\s*source/i, /source/i],
-      paymentDate:     [/payment\s*date/i, /date/i, /created\s*at/i],
-      packageCost:     [/package\s*cost/i],
-      amountPaid:      [/amount\s*paid/i, /amount/i, /paid/i, /collection/i],
-      totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i]
-    };
+     const COLUMN_PATTERNS = {
+       patientName:     [/patient\s*name/i, /patient/i, /^name$/i],
+       patientId:       [/patient\s*id/i, /pat.*id/i, /^id$/i],
+       packageName:     [/package\s*name/i, /package/i, /service/i],
+       doctor:          [/consult.*doctor/i, /doctor/i, /^dr$/i, /physician/i],
+       agent:           [/agent\s*name/i, /agent/i, /counsellor/i, /counselor/i],
+       leadSource:      [/lead\s*source/i, /source/i],
+       paymentDate:     [/payment\s*date/i, /date/i, /created\s*at/i],
+       packageCost:     [/package\s*cost/i],
+       amountPaid:      [/amount\s*paid/i, /amount/i, /paid/i, /collection/i],
+       totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i],
+       paymentMode:     [/payment\s*mode/i, /mode/i, /payment\s*method/i],
+       invoiceNo:       [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i]
+     };
 
     function detectColumns(headers) {
       const map = {};
@@ -1483,7 +1486,9 @@
                 paymentDate:    parseDate(getVal(row, colMap.paymentDate)),
                 packageCost:    parseNumber(getVal(row, colMap.packageCost)),
                 amountPaid:     parseNumber(getVal(row, colMap.amountPaid)),
-                totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost))
+                totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost)),
+                paymentMode:    getVal(row, colMap.paymentMode),
+                invoiceNo:      getVal(row, colMap.invoiceNo)
               });
             }
 
@@ -1849,6 +1854,8 @@
           amountPaid: row.amountPaid,
           packageCost: pkgPrice,
           totalPackageCost: row.totalPackageCost,
+          paymentMode: row.paymentMode,
+          invoiceNo: row.invoiceNo,
           proportionalPaid: 0,
           quantity: 1
         });
@@ -2159,7 +2166,9 @@
               totalPackageCost: row.totalPackageCost,
               effectiveTotalPkgCost: row.effectiveTotalPkgCost || row.packageCost,
               proportionalPaid: row.proportionalPaid,
-              quantity: row.quantity || 1
+              quantity: row.quantity || 1,
+              paymentModes: row.paymentMode ? [row.paymentMode] : [],
+              invoiceNos: row.invoiceNo ? [row.invoiceNo] : []
             };
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
@@ -2170,6 +2179,12 @@
             if (!pkgMap[svcKey].doctor && row.doctor) pkgMap[svcKey].doctor = row.doctor;
             if (!pkgMap[svcKey].agent && row.agent) pkgMap[svcKey].agent = row.agent;
             if (!pkgMap[svcKey].leadSource && row.leadSource) pkgMap[svcKey].leadSource = row.leadSource;
+            if (row.paymentMode && !pkgMap[svcKey].paymentModes.includes(row.paymentMode)) {
+              pkgMap[svcKey].paymentModes.push(row.paymentMode);
+            }
+            if (row.invoiceNo && !pkgMap[svcKey].invoiceNos.includes(row.invoiceNo)) {
+              pkgMap[svcKey].invoiceNos.push(row.invoiceNo);
+            }
           }
         }
 
@@ -2199,6 +2214,11 @@
           }
           return 0;
         })();
+
+        for (const svc of mergedServices) {
+          svc.paymentMode = svc.paymentModes && svc.paymentModes.length > 0 ? svc.paymentModes.filter(Boolean).join(', ') : '';
+          svc.invoiceNo = svc.invoiceNos && svc.invoiceNos.length > 0 ? svc.invoiceNos.filter(Boolean).join(', ') : '';
+        }
 
         // Sum of all non-consultation individual package costs (sticker prices)
         const stickerTotal = mergedServices
@@ -2237,7 +2257,9 @@
                 amountPaid: svc.amountPaid / ssCount,
                 packageCost: unitCost,
                 totalPackageCost: unitCost,
-                proportionalPaid: perSessionPaid
+                proportionalPaid: perSessionPaid,
+                paymentMode: svc.paymentMode,
+                invoiceNo: svc.invoiceNo
               });
               p.packages.push(svc.packageName);
               p.totalPackageValue += Math.round(unitCost * bundleScaleFactor * 100) / 100;
@@ -2297,7 +2319,9 @@
                 amountPaid: svc.amountPaid / pkgCount,
                 packageCost: svc.packageCost,
                 totalPackageCost: svc.packageCost,
-                proportionalPaid: perPkgAllocated
+                proportionalPaid: perPkgAllocated,
+                paymentMode: svc.paymentMode,
+                invoiceNo: svc.invoiceNo
               });
               p.packages.push(pkgLabelName);
               p.totalPackageValue += Math.round(svc.packageCost * bundleScaleFactor * 100) / 100;
@@ -3577,6 +3601,28 @@
       return Array.from(dates).join(', ');
     }
 
+    function getPatientPaymentModes(p, displayServices) {
+      if (!displayServices) return '-';
+      const modes = new Set();
+      for (const s of displayServices) {
+        if (s.paymentMode) {
+          modes.add(s.paymentMode);
+        }
+      }
+      return modes.size > 0 ? Array.from(modes).join(', ') : '-';
+    }
+
+    function getPatientInvoiceNos(p, displayServices) {
+      if (!displayServices) return '-';
+      const nos = new Set();
+      for (const s of displayServices) {
+        if (s.invoiceNo) {
+          nos.add(s.invoiceNo);
+        }
+      }
+      return nos.size > 0 ? Array.from(nos).join(', ') : '-';
+    }
+
     let patientSearchQuery = '';
 
     function onPatientDataSearchInput() {
@@ -3625,6 +3671,8 @@
         { key: 'doctor', label: 'Doctor' },
         { key: 'agent', label: 'Agent' },
         { key: 'leadSource', label: 'Lead Source' },
+        { key: 'paymentMode', label: 'Payment Mode' },
+        { key: 'invoiceNo', label: 'Invoice No.' },
         { key: 'pkgValue', label: 'Pkg Value' },
         { key: 'amountPaid', label: 'Amount Paid' },
         { key: 'consultRev', label: 'Consult Rev' },
@@ -3644,6 +3692,8 @@
         { key: 'doctor', label: 'Doctor' },
         { key: 'agent', label: 'Agent' },
         { key: 'leadSource', label: 'Lead Source' },
+        { key: 'paymentMode', label: 'Payment Mode' },
+        { key: 'invoiceNo', label: 'Invoice No.' },
         { key: 'pkgValue', label: 'Pkg Value' },
         { key: 'amountPaid', label: 'Amount Paid' },
         { key: 'consultRev', label: 'Consult Rev' },
@@ -3730,6 +3780,9 @@
           ? `<td>${initialPkgHTML}</td><td>${renewedPkgHTML}</td>`
           : `<td>${pkgCellHTML}</td>`;
 
+        const paymentModesText = getPatientPaymentModes(p, displayServices);
+        const invoiceNosText = getPatientInvoiceNos(p, displayServices);
+
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
           <td style="color:var(--cyan);font-weight:500">${getPatientConsultingDate(p)}</td>
@@ -3738,6 +3791,8 @@
           <td>${p.doctors.join(', ') || '-'}</td>
           <td>${p.agents.join(', ') || '-'}</td>
           <td>${p.leadSources.join(', ') || '-'}</td>
+          <td>${paymentModesText}</td>
+          <td>${invoiceNosText}</td>
           <td>${pkgVal ? formatCurrency(pkgVal) : '-'}</td>
           <td style="font-weight:600">${nonConsultPaid ? formatCurrency(nonConsultPaid) : '-'}</td>
           <td style="color:var(--cyan)">${consultPaid ? formatCurrency(consultPaid) : '-'}</td>
@@ -3890,7 +3945,7 @@
 
       if (matchedPatients.length === 0) {
         results.classList.remove('hidden');
-        tbody.innerHTML = '<tr><td colspan="11" class="no-data">No patients found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="no-data">No patients found</td></tr>';
         return;
       }
 
@@ -3909,6 +3964,8 @@
             <td>${svc.doctor || '-'}</td>
             <td>${svc.agent || '-'}</td>
             <td>${svc.leadSource || '-'}</td>
+            <td>${svc.paymentMode || '-'}</td>
+            <td>${svc.invoiceNo || '-'}</td>
             <td>${formatCurrency(svc.packageCost)}</td>
             <td>${formatCurrency(svc.amountPaid)}</td>
             <td style="color:var(--emerald);font-weight:600">${formatCurrency(svc.proportionalPaid)}</td>
@@ -3992,18 +4049,18 @@
 
           const isRenewals = cs.isRenewalsSheet;
           const cols = isRenewals 
-            ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source',
+            ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
                'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
-            : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source',
+            : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
                'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal', 'Status'];
 
           ws.columns = isRenewals
             ? [
-                { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 },
+                { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
                 { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
               ]
             : [
-                { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 },
+                { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
                 { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 }, { width: 32 }
               ];
 
@@ -4047,6 +4104,8 @@
                 s.doctor || p.doctors.join(', '),
                 s.agent || p.agents.join(', '),
                 s.leadSource || p.leadSources.join(', '),
+                s.paymentMode || '-',
+                s.invoiceNo || '-',
                 pkgVal,
                 pkgPaid,
                 0,
@@ -4065,6 +4124,8 @@
                 s.doctor || p.doctors.join(', '),
                 s.agent || p.agents.join(', '),
                 s.leadSource || p.leadSources.join(', '),
+                s.paymentMode || '-',
+                s.invoiceNo || '-',
                 pkgVal,
                 pkgPaid,
                 cs.isRenewalsSheet ? 0 : Math.round(consultRev * 100) / 100,
@@ -4083,7 +4144,7 @@
 
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
-              const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 19] : [1, 2, 5, 6, 7, 18];
+              const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 21] : [1, 2, 5, 6, 7, 20];
               mergeCols.forEach(colIdx => {
                 try {
                   ws.mergeCells(startRow, colIdx, endRow, colIdx);
@@ -4451,7 +4512,7 @@
       if (pList.length === 0) { showToast('No data to export', 'error'); return; }
 
       const headers = ['Patient Name', 'Consulting Date', 'Payment Date', 'Consultation', 'Package', 'Single Session', 'Packages',
-        'Doctors', 'Agents', 'Lead Sources', 'Total Paid', 'Final Status'];
+        'Doctors', 'Agents', 'Lead Sources', 'Payment Mode', 'Invoice No.', 'Total Paid', 'Final Status'];
       const rows = pList.map(p => [
         `"${p.name}"`,
         `"${getPatientConsultingDate(p)}"`,
@@ -4463,6 +4524,8 @@
         `"${p.doctors.join('; ')}"`,
         `"${p.agents.join('; ')}"`,
         `"${p.leadSources.join('; ')}"`,
+        `"${getPatientPaymentModes(p, p.services)}"`,
+        `"${getPatientInvoiceNos(p, p.services)}"`,
         p.totalPaid,
         `"${p.status}"`
       ]);
