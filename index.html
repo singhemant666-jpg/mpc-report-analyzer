@@ -2230,7 +2230,9 @@
               proportionalPaid: row.proportionalPaid,
               quantity: row.quantity || 1,
               paymentModes: row.paymentMode ? [row.paymentMode] : [],
-              invoiceNos: row.invoiceNo ? [row.invoiceNo] : []
+              invoiceNos: row.invoiceNo ? [row.invoiceNo] : [],
+              userplanId: row.userplanId || '',
+              cartId: row.cartId || ''
             };
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
@@ -2246,6 +2248,12 @@
             }
             if (row.invoiceNo && !pkgMap[svcKey].invoiceNos.includes(row.invoiceNo)) {
               pkgMap[svcKey].invoiceNos.push(row.invoiceNo);
+            }
+            if (row.userplanId && !pkgMap[svcKey].userplanId) {
+              pkgMap[svcKey].userplanId = row.userplanId;
+            }
+            if (row.cartId && !pkgMap[svcKey].cartId) {
+              pkgMap[svcKey].cartId = row.cartId;
             }
           }
         }
@@ -4157,18 +4165,18 @@
           const isRenewals = cs.isRenewalsSheet;
           const cols = isRenewals 
             ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
-               'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
+               'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status', 'Userplan ID', 'Cart ID']
             : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
-               'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal', 'Status'];
+               'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal', 'Status', 'Userplan ID', 'Cart ID'];
 
           ws.columns = isRenewals
             ? [
                 { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
-                { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
+                { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }, { width: 18 }, { width: 18 }
               ]
             : [
                 { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 },
-                { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 }, { width: 32 }
+                { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 }, { width: 32 }, { width: 18 }, { width: 18 }
               ];
 
           const hRow = ws.addRow(cols);
@@ -4222,7 +4230,9 @@
                 Math.round(wellnessPkgRev * 100) / 100,
                 Math.round(roboticSpinePkgRev * 100) / 100,
                 Math.round(bmskPkgRev * 100) / 100,
-                p.status
+                p.status,
+                s.userplanId || '-',
+                s.cartId || '-'
               ] : [
                 p.name,
                 getPatientConsultingDate(p),
@@ -4243,7 +4253,9 @@
                 Math.round(roboticSpinePkgRev * 100) / 100,
                 Math.round(bmskPkgRev * 100) / 100,
                 s.isRenewal ? 'Yes' : 'No',
-                p.status
+                p.status,
+                s.userplanId || '-',
+                s.cartId || '-'
               ];
 
               ws.addRow(rowCells);
@@ -4333,10 +4345,10 @@
         s14.addRow([
           'Patient', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Consultation', 'Package', 'Single Session',
           'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal',
-          'Final Status'
+          'Final Status', 'Userplan ID', 'Cart ID'
         ]);
         applyHeaderStyle(s14, 1, headerStyle);
-        s14.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 18 } };
+        s14.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 20 } };
         for (const p of pList) {
           if (!p.services || p.services.length === 0) continue;
           const startRow = s14.lastRow ? s14.lastRow.number + 1 : 2;
@@ -4372,7 +4384,9 @@
               Math.round(roboticSpinePkgRev * 100) / 100,
               Math.round(bmskPkgRev * 100) / 100,
               s.isRenewal ? 'Yes' : 'No',
-              p.status
+              p.status,
+              s.userplanId || '-',
+              s.cartId || '-'
             ]);
           }
 
@@ -4484,20 +4498,20 @@
         const isRenewalsTab = currentTab === 'renewals';
         const cols = isRenewalsTab
           ? ['Patient Name', 'Consulting Date', 'Payment Date', 'Initial Package Name', 'Renewed Package Name', 'Package Stage', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
-             'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status']
+             'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Status', 'Userplan ID', 'Cart ID']
           : ['Patient Name', 'Consulting Date', 'Payment Date', 'Package / Service Name', 'Doctor', 'Agent', 'Lead Source', 'Payment Mode', 'Invoice No.',
              'Pkg Value', 'Amount Paid', 'Consult Rev', 'Pkg Rev', 'SS Rev', 'Pain Mgmt Pkg Rev', 'Wellness Pkg Rev', 'Robotic Spine Pkg Rev', 'BMSK Pkg Rev', 'Is Renewal',
-             'Status'];
+             'Status', 'Userplan ID', 'Cart ID'];
 
         ws.columns = isRenewalsTab
           ? [
               { width: 30 }, { width: 18 }, { width: 22 }, { width: 30 }, { width: 30 }, { width: 18 }, { width: 25 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
-              { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }
+              { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 32 }, { width: 18 }, { width: 18 }
             ]
           : [
               { width: 30 }, { width: 18 }, { width: 22 }, { width: 35 }, { width: 25 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 },
               { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 },
-              { width: 32 }
+              { width: 32 }, { width: 18 }, { width: 18 }
             ];
 
         ws.addRow(cols);
@@ -4551,7 +4565,9 @@
               Math.round(wellnessPkgRev * 100) / 100,
               Math.round(roboticSpinePkgRev * 100) / 100,
               Math.round(bmskPkgRev * 100) / 100,
-              p.status
+              p.status,
+              s.userplanId || '-',
+              s.cartId || '-'
             ] : [
               p.name,
               getPatientConsultingDate(p),
@@ -4572,7 +4588,9 @@
               Math.round(roboticSpinePkgRev * 100) / 100,
               Math.round(bmskPkgRev * 100) / 100,
               s.isRenewal ? 'Yes' : 'No',
-              p.status
+              p.status,
+              s.userplanId || '-',
+              s.cartId || '-'
             ];
 
             ws.addRow(rowCells);
