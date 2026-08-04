@@ -1636,6 +1636,17 @@
       if (!packageName) return 'unknown';
       const lower = packageName.toLowerCase().trim();
 
+      // Safety Override: If name contains single session tags, it's a single session
+      if (
+        lower.includes('-ss') || 
+        lower.includes('ss-') || 
+        lower.includes('single session') || 
+        lower.includes('single-session') ||
+        /\bss\b/.test(lower)
+      ) {
+        return 'single_session';
+      }
+
       // Special Rule for Default Top Up / N/A / NA:
       // If amountPaid or totalPackageCost equals consultation fee (₹499 or ₹1,500), classify as Consultation.
       // Any other amount (e.g. ₹300, ₹500, ₹600, ₹700, ₹800, ₹900, etc.) is extra wallet top-up money to give another service/convert to package.
@@ -3725,7 +3736,7 @@
         { key: 'ssRev', label: 'SS Rev Breakdown' },
         { key: 'pmPkgRev', label: 'Pain Mgmt Pkg Rev' },
         { key: 'wellnessPkgRev', label: 'Wellness Pkg Rev' },
-        { key: 'roboticSpineRev', label: 'Robotic Spine Rev' },
+        { key: 'roboticSpineRev', label: 'Robotic Spine Pkg Rev' },
         { key: 'bmskRev', label: 'BMSK Rev' },
         { key: 'renewals', label: 'Renewals' },
         { key: 'status', label: 'Status' }
@@ -3746,7 +3757,7 @@
         { key: 'ssRev', label: 'SS Rev Breakdown' },
         { key: 'pmPkgRev', label: 'Pain Mgmt Pkg Rev' },
         { key: 'wellnessPkgRev', label: 'Wellness Pkg Rev' },
-        { key: 'roboticSpineRev', label: 'Robotic Spine Rev' },
+        { key: 'roboticSpineRev', label: 'Robotic Spine Pkg Rev' },
         { key: 'bmskRev', label: 'BMSK Rev' },
         { key: 'renewals', label: 'Renewals' },
         { key: 'status', label: 'Status' }
