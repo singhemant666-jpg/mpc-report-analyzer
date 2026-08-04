@@ -318,6 +318,19 @@
 
       <div class="section-header" style="margin-top:24px">
         <h2>Full Patient ↔ Doctor Matrix</h2>
+        <div class="controls">
+          <select id="crossFltDoctor" onchange="filterCross()" style="min-width:180px">
+            <option value="">All Doctors</option>
+          </select>
+          <select id="crossFltService" onchange="filterCross()" style="min-width:180px">
+            <option value="">All Services</option>
+          </select>
+          <select id="crossFltStatus" onchange="filterCross()">
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Expired">Expired</option>
+          </select>
+        </div>
       </div>
       <div class="cross-wrap">
         <table class="cross-table">
@@ -482,6 +495,9 @@ function populateFilters() {
   const svcs = [...new Set(allRows.map(r=>r.service).filter(Boolean))].sort();
   document.getElementById('fltDoctor').innerHTML = '<option value="">All Doctors</option>' + docs.map(d=>`<option>${d}</option>`).join('');
   document.getElementById('fltService').innerHTML = '<option value="">All Services</option>' + svcs.map(s=>`<option>${s}</option>`).join('');
+  // also populate cross-tab filters
+  document.getElementById('crossFltDoctor').innerHTML = '<option value="">All Doctors</option>' + docs.map(d=>`<option>${d}</option>`).join('');
+  document.getElementById('crossFltService').innerHTML = '<option value="">All Services</option>' + svcs.map(s=>`<option>${s}</option>`).join('');
 }
 
 function applyFilters() {
@@ -660,15 +676,33 @@ function renderCross(q='') {
   renderCrossTable(q);
 }
 
-function filterCross() { renderCrossTable(document.getElementById('srchCross').value.toLowerCase()); }
+function filterCross() {
+  const q   = document.getElementById('srchCross').value.toLowerCase();
+  const doc = document.getElementById('crossFltDoctor').value;
+  const svc = document.getElementById('crossFltService').value;
+  const st  = document.getElementById('crossFltStatus').value;
+  renderCrossTable(q, doc, svc, st);
+}
 
-function renderCrossTable(q='') {
+function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
   const tbody = document.getElementById('crossTbody');
-  const entries = Object.entries(patientMap)
-    .filter(([pt])=>!q||pt.toLowerCase().includes(q))
-    .sort((a,b)=>b[1].doctors.size-a[1].doctors.size||(b[1].totalDone-a[1].totalDone));
+  let entries = Object.entries(patientMap);
 
-  if (!entries.length) { tbody.innerHTML='<tr><td colspan="6" class="no-data">No patients match.</td></tr>'; return; }
+  // Apply search
+  if (q) entries = entries.filter(([pt]) => pt.toLowerCase().includes(q));
+
+  // Apply doctor filter: keep only patients who have that doctor
+  if (filterDoc) entries = entries.filter(([, d]) => d.doctors.has(filterDoc));
+
+  // Apply service filter: keep only patients who have that service
+  if (filterSvc) entries = entries.filter(([, d]) => d.services.has(filterSvc));
+
+  // Apply status filter: keep patients who have at least one row with that status
+  if (filterSt) entries = entries.filter(([, d]) => d.rows.some(r => r.status === filterSt));
+
+  entries.sort((a,b) => b[1].doctors.size - a[1].doctors.size || (b[1].totalDone - a[1].totalDone));
+
+  if (!entries.length) { tbody.innerHTML='<tr><td colspan="6" class="no-data">No patients match the selected filters.</td></tr>'; return; }
   tbody.innerHTML = entries.map(([pt,d])=>{
     const docTags = [...d.doctors].map(doc=>`<span class="doctor-tag ${docColor(doc)}">${doc}</span>`).join(' ');
     const svcs = [...d.services].join(', ');
