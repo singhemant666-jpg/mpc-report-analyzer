@@ -68,15 +68,15 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* METRICS */
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin: 28px 0; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 28px 0; }
     .metric-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 20px 22px; transition: transform 0.2s, border-color 0.2s;
     }
     .metric-card:hover { transform: translateY(-2px); border-color: var(--accent); }
     .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-    .metric-value { font-size: 30px; font-weight: 800; }
-    .metric-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .metric-value { font-size: 28px; font-weight: 800; }
+    .metric-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .mc-blue .metric-value { color: var(--accent); }
     .mc-teal .metric-value { color: var(--accent2); }
     .mc-purple .metric-value { color: var(--accent3); }
@@ -573,15 +573,20 @@ function doSort(col) {
 function renderMetrics() {
   const totPts    = Object.keys(patientMap).length;
   const totDocs   = Object.keys(doctorMap).length;
+  const totRecords= allRows.length;
   const totDone   = allRows.reduce((s,r)=>s+r.done,0);
+  const totFuture = allRows.reduce((s,r)=>s+r.future,0);
   const totPend   = allRows.reduce((s,r)=>s+r.pending,0);
   const multiPts  = Object.values(patientMap).filter(p=>p.doctors.size>1).length;
   const activePkg = allRows.filter(r=>r.status==='Active').length;
+
   document.getElementById('metricsGrid').innerHTML = `
     <div class="metric-card mc-blue"><div class="metric-label">Total Patients</div><div class="metric-value">${totPts}</div><div class="metric-sub">Unique patients</div></div>
     <div class="metric-card mc-teal"><div class="metric-label">Treating Doctors</div><div class="metric-value">${totDocs}</div><div class="metric-sub">Unique doctors</div></div>
-    <div class="metric-card mc-purple"><div class="metric-label">Total Sessions</div><div class="metric-value">${totDone.toLocaleString()}</div><div class="metric-sub">Sessions completed</div></div>
-    <div class="metric-card mc-amber"><div class="metric-label">Multi-Doctor</div><div class="metric-value">${multiPts}</div><div class="metric-sub">Seen by 2+ doctors</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Appt Entries</div><div class="metric-value">${totRecords.toLocaleString()}</div><div class="metric-sub">Total package records</div></div>
+    <div class="metric-card mc-green"><div class="metric-label">Completed Sessions</div><div class="metric-value">${totDone.toLocaleString()}</div><div class="metric-sub">Sessions done till now</div></div>
+    <div class="metric-card mc-amber"><div class="metric-label">Future Scheduled</div><div class="metric-value">${totFuture.toLocaleString()}</div><div class="metric-sub">Booked future sessions</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Multi-Doctor</div><div class="metric-value">${multiPts}</div><div class="metric-sub">Seen by 2+ doctors</div></div>
     <div class="metric-card mc-green"><div class="metric-label">Active Packages</div><div class="metric-value">${activePkg}</div><div class="metric-sub">Currently active</div></div>
     <div class="metric-card mc-red"><div class="metric-label">Total Pending</div><div class="metric-value" style="font-size:22px">₹${Math.round(totPend).toLocaleString('en-IN')}</div><div class="metric-sub">Unpaid amount</div></div>
   `;
@@ -770,11 +775,11 @@ function renderDocPerfMetrics() {
   const avgRat = docPerfData.filter(d=>d.avgRating>0).reduce((s,d)=>s+d.avgRating,0) / (byRat.length||1);
 
   document.getElementById('docPerfMetrics').innerHTML = `
-    <div class="metric-card mc-blue"><div class="metric-label">Total Sessions</div><div class="metric-value">${totSess.toLocaleString()}</div><div class="metric-sub">${scopeLabel}</div></div>
+    <div class="metric-card mc-blue"><div class="metric-label">Total Sessions Delivered</div><div class="metric-value">${totSess.toLocaleString()}</div><div class="metric-sub">${scopeLabel}</div></div>
     <div class="metric-card mc-purple"><div class="metric-label">Overall Avg Rating</div><div class="metric-value">${avgRat.toFixed(1)}★</div><div class="metric-sub">${byRat.length} doctors rated</div></div>
     <div class="metric-card mc-amber"><div class="metric-label">🥇 #1 Incentive Score</div><div class="metric-value">${topDoc?topDoc.perfScore+'/100':'—'}</div><div class="metric-sub">${topDoc?topDoc.doc:'—'}</div></div>
-    <div class="metric-card mc-green"><div class="metric-label">Top by Volume</div><div class="metric-value">${s?s.sessions||0:0}</div><div class="metric-sub">${s?s.doc:'—'}</div></div>
-    <div class="metric-card mc-teal"><div class="metric-label">Top Pain Relief Progress</div><div class="metric-value">${p?p.avgProgress.toFixed(0)+'%':'—'}</div><div class="metric-sub">${p?p.doc:'—'}</div></div>`;
+    <div class="metric-card mc-green"><div class="metric-label">Top by Volume</div><div class="metric-value">${s?s.sessions.toLocaleString()||0:0}</div><div class="metric-sub">${s?s.doc:'—'}</div></div>
+    <div class="metric-card mc-teal"><div class="metric-label">Top Recovery Progress</div><div class="metric-value">${p?p.avgProgress.toFixed(0)+'%':'—'}</div><div class="metric-sub">${p?p.doc:'—'}</div></div>`;
 }
 
 function sortDocPerf(col) {
