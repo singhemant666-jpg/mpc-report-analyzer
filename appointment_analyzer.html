@@ -68,15 +68,15 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* METRICS */
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin: 28px 0; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 28px 0; }
     .metric-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 20px 22px; transition: transform 0.2s, border-color 0.2s;
     }
     .metric-card:hover { transform: translateY(-2px); border-color: var(--accent); }
     .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-    .metric-value { font-size: 30px; font-weight: 800; }
-    .metric-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .metric-value { font-size: 28px; font-weight: 800; }
+    .metric-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .mc-blue .metric-value { color: var(--accent); }
     .mc-teal .metric-value { color: var(--accent2); }
     .mc-purple .metric-value { color: var(--accent3); }
@@ -137,7 +137,7 @@
 
     /* TABLES */
     .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 20px; }
-    table.tbl { width: 100%; border-collapse: collapse; min-width: 1000px; }
+    table.tbl { width: 100%; border-collapse: collapse; min-width: 1050px; }
     table.tbl th {
       background: var(--surface2); padding: 11px 14px; font-size: 12px; font-weight: 600;
       color: var(--muted); text-align: left; border-bottom: 1px solid var(--border);
@@ -247,7 +247,7 @@
 
     <!-- CHARTS -->
     <div class="charts-row">
-      <div class="chart-card"><h3>📊 Treatment Sessions Delivered by Doctor</h3><canvas id="doctorChart"></canvas></div>
+      <div class="chart-card"><h3>📊 Doctor Treatment Visits Attended</h3><canvas id="doctorChart"></canvas></div>
       <div class="chart-card"><h3>🩺 Top Services</h3><canvas id="serviceChart"></canvas></div>
     </div>
 
@@ -261,7 +261,7 @@
     <!-- ── TAB: ALL PATIENTS ── -->
     <div id="panelPatients">
       <div class="section-header">
-        <h2>Patient Appointments</h2>
+        <h2>Patient Appointments & Package Status</h2>
         <div class="controls">
           <input type="search" id="srchMain" placeholder="🔍 Search patient / doctor…" oninput="applyFilters()" style="width:220px">
           <select id="fltDoctor" onchange="applyFilters()"><option value="">All Doctors</option></select>
@@ -284,9 +284,9 @@
               <th onclick="doSort('patient')">Patient ↕</th>
               <th>Service</th>
               <th onclick="doSort('doctor')">Doctor ↕</th>
-              <th style="text-align:center">Session Done</th>
-              <th style="text-align:center">Future Left</th>
-              <th style="text-align:right">Pending</th>
+              <th style="text-align:center" onclick="doSort('patientSessions')">Patient Sessions Completed ↕</th>
+              <th style="text-align:center" onclick="doSort('future')">Future Left ↕</th>
+              <th style="text-align:right" onclick="doSort('pending')">Pending (₹) ↕</th>
               <th>Status</th>
               <th>Progress</th>
               <th>Rating</th>
@@ -320,7 +320,8 @@
               <th onclick="sortDocPerf('doc')">Doctor ↕</th>
               <th>Performance Rank</th>
               <th onclick="sortDocPerf('patients')" id="hdrPerfPatients">Patients Treated ↕</th>
-              <th onclick="sortDocPerf('sessions')" id="hdrPerfSessions">Sessions Delivered ↕</th>
+              <th onclick="sortDocPerf('visits')" id="hdrPerfVisits">Doctor Visits ↕</th>
+              <th onclick="sortDocPerf('packageSessions')" id="hdrPerfSessions">Patient Pkg Sessions ↕</th>
               <th>AMSK Share %</th>
               <th onclick="sortDocPerf('avgRating')">Avg Star Rating ↕</th>
               <th onclick="sortDocPerf('avgProgress')">Avg Recovery % ↕</th>
@@ -374,7 +375,8 @@
               <th>Patient Name</th>
               <th>Doctor(s)</th>
               <th>Services</th>
-              <th style="text-align:center">Total Sessions</th>
+              <th style="text-align:center">Doctor Visits</th>
+              <th style="text-align:center">Patient Pkg Sessions</th>
               <th style="text-align:center">Pending (₹)</th>
               <th>Status</th>
             </tr>
@@ -461,9 +463,8 @@ function handleFile(file) {
           patient: pt,
           service: (r[cSvc] || '').toString().trim(),
           doctor:  normalizeDoctor((r[cDoc] || '').toString().trim()),
-          done:    1, // Each appointment row is 1 treatment session delivered!
-          pkgCapacity: parseInt(r[cDone]) || 0,
-          future:  parseInt(r[cFut])  || 0,
+          patientSessions: parseInt(r[cDone]) || 0, // Actual Patient Package Sessions Completed (e.g. 28, 12, 3)
+          future:  parseInt(r[cFut])  || 0, // Future Booking Sessions Left
           pending: parseFloat((r[cPend] || '0').toString().replace(/[^0-9.-]/g,'')) || 0,
           status:  (r[cSt] || '').toString().trim(),
           progress: Math.min(100, parseFloat(r[cProg]) || 0),
@@ -482,7 +483,7 @@ function handleFile(file) {
       renderCross();
       document.getElementById('loader').style.display = 'none';
       document.getElementById('appContent').style.display = 'block';
-      document.getElementById('rowBadge').textContent = allRows.length + ' sessions';
+      document.getElementById('rowBadge').textContent = allRows.length + ' visits';
       document.getElementById('rowBadge').style.display = 'inline';
       document.getElementById('masterExportBtn').style.display = 'inline-flex';
       document.getElementById('resetBtn').style.display = 'inline-flex';
@@ -496,7 +497,7 @@ function handleFile(file) {
 
 function resetApp() {
   allRows = []; patientMap = {}; doctorMap = {}; filteredRows = []; currentPage = 1;
-  docPerfData = []; docPerfPage = 1; docPerfSortCol = 'sessions'; docPerfSortDir = 1;
+  docPerfData = []; docPerfPage = 1; docPerfSortCol = 'visits'; docPerfSortDir = 1;
   docColorMap = {}; docColorIdx = 0;
   if (chartDoc) { chartDoc.destroy(); chartDoc = null; }
   if (chartSvc) { chartSvc.destroy(); chartSvc = null; }
@@ -515,19 +516,21 @@ function resetApp() {
 function buildMaps() {
   patientMap = {}; doctorMap = {};
   for (const r of allRows) {
-    if (!patientMap[r.patient]) patientMap[r.patient] = { doctors: new Set(), services: new Set(), rows: [], totalDone: 0, totalPending: 0 };
+    if (!patientMap[r.patient]) patientMap[r.patient] = { doctors: new Set(), services: new Set(), rows: [], totalVisits: 0, totalPackageSessions: 0, totalPending: 0 };
     if (r.doctor) patientMap[r.patient].doctors.add(r.doctor);
     if (r.service) patientMap[r.patient].services.add(r.service);
     patientMap[r.patient].rows.push(r);
-    patientMap[r.patient].totalDone += 1; // 1 session delivered per appointment row
+    patientMap[r.patient].totalVisits += 1;
+    patientMap[r.patient].totalPackageSessions += r.patientSessions;
     patientMap[r.patient].totalPending += r.pending;
 
     if (r.doctor) {
-      if (!doctorMap[r.doctor]) doctorMap[r.doctor] = { patients: new Set(), services: new Set(), rows: [], totalSessions: 0 };
+      if (!doctorMap[r.doctor]) doctorMap[r.doctor] = { patients: new Set(), services: new Set(), rows: [], totalVisits: 0, totalPackageSessions: 0 };
       doctorMap[r.doctor].patients.add(r.patient);
       if (r.service) doctorMap[r.doctor].services.add(r.service);
       doctorMap[r.doctor].rows.push(r);
-      doctorMap[r.doctor].totalSessions += 1; // 1 session delivered by doctor per appointment row
+      doctorMap[r.doctor].totalVisits += 1; // 1 Doctor Appointment Visit
+      doctorMap[r.doctor].totalPackageSessions += r.patientSessions; // Cumulative Patient Package Sessions covered
     }
   }
 }
@@ -572,18 +575,22 @@ function doSort(col) {
 }
 
 function renderMetrics() {
-  const totPts    = Object.keys(patientMap).length;
-  const totDocs   = Object.keys(doctorMap).length;
-  const totDone   = allRows.length; // 3,417 real sessions delivered
-  const totPend   = allRows.reduce((s,r)=>s+r.pending,0);
-  const multiPts  = Object.values(patientMap).filter(p=>p.doctors.size>1).length;
-  const activePkg = allRows.filter(r=>r.status==='Active').length;
+  const totPts      = Object.keys(patientMap).length;
+  const totDocs     = Object.keys(doctorMap).length;
+  const totVisits   = allRows.length; // 3,417 Doctor Visits
+  const totPkgSess  = allRows.reduce((s,r)=>s+r.patientSessions,0); // 23,298 Patient Package Sessions
+  const totFuture   = allRows.reduce((s,r)=>s+r.future,0); // 8,188 Future Sessions Left
+  const totPend     = allRows.reduce((s,r)=>s+r.pending,0);
+  const multiPts    = Object.values(patientMap).filter(p=>p.doctors.size>1).length;
+  const activePkg   = allRows.filter(r=>r.status==='Active').length;
 
   document.getElementById('metricsGrid').innerHTML = `
     <div class="metric-card mc-blue"><div class="metric-label">Total Patients</div><div class="metric-value">${totPts}</div><div class="metric-sub">Unique patients</div></div>
     <div class="metric-card mc-teal"><div class="metric-label">Treating Doctors</div><div class="metric-value">${totDocs}</div><div class="metric-sub">Unique doctors</div></div>
-    <div class="metric-card mc-purple"><div class="metric-label">Total Sessions Done</div><div class="metric-value">${totDone.toLocaleString()}</div><div class="metric-sub">Treatments delivered till now</div></div>
-    <div class="metric-card mc-amber"><div class="metric-label">Multi-Doctor</div><div class="metric-value">${multiPts}</div><div class="metric-sub">Seen by 2+ doctors</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Doctor Visits Attended</div><div class="metric-value">${totVisits.toLocaleString()}</div><div class="metric-sub">Doctor consultations handled</div></div>
+    <div class="metric-card mc-green"><div class="metric-label">Patient Package Sessions</div><div class="metric-value">${totPkgSess.toLocaleString()}</div><div class="metric-sub">Patient sessions completed</div></div>
+    <div class="metric-card mc-amber"><div class="metric-label">Future Sessions Left</div><div class="metric-value">${totFuture.toLocaleString()}</div><div class="metric-sub">Booked future sessions</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Multi-Doctor</div><div class="metric-value">${multiPts}</div><div class="metric-sub">Seen by 2+ doctors</div></div>
     <div class="metric-card mc-green"><div class="metric-label">Active Packages</div><div class="metric-value">${activePkg}</div><div class="metric-sub">Currently active</div></div>
     <div class="metric-card mc-red"><div class="metric-label">Total Pending</div><div class="metric-value" style="font-size:22px">₹${Math.round(totPend).toLocaleString('en-IN')}</div><div class="metric-sub">Unpaid amount</div></div>
   `;
@@ -605,7 +612,7 @@ function renderMainTable() {
       <td><strong>${r.patient}</strong></td>
       <td style="color:var(--muted); font-size:12px">${r.service}</td>
       <td><span class="doctor-tag ${docColor(r.doctor)}">${r.doctor}</span></td>
-      <td style="text-align:center; font-weight:700; color:var(--accent)">1 <span style="font-size:10px;color:var(--muted);font-weight:normal">(Cap: ${r.pkgCapacity})</span></td>
+      <td style="text-align:center; font-weight:700; color:var(--accent)">${r.patientSessions}</td>
       <td style="text-align:center; color:var(--muted)">${r.future}</td>
       <td style="text-align:right; color:${r.pending>0?'var(--red)':'var(--muted)'}">₹${r.pending.toLocaleString('en-IN')}</td>
       <td class="status-${r.status}">${r.status}</td>
@@ -622,8 +629,8 @@ function renderMainTable() {
 function renderPager() {
   const total = Math.ceil(filteredRows.length / PAGE_SIZE);
   const pg = document.getElementById('mainPager');
-  if (total <= 1) { pg.innerHTML = `<span class="page-info">${filteredRows.length} sessions</span>`; return; }
-  let h = `<span class="page-info">${filteredRows.length} sessions · Page ${currentPage}/${total}</span>`;
+  if (total <= 1) { pg.innerHTML = `<span class="page-info">${filteredRows.length} records</span>`; return; }
+  let h = `<span class="page-info">${filteredRows.length} records · Page ${currentPage}/${total}</span>`;
   if (currentPage > 1) h += `<button class="page-btn" onclick="goPage(${currentPage-1})">‹ Prev</button>`;
   const s = Math.max(1, currentPage-2), e = Math.min(total, currentPage+2);
   for (let i=s; i<=e; i++) h += `<button class="page-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
@@ -640,10 +647,10 @@ function renderCharts() {
   if (chartDoc) chartDoc.destroy();
   if (chartSvc) chartSvc.destroy();
 
-  const docEntries = Object.entries(doctorMap).sort((a,b)=>b[1].totalSessions-a[1].totalSessions).slice(0,12);
+  const docEntries = Object.entries(doctorMap).sort((a,b)=>b[1].totalVisits-a[1].totalVisits).slice(0,12);
   chartDoc = new Chart(document.getElementById('doctorChart'), {
     type:'bar',
-    data:{ labels: docEntries.map(([d])=>d.replace('Dr.','').trim()), datasets:[{ data: docEntries.map(([,v])=>v.totalSessions), backgroundColor: COLORS, borderRadius:8, borderSkipped:false }] },
+    data:{ labels: docEntries.map(([d])=>d.replace('Dr.','').trim()), datasets:[{ data: docEntries.map(([,v])=>v.totalVisits), backgroundColor: COLORS, borderRadius:8, borderSkipped:false }] },
     options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'rgba(30,45,69,0.5)'}}, y:{ticks:{color:'#64748b'},grid:{color:'rgba(30,45,69,0.5)'}} } }
   });
 
@@ -676,7 +683,7 @@ function renderDoctorCards(q='') {
     const svcSessions = {};
     data.rows.forEach(r => { if (r.service) svcSessions[r.service] = (svcSessions[r.service]||0) + 1; });
     const svcEntries = Object.entries(svcSessions).sort((a,b)=>b[1]-a[1]);
-    const amskSessions = svcEntries.filter(([s])=>isAMSKService(s)).reduce((s,[,v])=>s+v,0);
+    const amskVisits = svcEntries.filter(([s])=>isAMSKService(s)).reduce((s,[,v])=>s+v,0);
 
     return `<div class="doc-card">
       <div class="doc-header">
@@ -685,15 +692,15 @@ function renderDoctorCards(q='') {
       </div>
       <div class="doc-stats">
         <div class="doc-stat"><div class="doc-stat-val">${data.patients.size}</div><div class="doc-stat-lbl">Patients</div></div>
-        <div class="doc-stat"><div class="doc-stat-val" style="color:var(--accent2)">${data.totalSessions}</div><div class="doc-stat-lbl">Sessions</div></div>
-        <div class="doc-stat"><div class="doc-stat-val" style="color:var(--purple)">${amskSessions}</div><div class="doc-stat-lbl">AMSK</div></div>
+        <div class="doc-stat"><div class="doc-stat-val" style="color:var(--accent2)">${data.totalVisits}</div><div class="doc-stat-lbl">Visits</div></div>
+        <div class="doc-stat"><div class="doc-stat-val" style="color:var(--purple)">${amskVisits}</div><div class="doc-stat-lbl">AMSK</div></div>
         <div class="doc-stat"><div class="doc-stat-val" style="color:var(--amber); font-size:16px">${avgRat}★</div><div class="doc-stat-lbl">Avg Rating</div></div>
       </div>
       <div style="font-size:11px; color:var(--muted); margin:6px 0 4px">Active: <strong style="color:var(--green)">${actPts}</strong> · Services: <strong style="color:var(--text)">${data.services.size}</strong></div>
       <div class="doc-pts-list">
         ${svcEntries.slice(0,4).map(([s,n])=>`<div class="doc-pt-row">
           <span style="font-weight:500">${s}</span>
-          <span style="color:var(--muted); font-size:11px">${n} sessions</span>
+          <span style="color:var(--muted); font-size:11px">${n} visits</span>
         </div>`).join('')}
         ${data.patients.size>5?`<div style="font-size:11px;color:var(--muted);margin-top:4px">+${data.patients.size-5} more patients…</div>`:''}
       </div>
@@ -706,7 +713,7 @@ function filterDocCards() { renderDoctorCards(document.getElementById('srchDoc')
 // ════════════════════════════════════════
 // DOCTOR PERFORMANCE & INCENTIVES
 // ════════════════════════════════════════
-let docPerfData = [], docPerfPage = 1, docPerfSortCol = 'sessions', docPerfSortDir = 1;
+let docPerfData = [], docPerfPage = 1, docPerfSortCol = 'visits', docPerfSortDir = 1;
 
 const AMSK_KEYWORDS = ['amsk', 'advance msk', 'advance msk physio', 'advance msk physiotherapy', 'advance physio', 'advance physiotherapy', 'advanced msk', 'advanced msk physiotherapy', 'advanced physio', 'advanced physiotherapy'];
 
@@ -724,23 +731,25 @@ function renderDoctorPerformance() {
     let rows = data.rows;
     if (svcFilter === 'amsk') rows = amskRows;
     if (!rows.length) continue;
+
     const patients = new Set(rows.map(r=>r.patient));
-    const totalSessAll = data.rows.length;
-    const sessions = rows.length; // Real sessions delivered by doctor!
+    const totalVisitsAll = data.rows.length;
+    const visits = rows.length; // Real Doctor Appointment Visits handled
+    const packageSessions = rows.reduce((s,r)=>s+r.patientSessions,0); // Patient Package Sessions completed under doctor
     const ratArr = rows.filter(r=>r.rating>0);
     const avgRat = ratArr.length ? (ratArr.reduce((s,r)=>s+r.rating,0)/ratArr.length) : 0;
     const avgProg = rows.reduce((s,r)=>s+r.progress,0)/rows.length;
     const totalPending = rows.reduce((s,r)=>s+r.pending,0);
-    const amskSessCount = amskRows.length;
-    const amskShare = totalSessAll ? Math.round((amskSessCount / totalSessAll) * 100) : 0;
+    const amskVisitsCount = amskRows.length;
+    const amskShare = totalVisitsAll ? Math.round((amskVisitsCount / totalVisitsAll) * 100) : 0;
 
     const svcSess = {};
     rows.forEach(r => { if (r.service) svcSess[r.service] = (svcSess[r.service]||0) + 1; });
     const svcBreakdown = Object.entries(svcSess).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`${s} (${n})`).join(', ');
 
     // Balanced performance formula (out of 100)
-    // 300 sessions delivered = maximum 50 points
-    const volumeScore = Math.min(50, (sessions / 300) * 50);
+    // 300 visits = 50 pts
+    const volumeScore = Math.min(50, (visits / 300) * 50);
     const ratingScore = (avgRat / 5) * 25;
     const progressScore = (avgProg / 100) * 25;
     const perfScore = Math.round(volumeScore + ratingScore + progressScore);
@@ -752,10 +761,10 @@ function renderDoctorPerformance() {
     else if (perfScore >= 65) { rankBadge = '<span class="rank-pill rank-silver">🥈 High Achiever</span>'; incentiveBand = 'Tier A (High Incentive)'; }
     else if (perfScore >= 50) { rankBadge = '<span class="rank-pill rank-bronze">🥉 Consistent</span>'; incentiveBand = 'Tier B (Regular Incentive)'; }
 
-    perfMap[doc] = { doc, patients: patients.size, sessions, amskSessions: amskSessCount, amskShare, avgRating: avgRat, avgProgress: avgProg, pending: totalPending, perfScore, rankBadge, incentiveBand, svcBreakdown };
+    perfMap[doc] = { doc, patients: patients.size, visits, packageSessions, amskVisits: amskVisitsCount, amskShare, avgRating: avgRat, avgProgress: avgProg, pending: totalPending, perfScore, rankBadge, incentiveBand, svcBreakdown };
   }
 
-  docPerfData = Object.values(perfMap).sort((a,b)=>b.perfScore - a.perfScore || b.sessions - a.sessions);
+  docPerfData = Object.values(perfMap).sort((a,b)=>b.perfScore - a.perfScore || b.visits - a.visits);
   docPerfPage = 1; docPerfSortCol = 'perfScore'; docPerfSortDir = 1;
   renderDocPerfMetrics();
   renderDocPerfTable();
@@ -765,18 +774,19 @@ function renderDocPerfMetrics() {
   const svcFilter = document.getElementById('docPerfSvc').value;
   const scopeLabel = svcFilter === 'amsk' ? 'Advanced MSK' : 'All Services Combined';
   const byScore= [...docPerfData].sort((a,b)=>b.perfScore-a.perfScore);
-  const bySess = [...docPerfData].sort((a,b)=>b.sessions-a.sessions);
+  const byVisits= [...docPerfData].sort((a,b)=>b.visits-a.visits);
   const byRat  = [...docPerfData].filter(d=>d.avgRating>0).sort((a,b)=>b.avgRating-a.avgRating);
   const byProg = [...docPerfData].sort((a,b)=>b.avgProgress-a.avgProgress);
-  const topDoc = byScore[0], s = bySess[0], r = byRat[0], p = byProg[0];
-  const totSess = docPerfData.reduce((s,d)=>s+d.sessions,0);
+  const topDoc = byScore[0], s = byVisits[0], r = byRat[0], p = byProg[0];
+  const totVisits = docPerfData.reduce((s,d)=>s+d.visits,0);
+  const totPkgSess = docPerfData.reduce((s,d)=>s+d.packageSessions,0);
   const avgRat = docPerfData.filter(d=>d.avgRating>0).reduce((s,d)=>s+d.avgRating,0) / (byRat.length||1);
 
   document.getElementById('docPerfMetrics').innerHTML = `
-    <div class="metric-card mc-blue"><div class="metric-label">Total Sessions Delivered</div><div class="metric-value">${totSess.toLocaleString()}</div><div class="metric-sub">${scopeLabel}</div></div>
-    <div class="metric-card mc-purple"><div class="metric-label">Overall Avg Rating</div><div class="metric-value">${avgRat.toFixed(1)}★</div><div class="metric-sub">${byRat.length} doctors rated</div></div>
+    <div class="metric-card mc-blue"><div class="metric-label">Total Doctor Visits</div><div class="metric-value">${totVisits.toLocaleString()}</div><div class="metric-sub">${scopeLabel}</div></div>
+    <div class="metric-card mc-purple"><div class="metric-label">Patient Pkg Sessions</div><div class="metric-value">${totPkgSess.toLocaleString()}</div><div class="metric-sub">Cumulative sessions covered</div></div>
     <div class="metric-card mc-amber"><div class="metric-label">🥇 #1 Incentive Score</div><div class="metric-value">${topDoc?topDoc.perfScore+'/100':'—'}</div><div class="metric-sub">${topDoc?topDoc.doc:'—'}</div></div>
-    <div class="metric-card mc-green"><div class="metric-label">Top by Volume</div><div class="metric-value">${s?s.sessions.toLocaleString()||0:0}</div><div class="metric-sub">${s?s.doc:'—'}</div></div>
+    <div class="metric-card mc-green"><div class="metric-label">Top by Volume</div><div class="metric-value">${s?s.visits.toLocaleString()||0:0} visits</div><div class="metric-sub">${s?s.doc:'—'}</div></div>
     <div class="metric-card mc-teal"><div class="metric-label">Top Recovery Progress</div><div class="metric-value">${p?p.avgProgress.toFixed(0)+'%':'—'}</div><div class="metric-sub">${p?p.doc:'—'}</div></div>`;
 }
 
@@ -790,7 +800,8 @@ function renderDocPerfTable() {
   const svcFilter = document.getElementById('docPerfSvc').value;
   const pfx = svcFilter === 'amsk' ? 'AMSK' : 'Total';
   document.getElementById('hdrPerfPatients').textContent = pfx + ' Patients ↕';
-  document.getElementById('hdrPerfSessions').textContent = pfx + ' Sessions ↕';
+  document.getElementById('hdrPerfVisits').textContent = pfx + ' Doctor Visits ↕';
+  document.getElementById('hdrPerfSessions').textContent = pfx + ' Patient Sessions ↕';
 
   const sorted = [...docPerfData].sort((a,b)=>{
     const va = a[docPerfSortCol], vb = b[docPerfSortCol];
@@ -802,7 +813,7 @@ function renderDocPerfTable() {
   const slice = sorted.slice(start, start + PAGE_SIZE);
   const tbody = document.getElementById('docPerfBody');
 
-  if (!slice.length) { tbody.innerHTML='<tr><td colspan="10" class="no-data">No doctors found.</td></tr>'; document.getElementById('docPerfPager').innerHTML=''; return; }
+  if (!slice.length) { tbody.innerHTML='<tr><td colspan="11" class="no-data">No doctors found.</td></tr>'; document.getElementById('docPerfPager').innerHTML=''; return; }
 
   tbody.innerHTML = slice.map(d => {
     const ratHtml = d.avgRating ? `<span class="rating">${d.avgRating.toFixed(1)}★</span>` : '<span style="color:var(--muted)">—</span>';
@@ -811,8 +822,9 @@ function renderDocPerfTable() {
       <td><span class="doctor-tag ${docColor(d.doc)}" title="${d.svcBreakdown}">${d.doc}</span></td>
       <td>${d.rankBadge}</td>
       <td style="text-align:center;font-weight:600">${d.patients}</td>
-      <td style="text-align:center;color:var(--accent);font-weight:700">${d.sessions.toLocaleString()}</td>
-      <td style="text-align:center;color:var(--purple);font-weight:700">${d.amskShare}%</td>
+      <td style="text-align:center;color:var(--accent);font-weight:700">${d.visits.toLocaleString()}</td>
+      <td style="text-align:center;color:var(--purple);font-weight:700">${d.packageSessions.toLocaleString()}</td>
+      <td style="text-align:center;color:var(--accent2);font-weight:700">${d.amskShare}%</td>
       <td>${ratHtml}</td>
       <td>
         <div class="prog-wrap"><div class="prog-bar" style="width:${d.avgProgress}%"></div></div>
@@ -850,8 +862,7 @@ function exportAllPatientsExcel() {
     'Patient Name': r.patient,
     'Service Name': r.service,
     'Treating Doctor': r.doctor,
-    'Session Delivered': 1,
-    'Package Capacity': r.pkgCapacity,
+    'Patient Package Sessions Completed': r.patientSessions,
     'Future Sessions Left': r.future,
     'Pending Revenue (₹)': Math.round(r.pending),
     'Status': r.status,
@@ -863,7 +874,7 @@ function exportAllPatientsExcel() {
   const ws = XLSX.utils.json_to_sheet(data);
   ws['!cols'] = [
     { wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
-    { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
+    { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'Patient Appointments');
   XLSX.writeFile(wb, `All_Patients_Appointments_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -894,7 +905,8 @@ function exportCrossDoctorExcel() {
 
     if (shownDoctors.length < 2) continue;
 
-    const shownSessions = relevantRows.length; // Real sessions delivered
+    const shownVisits   = relevantRows.length; // Doctor Visits
+    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0); // Patient Package Sessions
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
@@ -903,20 +915,21 @@ function exportCrossDoctorExcel() {
       'Total Doctors Count': shownDoctors.length,
       'Treating Doctors': shownDoctors.join(', '),
       'Services Received': shownServices.join(', '),
-      'Total Sessions Delivered': shownSessions,
+      'Doctor Visits Attended': shownVisits,
+      'Patient Package Sessions': shownPkgSess,
       'Pending Amount (₹)': Math.round(shownPending),
       'Package Status': shownStatuses.join(' / ')
     });
   }
 
-  exportData.sort((a, b) => b['Total Doctors Count'] - a['Total Doctors Count'] || (b['Total Sessions Delivered'] - a['Total Sessions Delivered']));
+  exportData.sort((a, b) => b['Total Doctors Count'] - a['Total Doctors Count'] || (b['Doctor Visits Attended'] - a['Doctor Visits Attended']));
 
   if (!exportData.length) { alert('No multi-doctor patients found for export.'); return; }
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(exportData);
   ws['!cols'] = [
-    { wch: 24 }, { wch: 20 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 16 }
+    { wch: 24 }, { wch: 20 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 24 }, { wch: 18 }, { wch: 16 }
   ];
   XLSX.utils.book_append_sheet(wb, ws, 'Cross Doctor Matrix');
   XLSX.writeFile(wb, `Cross_Doctor_Patients_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -934,16 +947,17 @@ function exportDoctorPerformanceExcel() {
     const amskRows = data.rows.filter(r => isAMSKService(r.service));
     if (!amskRows.length) continue;
 
-    const totalSessionsAll = data.rows.length;
+    const totalVisitsAll = data.rows.length;
     const patients = new Set(amskRows.map(r => r.patient)).size;
-    const sessions = amskRows.length; // Real AMSK sessions delivered
-    const amskShare = totalSessionsAll ? Math.round((sessions / totalSessionsAll) * 100) : 0;
+    const visits = amskRows.length; // AMSK Visits
+    const packageSessions = amskRows.reduce((s, r) => s + r.patientSessions, 0); // AMSK Patient Package Sessions
+    const amskShare = totalVisitsAll ? Math.round((visits / totalVisitsAll) * 100) : 0;
     const ratArr = amskRows.filter(r => r.rating > 0);
     const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
     const avgProgress = amskRows.reduce((s, r) => s + r.progress, 0) / amskRows.length;
     const totalPending = amskRows.reduce((s, r) => s + r.pending, 0);
 
-    const volumeScore = Math.min(50, (sessions / 300) * 50);
+    const volumeScore = Math.min(50, (visits / 300) * 50);
     const ratingScore = (avgRating / 5) * 25;
     const progressScore = (avgProgress / 100) * 25;
     const perfScore = Math.round(volumeScore + ratingScore + progressScore);
@@ -958,8 +972,9 @@ function exportDoctorPerformanceExcel() {
       'Doctor Name': doc,
       'Performance Rank': rankLabel,
       'AMSK Patients Treated': patients,
-      'AMSK Sessions Delivered': sessions,
-      'AMSK Specialization Share (%)': amskShare + '%',
+      'AMSK Doctor Visits': visits,
+      'AMSK Patient Package Sessions': packageSessions,
+      'AMSK Workload Share (%)': amskShare + '%',
       'Average Star Rating': avgRating ? avgRating.toFixed(1) + ' ★' : 'N/A',
       'Average Recovery Progress (%)': Math.round(avgProgress) + '%',
       'Pending Revenue (₹)': Math.round(totalPending),
@@ -968,9 +983,9 @@ function exportDoctorPerformanceExcel() {
     });
   }
 
-  amskData.sort((a, b) => b['Incentive Score (out of 100)'] - a['Incentive Score (out of 100)'] || b['AMSK Sessions Delivered'] - a['AMSK Sessions Delivered']);
+  amskData.sort((a, b) => b['Incentive Score (out of 100)'] - a['Incentive Score (out of 100)'] || b['AMSK Doctor Visits'] - a['AMSK Doctor Visits']);
   const ws1 = XLSX.utils.json_to_sheet(amskData);
-  ws1['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 24 }, { wch: 26 }, { wch: 28 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }, { wch: 30 }];
+  ws1['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 24 }, { wch: 20 }, { wch: 28 }, { wch: 24 }, { wch: 20 }, { wch: 26 }, { wch: 22 }, { wch: 26 }, { wch: 30 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'AMSK Performance & Incentive');
 
   // Sheet 2: Doctor Service-Wise Breakdown
@@ -992,13 +1007,13 @@ function exportDoctorPerformanceExcel() {
         'Service Name': svc,
         'Is AMSK Category': isAMSKService(svc) ? 'YES (AMSK)' : 'NO',
         'Unique Patients': svcPatients[svc].size,
-        'Sessions Delivered': sess
+        'Doctor Visits Attended': sess
       });
     }
   }
-  svcBreakdownRows.sort((a, b) => b['Sessions Delivered'] - a['Sessions Delivered']);
+  svcBreakdownRows.sort((a, b) => b['Doctor Visits Attended'] - a['Doctor Visits Attended']);
   const ws2 = XLSX.utils.json_to_sheet(svcBreakdownRows);
-  ws2['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 18 }, { wch: 18 }, { wch: 20 }];
+  ws2['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 18 }, { wch: 18 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Doctor Service Breakdown');
 
   // Sheet 3: Doctor Patient List
@@ -1010,8 +1025,7 @@ function exportDoctorPerformanceExcel() {
         'Patient Name': r.patient,
         'Service': r.service,
         'Date': r.dateStr,
-        'Sessions Delivered': 1,
-        'Package Capacity': r.pkgCapacity,
+        'Patient Package Sessions Completed': r.patientSessions,
         'Future Sessions Left': r.future,
         'Pending Amount (₹)': Math.round(r.pending),
         'Status': r.status,
@@ -1021,7 +1035,7 @@ function exportDoctorPerformanceExcel() {
     }
   }
   const ws3 = XLSX.utils.json_to_sheet(docPatientRows);
-  ws3['!cols'] = [{ wch: 26 }, { wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
+  ws3['!cols'] = [{ wch: 26 }, { wch: 24 }, { wch: 30 }, { wch: 14 }, { wch: 32 }, { wch: 20 }, { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'Doctor Patient Records');
 
   const filename = `Detailed_Doctor_Performance_Incentives_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -1037,11 +1051,11 @@ function exportMasterAnalyzerExcel() {
   // Sheet 1: All Patients
   const ptData = allRows.map(r => ({
     'Date': r.dateStr, 'Patient Name': r.patient, 'Service': r.service, 'Doctor': r.doctor,
-    'Session Delivered': 1, 'Package Capacity': r.pkgCapacity, 'Future Sessions Left': r.future, 'Pending (₹)': Math.round(r.pending),
+    'Patient Package Sessions Completed': r.patientSessions, 'Future Sessions Left': r.future, 'Pending (₹)': Math.round(r.pending),
     'Status': r.status, 'Progress (%)': Math.round(r.progress) + '%', 'Rating': r.rating ? r.rating + ' ★' : 'N/A'
   }));
   const ws1 = XLSX.utils.json_to_sheet(ptData);
-  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+  ws1['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 32 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'All Patients');
 
   // Sheet 2: Cross Doctor Matrix (Multi-Doctor Patients)
@@ -1050,12 +1064,12 @@ function exportMasterAnalyzerExcel() {
     if (d.doctors.size < 2) continue;
     crossData.push({
       'Patient Name': pt, 'Doctor Count': d.doctors.size, 'Doctors': [...d.doctors].join(', '),
-      'Services': [...d.services].join(', '), 'Total Sessions Delivered': d.rows.length, 'Pending Amount (₹)': Math.round(d.totalPending)
+      'Services': [...d.services].join(', '), 'Doctor Visits Attended': d.rows.length, 'Patient Package Sessions': d.totalPackageSessions, 'Pending Amount (₹)': Math.round(d.totalPending)
     });
   }
   crossData.sort((a,b) => b['Doctor Count'] - a['Doctor Count']);
   const ws2 = XLSX.utils.json_to_sheet(crossData);
-  ws2['!cols'] = [{ wch: 24 }, { wch: 16 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 18 }];
+  ws2['!cols'] = [{ wch: 24 }, { wch: 16 }, { wch: 45 }, { wch: 45 }, { wch: 22 }, { wch: 24 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Cross Doctor Patients');
 
   // Sheet 3: AMSK Doctor Performance & Incentives
@@ -1065,27 +1079,28 @@ function exportMasterAnalyzerExcel() {
     if (!amskRows.length) continue;
 
     const patients = new Set(amskRows.map(r => r.patient)).size;
-    const sessions = amskRows.length;
+    const visits = amskRows.length;
+    const packageSessions = amskRows.reduce((s, r) => s + r.patientSessions, 0);
     const ratArr = amskRows.filter(r => r.rating > 0);
     const avgRating = ratArr.length ? (ratArr.reduce((s, r) => s + r.rating, 0) / ratArr.length) : 0;
     const avgProgress = amskRows.reduce((s, r) => s + r.progress, 0) / amskRows.length;
     const totalPending = amskRows.reduce((s, r) => s + r.pending, 0);
 
-    const volumeScore = Math.min(50, (sessions / 300) * 50);
+    const volumeScore = Math.min(50, (visits / 300) * 50);
     const ratingScore = (avgRating / 5) * 25;
     const progressScore = (avgProgress / 100) * 25;
     const perfScore = Math.round(volumeScore + ratingScore + progressScore);
 
     amskData.push({
-      'Doctor Name': doc, 'AMSK Patients': patients, 'AMSK Sessions Delivered': sessions,
+      'Doctor Name': doc, 'AMSK Patients': patients, 'AMSK Doctor Visits': visits, 'AMSK Patient Package Sessions': packageSessions,
       'Average Rating': avgRating ? avgRating.toFixed(1) + ' ★' : 'N/A',
       'Average Progress (%)': Math.round(avgProgress) + '%',
       'Pending Amount (₹)': Math.round(totalPending), 'Incentive Score (/100)': perfScore
     });
   }
-  amskData.sort((a,b) => b['AMSK Sessions Delivered'] - a['AMSK Sessions Delivered']);
+  amskData.sort((a,b) => b['AMSK Doctor Visits'] - a['AMSK Doctor Visits']);
   const ws3 = XLSX.utils.json_to_sheet(amskData);
-  ws3['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 22 }];
+  ws3['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 22 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'AMSK Doctor Performance');
 
   const filename = `Master_Appointment_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -1117,7 +1132,6 @@ function resetCrossFilters() {
 
 function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
   const tbody = document.getElementById('crossTbody');
-  const totalAll = Object.keys(patientMap).length;
   const matched = [];
 
   for (const [pt, d] of Object.entries(patientMap)) {
@@ -1135,7 +1149,8 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
 
     if (shownDoctors.length < 2) continue;
 
-    const shownSessions = relevantRows.length; // Real sessions delivered
+    const shownVisits   = relevantRows.length; // Doctor Visits
+    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0); // Patient Package Sessions
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
@@ -1144,13 +1159,14 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
       d,
       shownDoctors,
       shownServices,
-      shownSessions,
+      shownVisits,
+      shownPkgSess,
       shownPending,
       shownStatuses
     });
   }
 
-  matched.sort((a, b) => b.shownDoctors.length - a.shownDoctors.length || (b.shownSessions - a.shownSessions));
+  matched.sort((a, b) => b.shownDoctors.length - a.shownDoctors.length || (b.shownVisits - a.shownVisits));
 
   const bar = document.getElementById('crossResultBar');
   const activeFilters = [
@@ -1166,7 +1182,7 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
   }
 
   if (!matched.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="no-data">No multi-doctor patients match the selected filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No multi-doctor patients match the selected filters.</td></tr>';
     return;
   }
 
@@ -1180,7 +1196,8 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
       <td><strong>${item.pt}</strong> ${multiLabel}</td>
       <td>${docTags}</td>
       <td style="color:var(--muted);font-size:12px">${svcs}</td>
-      <td style="text-align:center;font-weight:700;color:var(--accent)">${item.shownSessions}</td>
+      <td style="text-align:center;font-weight:700;color:var(--accent)">${item.shownVisits} visits</td>
+      <td style="text-align:center;font-weight:700;color:var(--purple)">${item.shownPkgSess} sess</td>
       <td style="text-align:center;color:${item.shownPending>0?'var(--red)':'var(--muted)'}">₹${Math.round(item.shownPending).toLocaleString('en-IN')}</td>
       <td>${stHtml}</td>
     </tr>`;
