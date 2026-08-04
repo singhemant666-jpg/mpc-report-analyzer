@@ -2042,7 +2042,7 @@
               const prevPaid = categoryPaidSum[cat];
               const prevCost = categoryCostSum[cat];
 
-              if (isLaterDate && prevPaid < prevCost - 0.01) {
+              if (prevPaid < prevCost - 0.01) {
                 row.isInstallment = true;
                 row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
                 row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
