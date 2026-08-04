@@ -171,10 +171,10 @@
     }
     .doc-name { font-size: 14px; font-weight: 700; }
     .doc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .doc-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0; }
+    .doc-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin: 12px 0; }
     .doc-stat { text-align: center; }
-    .doc-stat-val { font-size: 22px; font-weight: 800; color: var(--accent); }
-    .doc-stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+    .doc-stat-val { font-size: 18px; font-weight: 800; color: var(--accent); }
+    .doc-stat-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
     .doc-pts-list { max-height: 150px; overflow-y: auto; margin-top: 8px; }
     .doc-pt-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(30,45,69,0.4); font-size: 12px; }
     .doc-pt-row:last-child { border-bottom: none; }
@@ -187,14 +187,6 @@
     .cross-table tr:hover td { background: rgba(59,130,246,0.04); }
     .cross-table tr:last-child td { border-bottom: none; }
     .multi-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; background: rgba(245,158,11,0.15); color: var(--amber); font-size: 10px; font-weight: 700; margin-left: 6px; }
-
-    /* SUMMARY BOX */
-    .summary-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
-    .summary-box h3 { font-size: 14px; font-weight: 700; color: var(--amber); margin-bottom: 14px; }
-    .cp-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(30,45,69,0.4); }
-    .cp-row:last-child { border-bottom: none; }
-    .cp-name { min-width: 220px; font-weight: 600; font-size: 13px; flex-shrink: 0; }
-    .cp-docs { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; }
 
     .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
     #appContent { display: none; }
@@ -254,7 +246,7 @@
     <!-- TABS -->
     <div class="tabs">
       <div class="tab active" id="tab-patients" onclick="showTab('patients')">👥 All Patients</div>
-      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Cards</div>
+      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Performance</div>
       <div class="tab" id="tab-cross" onclick="showTab('cross')">🔀 Cross-Doctor Patients</div>
     </div>
 
@@ -295,20 +287,12 @@
       <div class="pagination" id="mainPager"></div>
     </div>
 
-    <!-- ── TAB: DOCTORS ── -->
+    <!-- ── TAB: DOCTORS & PERFORMANCE ── -->
     <div id="panelDoctors" style="display:none">
-      <div class="section-header">
-        <h2>Doctor Summary Cards</h2>
-        <div class="controls">
-          <input type="search" id="srchDoc" placeholder="🔍 Search doctor…" oninput="filterDocCards()" style="width:220px">
-        </div>
-      </div>
-      <div class="doctor-grid" id="doctorGrid"></div>
-
       <div class="section-header">
         <h2>Doctor Performance Report</h2>
         <div class="controls">
-          <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:180px">
+          <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:200px">
             <option value="amsk">🔬 Advanced MSK (AMSK) Only</option>
             <option value="all">📋 All Services</option>
           </select>
@@ -319,209 +303,67 @@
         <table class="tbl">
           <thead>
             <tr>
-             <th onclick="sortDocPerf('name')">Doctor ↕</th>
-<content>
-    .dt-10 { background: rgba(168,85,247,0.15); color: #d8b4fe; }
-    .dt-11 { background: rgba(132,204,22,0.15); color: #bef264; }
+              <th onclick="sortDocPerf('doc')">Doctor ↕</th>
+              <th onclick="sortDocPerf('patients')" id="hdrPerfPatients">Patients ↕</th>
+              <th onclick="sortDocPerf('sessions')" id="hdrPerfSessions">Sessions ↕</th>
+              <th>AMSK Sessions</th>
+              <th onclick="sortDocPerf('avgRating')">Avg Rating ↕</th>
+              <th onclick="sortDocPerf('avgProgress')">Avg Progress ↕</th>
+              <th onclick="sortDocPerf('pending')">Pending ↕</th>
+            </tr>
+          </thead>
+          <tbody id="docPerfBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="docPerfPager"></div>
 
-    /* TABLES */
-    .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 20px; }
-    table.tbl { width: 100%; border-collapse: collapse; min-width: 900px; }
-    table.tbl th {
-      background: var(--surface2); padding: 11px 14px; font-size: 12px; font-weight: 600;
-      color: var(--muted); text-align: left; border-bottom: 1px solid var(--border);
-      white-space: nowrap; cursor: pointer;
-    }
-    table.tbl th:hover { color: var(--accent); }
-    table.tbl td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(30,45,69,0.5); }
-    table.tbl tr:hover td { background: rgba(59,130,246,0.04); }
-    table.tbl tr:last-child td { border-bottom: none; }
-
-    /* PROGRESS */
-    .prog-wrap { background: var(--subtle); border-radius: 4px; height: 6px; width: 80px; overflow: hidden; display: inline-block; vertical-align: middle; }
-    .prog-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
-    .status-Active { color: var(--green); font-weight: 600; }
-    .status-Expired { color: var(--muted); }
-    .rating { color: var(--amber); font-size: 12px; }
-
-    /* PAGINATION */
-    .pagination { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 14px; }
-    .page-btn {
-      padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
-      border: 1px solid var(--border); background: var(--surface2); color: var(--text);
-      cursor: pointer; transition: all 0.2s;
-    }
-    .page-btn.active, .page-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .page-info { font-size: 12px; color: var(--muted); }
-
-    /* DOCTOR CARDS */
-    .doctor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; margin-bottom: 28px; }
-    .doc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; transition: transform 0.2s, border-color 0.2s; }
-    .doc-card:hover { transform: translateY(-2px); border-color: var(--accent); }
-    .doc-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .doc-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--accent3));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0;
-    }
-    .doc-name { font-size: 14px; font-weight: 700; }
-    .doc-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .doc-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0; }
-    .doc-stat { text-align: center; }
-    .doc-stat-val { font-size: 22px; font-weight: 800; color: var(--accent); }
-    .doc-stat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
-    .doc-pts-list { max-height: 150px; overflow-y: auto; margin-top: 8px; }
-    .doc-pt-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(30,45,69,0.4); font-size: 12px; }
-    .doc-pt-row:last-child { border-bottom: none; }
-
-    /* CROSS TABLE */
-    .cross-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 28px; }
-    .cross-table { width: 100%; border-collapse: collapse; }
-    .cross-table th { background: var(--surface2); padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--muted); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .cross-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(30,45,69,0.5); vertical-align: middle; }
-    .cross-table tr:hover td { background: rgba(59,130,246,0.04); }
-    .cross-table tr:last-child td { border-bottom: none; }
-    .multi-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; background: rgba(245,158,11,0.15); color: var(--amber); font-size: 10px; font-weight: 700; margin-left: 6px; }
-
-    /* SUMMARY BOX */
-    .summary-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
-    .summary-box h3 { font-size: 14px; font-weight: 700; color: var(--amber); margin-bottom: 14px; }
-    .cp-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(30,45,69,0.4); }
-    .cp-row:last-child { border-bottom: none; }
-    .cp-name { min-width: 220px; font-weight: 600; font-size: 13px; flex-shrink: 0; }
-    .cp-docs { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; }
-
-    .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
-    #appContent { display: none; }
-  </style>
-</head>
-<body>
-
-<!-- ═══ NAV ═══ -->
-<nav class="nav">
-  <div class="nav-logo">
-    <div class="icon">📅</div>
-    <div>
-      <h1>Appointment Analyzer</h1>
-      <p>Patient ↔ Doctor Mapping • MPC Clinic</p>
-    </div>
-  </div>
-  <div class="nav-right">
-    <span class="badge badge-blue" id="rowBadge" style="display:none"></span>
-    <button class="btn btn-outline" id="resetBtn" style="display:none" onclick="resetApp()">↺ New File</button>
-    <a href="index.html" class="btn btn-outline">← Collection Report</a>
-  </div>
-</nav>
-
-<div class="main">
-
-  <!-- UPLOAD -->
-  <div id="uploadSection">
-    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <span class="emoji">📋</span>
-      <h2>Drop your Day-Wise Appointment Report here</h2>
-      <p>Upload the APPOINTMENT_DAY_WISE .xlsx export from MPC</p>
-      <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
-        📂 Choose File
-      </button>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
-    </div>
-  </div>
-
-  <!-- LOADER -->
-  <div class="loader" id="loader">
-    <div class="spinner"></div>
-    <p style="color:var(--muted); margin-top:8px">Parsing appointments…</p>
-  </div>
-
-  <!-- APP -->
-  <div id="appContent">
-
-    <!-- METRICS -->
-    <div class="metrics" id="metricsGrid"></div>
-
-    <!-- CHARTS -->
-    <div class="charts-row">
-      <div class="chart-card"><h3>📊 Sessions by Doctor</h3><canvas id="doctorChart"></canvas></div>
-      <div class="chart-card"><h3>🩺 Top Services</h3><canvas id="serviceChart"></canvas></div>
-    </div>
-
-    <!-- TABS -->
-    <div class="tabs">
-      <div class="tab active" id="tab-patients" onclick="showTab('patients')">👥 All Patients</div>
-      <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Cards</div>
-      <div class="tab" id="tab-cross" onclick="showTab('cross')">🔀 Cross-Doctor Patients</div>
-    </div>
-
-    <!-- ── TAB: ALL PATIENTS ── -->
-    <div id="panelPatients">
-      <div class="section-header">
-        <h2>Patient Appointments</h2>
+      <div class="section-header" style="margin-top:28px">
+        <h2>Doctor Summary Cards</h2>
         <div class="controls">
-          <input type="search" id="srchMain" placeholder="🔍 Search patient / doctor…" oninput="applyFilters()" style="width:220px">
-          <select id="fltDoctor" onchange="applyFilters()"><option value="">All Doctors</option></select>
-          <select id="fltService" onchange="applyFilters()"><option value="">All Services</option></select>
-          <select id="fltStatus" onchange="applyFilters()">
+          <input type="search" id="srchDoc" placeholder="🔍 Search doctor…" oninput="filterDocCards()" style="width:220px">
+        </div>
+      </div>
+      <div class="doctor-grid" id="doctorGrid"></div>
+    </div>
+
+    <!-- ── TAB: CROSS-DOCTOR PATIENTS ── -->
+    <div id="panelCross" style="display:none">
+      <div class="section-header">
+        <h2>Full Patient ↔ Doctor Matrix</h2>
+        <div class="controls">
+          <input type="search" id="srchCross" placeholder="🔍 Search patient…" oninput="filterCross()" style="width:220px">
+          <select id="crossFltDoctor" onchange="filterCross()" style="min-width:180px">
+            <option value="">All Doctors</option>
+          </select>
+          <select id="crossFltService" onchange="filterCross()" style="min-width:180px">
+            <option value="">All Services</option>
+          </select>
+          <select id="crossFltStatus" onchange="filterCross()">
             <option value="">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Expired">Expired</option>
           </select>
+          <button onclick="resetCrossFilters()" style="padding:8px 14px; border-radius:8px; background:rgba(239,68,68,0.15); color:#fca5a5; border:1px solid rgba(239,68,68,0.3); font-size:12px; font-weight:600; cursor:pointer;">✕ Reset</button>
         </div>
       </div>
-      <div class="table-wrap">
-        <table class="tbl">
+      <div id="crossResultBar" style="font-size:12px; color:var(--muted); margin-bottom:10px; padding:6px 2px;"></div>
+      <div class="cross-wrap">
+        <table class="cross-table">
           <thead>
             <tr>
-              <th onclick="doSort('date')">Date ↕</th>
-              <th onclick="doSort('patient')">Patient ↕</th>
-              <th>Service</th>
-              <th onclick="doSort('doctor')">Doctor ↕</th>
-              <th style="text-align:center">Done</th>
-              <th style="text-align:center">Future</th>
-              <th style="text-align:right">Pending</th>
+              <th>Patient Name</th>
+              <th>Doctor(s)</th>
+              <th>Services</th>
+              <th style="text-align:center">Total Sessions</th>
+              <th style="text-align:center">Pending (₹)</th>
               <th>Status</th>
-              <th>Progress</th>
-              <th>Rating</th>
             </tr>
           </thead>
-          <tbody id="mainTbody"></tbody>
+          <tbody id="crossTbody"></tbody>
         </table>
       </div>
-      <div class="pagination" id="mainPager"></div>
     </div>
 
-    <!-- ── TAB: DOCTORS ── -->
-    <div id="panelDoctors" style="display:none">
-      <div class="section-header">
-        <h2>Doctor Summary Cards</h2>
-        <div class="controls">
-          <input type="search" id="srchDoc" placeholder="🔍 Search doctor…" oninput="filterDocCards()" style="width:220px">
-        </div>
-      </div>
-      <div class="doctor-grid" id="doctorGrid"></div>
-
-      <div class="section-header">
-        <h2>Doctor Performance Report</h2>
-        <div class="controls">
-          <select id="docPerfSvc" onchange="renderDoctorPerformance()" style="min-width:180px">
-            <option value="amsk">🔬 Advanced MSK (AMSK) Only</option>
-            <option value="all">📋 All Services</option>
-          </select>
-        </div>
-      </div>
-      <div class="metrics" id="docPerfMetrics"></div>
-      <div class="table-wrap">
-        <table class="tbl">
-          <thead>
-            <tr>
-             <th onclick="sortDocPerf('name')">Doctor ↕</th>
-             <th onclick="sortDocPerf('patients')" id="hdrPerfPatients">Patients ↕</th>
-             <th onclick="sortDocPerf('sessions')" id="hdrPerfSessions">Sessions ↕</th>
-             <th>AMSK Sessions</th>
-             <th onclick="sortDocPerf('avgRating')">Avg Rating ↕</th>
-             <th onclick="sortDocPerf('avgProgress')">Avg Progress ↕</th>
-             <th onclick="sortDocPerf('pending')">Pending ↕</th>
   </div><!-- /appContent -->
 </div>
 
@@ -538,13 +380,13 @@ const COLORS = ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec
 let docColorMap = {}, docColorIdx = 0;
 
 function docColor(d) {
+  if (!d) return 'dt-0';
   if (!(d in docColorMap)) { docColorMap[d] = docColorIdx++ % 12; }
   return 'dt-' + docColorMap[d];
 }
 
-// Strip the trailing role suffix ("Consulting"/"Treatment") so the same
-// doctor isn't split into separate entries by role.
 function normalizeDoctor(name) {
+  if (!name) return '';
   return name.replace(/\s+(Consulting|Treatment)$/i, '').trim();
 }
 
@@ -570,7 +412,6 @@ function handleFile(file) {
       const sh = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '', raw: false });
 
-      // Find real header row
       let hIdx = -1;
       for (let i = 0; i < Math.min(10, raw.length); i++) {
         if (raw[i].some(c => c && c.toString().toLowerCase().includes('patient'))) { hIdx = i; break; }
@@ -669,14 +510,13 @@ function buildMaps() {
 }
 
 // ════════════════════════════════════════
-// FILTERS
+// FILTERS & TABLE
 // ════════════════════════════════════════
 function populateFilters() {
   const docs = [...new Set(allRows.map(r=>r.doctor).filter(Boolean))].sort();
   const svcs = [...new Set(allRows.map(r=>r.service).filter(Boolean))].sort();
   document.getElementById('fltDoctor').innerHTML = '<option value="">All Doctors</option>' + docs.map(d=>`<option>${d}</option>`).join('');
   document.getElementById('fltService').innerHTML = '<option value="">All Services</option>' + svcs.map(s=>`<option>${s}</option>`).join('');
-  // also populate cross-tab filters
   document.getElementById('crossFltDoctor').innerHTML = '<option value="">All Doctors</option>' + docs.map(d=>`<option>${d}</option>`).join('');
   document.getElementById('crossFltService').innerHTML = '<option value="">All Services</option>' + svcs.map(s=>`<option>${s}</option>`).join('');
 }
@@ -708,9 +548,6 @@ function doSort(col) {
   renderMainTable();
 }
 
-// ════════════════════════════════════════
-// METRICS
-// ════════════════════════════════════════
 function renderMetrics() {
   const totPts    = Object.keys(patientMap).length;
   const totDocs   = Object.keys(doctorMap).length;
@@ -728,9 +565,6 @@ function renderMetrics() {
   `;
 }
 
-// ════════════════════════════════════════
-// MAIN TABLE
-// ════════════════════════════════════════
 function renderMainTable() {
   const start = (currentPage-1) * PAGE_SIZE;
   const slice = filteredRows.slice(start, start + PAGE_SIZE);
@@ -815,7 +649,6 @@ function renderDoctorCards(q='') {
     const avgRat = ratArr.length ? (ratArr.reduce((s,r)=>s+r.rating,0)/ratArr.length).toFixed(1) : '—';
     const actPts = [...data.patients].filter(pt=>patientMap[pt]&&patientMap[pt].rows.some(r=>r.status==='Active'&&r.doctor===doc)).length;
 
-    // Per-service session breakdown
     const svcSessions = {};
     data.rows.forEach(r => { if (r.service) svcSessions[r.service] = (svcSessions[r.service]||0) + r.done; });
     const svcEntries = Object.entries(svcSessions).sort((a,b)=>b[1]-a[1]);
@@ -1045,7 +878,9 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
   }).join('');
 }
 
-
+// ════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════
 function showTab(t) {
   ['patients','doctors','cross'].forEach(n=>{
     document.getElementById('tab-'+n).classList.toggle('active', n===t);
