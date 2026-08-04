@@ -1353,7 +1353,7 @@
       <div class="section-title"><span class="icon">💾</span> Export Reports</div>
       <div class="export-section">
         <button class="btn btn-success" onclick="exportExcel()" id="export-excel-btn">
-          📥 Download Excel Report (9 Sheets)
+          📥 Download Excel Report (15 Sheets)
         </button>
         <button class="btn" onclick="exportCSV()" id="export-csv-btn">📄 Export CSV</button>
         <button class="btn" onclick="exportPDF()" id="export-pdf-btn">📑 Export PDF Summary</button>
@@ -4622,10 +4622,10 @@
             ['Total Patients', (m.totalPatients || 0).toString()],
             ['Total Consultation Patients', (m.totalConsultationPatients || 0).toString()],
             ['Conversion Rate', (m.conversionPct || 0).toFixed(1) + '%'],
-            ['Total Revenue', formatCurrency(m.totalRevenue || 0)],
-            ['Consultation Revenue', formatCurrency(m.consultationRevenue || 0)],
-            ['Package Revenue', formatCurrency(m.packageRevenue || 0)],
-            ['Single Session Revenue', formatCurrency(m.ssRevenue || 0)]
+            ['Total Revenue', formatCurrency(m.totalRevenue || 0).replace('₹', 'Rs. ')],
+            ['Consultation Revenue', formatCurrency(m.consultationRevenue || 0).replace('₹', 'Rs. ')],
+            ['Package Revenue', formatCurrency(m.packageRevenue || 0).replace('₹', 'Rs. ')],
+            ['Single Session Revenue', formatCurrency(m.ssRevenue || 0).replace('₹', 'Rs. ')]
           ],
           theme: 'grid',
           headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
