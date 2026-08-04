@@ -2541,6 +2541,22 @@
         }
       }
 
+      const painMgmtPkgs = Object.entries(packageSales).filter(([name]) => isPainManagementPackage(name));
+      const painMgmtCount = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const painMgmtRevenue = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const wellnessPkgs = Object.entries(packageSales).filter(([name]) => isWellnessPackage(name));
+      const wellnessCount = wellnessPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const wellnessRevenue = wellnessPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const roboticPkgs = Object.entries(packageSales).filter(([name]) => isRoboticSpinePackage(name));
+      const roboticSpineCount = roboticPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const roboticSpineRevenue = roboticPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
+      const bmskPkgs = Object.entries(packageSales).filter(([name]) => isBMSKPackage(name));
+      const bmskCount = bmskPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
+      const bmskRevenue = bmskPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+
       return {
         totalPatients,
         totalConsultationPatients,
@@ -2559,6 +2575,14 @@
         revenueByDate,
         renewalCount,
         renewalTotalRevenue,
+        painMgmtCount,
+        painMgmtRevenue,
+        wellnessCount,
+        wellnessRevenue,
+        roboticSpineCount,
+        roboticSpineRevenue,
+        bmskCount,
+        bmskRevenue,
         STATUSES: [...STATUSES, 'Package Renewal']
       };
     }
@@ -2759,6 +2783,39 @@
       '#84cc16', '#ef4444', '#f97316', '#22d3ee', '#d946ef'
     ];
 
+    function formatCurrencyCompact(value) {
+      if (value >= 100000) {
+        return '₹' + (value / 100000).toFixed(1) + 'L';
+      }
+      return formatCurrency(value);
+    }
+
+    const centerTextPlugin = {
+      id: 'centerText',
+      beforeDraw(chart) {
+        const { ctx } = chart;
+        const opts = chart.config.options.plugins.centerText;
+        if (!opts || !opts.text) return;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+        const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+        
+        ctx.font = '800 1.25rem Inter, sans-serif';
+        ctx.fillStyle = '#f8fafc';
+        if (opts.subtext) {
+          ctx.fillText(opts.text, centerX, centerY - 9);
+          ctx.font = '600 0.65rem Inter, sans-serif';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(opts.subtext.toUpperCase(), centerX, centerY + 11);
+        } else {
+          ctx.fillText(opts.text, centerX, centerY);
+        }
+        ctx.restore();
+      }
+    };
+
     function destroyCharts() {
       Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
       chartInstances = {};
@@ -2844,6 +2901,7 @@
 
       chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
         type: 'doughnut',
+        plugins: [centerTextPlugin],
         data: {
           labels,
           datasets: [{
@@ -2870,9 +2928,13 @@
                   return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
                 }
               }
+            },
+            centerText: {
+              text: m.totalPatients.toString(),
+              subtext: 'Patients'
             }
           },
-          cutout: '60%'
+          cutout: '70%'
         }
       });
     }
@@ -2897,6 +2959,7 @@
 
       chartInstances.revenuePie = new Chart(document.getElementById('chart-revenue-pie'), {
         type: 'doughnut',
+        plugins: [centerTextPlugin],
         data: {
           labels: categories.map(c => c.name),
           datasets: [{
@@ -2923,48 +2986,13 @@
                   return ` ${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
                 }
               }
+            },
+            centerText: {
+              text: formatCurrencyCompact(m.totalRevenue),
+              subtext: 'Revenue'
             }
           },
-          cutout: '55%'
-        }
-      });
-    }
-
-    function renderPieChart(m) {
-      const labels = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
-      const data = labels.map(s => m.statusCounts[s] || 0);
-
-      chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: CHART_COLORS.slice(0, labels.length),
-            borderWidth: 0,
-            hoverOffset: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: {
-                label: (ctx) => {
-                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
-                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
-                  return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
-                }
-              }
-            }
-          },
-          cutout: '60%'
+          cutout: '70%'
         }
       });
     }
