@@ -1966,30 +1966,69 @@
           }
         }
 
-        // Deduplicate repeated invoice rows on later dates with zero payment
-        const seenItems = {};
+        // ──────────────────────────────────────────────────────────────────
+        // Fallback deduplication: group by (invoiceNo + packageName + type)
+        // This handles installment payments where the source Excel repeats
+        // ALL cart services on EVERY installment date (amountPaid > 0 each time).
+        // Strategy: keep the FIRST row as base, add amountPaid from later rows,
+        // collect all payment modes and invoice numbers.
+        // ──────────────────────────────────────────────────────────────────
+        const invoiceGroups = {};
+        for (const row of p._rawRows) {
+          const inv = row.invoiceNo ? row.invoiceNo.toString().trim() : '';
+          // Only group if we have a real invoice number (not empty / dash)
+          if (inv && inv !== '-') {
+            const gKey = `${inv}||${row.packageName.toLowerCase().trim()}||${row.type}`;
+            if (!invoiceGroups[gKey]) invoiceGroups[gKey] = [];
+            invoiceGroups[gKey].push(row);
+          }
+        }
+
+        const processedInvoiceKeys = new Set();
         const uniqueRawRows = [];
         for (const row of p._rawRows) {
-          const contractTotal = row.totalPackageCost || 0;
-          const isZeroPaid = !row.amountPaid || row.amountPaid === 0;
-          
-          if (contractTotal > 0 && isZeroPaid) {
-            const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
-            if (!seenItems[contractTotal]) {
-              seenItems[contractTotal] = new Set();
+          const inv = row.invoiceNo ? row.invoiceNo.toString().trim() : '';
+          if (inv && inv !== '-') {
+            const gKey = `${inv}||${row.packageName.toLowerCase().trim()}||${row.type}`;
+            if (processedInvoiceKeys.has(gKey)) continue; // skip duplicate
+            processedInvoiceKeys.add(gKey);
+
+            const group = invoiceGroups[gKey];
+            if (group.length > 1) {
+              // Sort oldest-first so base row has earliest date
+              group.sort((a, b) => {
+                const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+                const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+                return da - db;
+              });
+              const baseRow = group[0];
+              // Merge: sum amountPaid from all installment rows
+              baseRow.amountPaid = group.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+              // Collect all payment modes and invoice nos
+              const modes = new Set(group.map(r => r.paymentMode).filter(Boolean));
+              const invNos = new Set(group.map(r => r.invoiceNo).filter(r => r && r !== '-'));
+              if (modes.size > 0) baseRow.paymentMode = Array.from(modes).join(', ');
+              if (invNos.size > 0) baseRow.invoiceNo = Array.from(invNos).join(', ');
+              uniqueRawRows.push(baseRow);
+            } else {
+              uniqueRawRows.push(row);
             }
-            if (seenItems[contractTotal].has(itemKey)) {
-              continue;
+          } else {
+            // No invoice number — keep as-is but deduplicate zero-paid duplicates
+            const contractTotal = row.totalPackageCost || 0;
+            const isZeroPaid = !row.amountPaid || row.amountPaid === 0;
+            if (contractTotal > 0 && isZeroPaid) {
+              const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
+              const seenKey = `noInv_${contractTotal}`;
+              if (!processedInvoiceKeys.has(`${seenKey}_${itemKey}`)) {
+                processedInvoiceKeys.add(`${seenKey}_${itemKey}`);
+                uniqueRawRows.push(row);
+              }
+              // else skip duplicate zero-paid row
+            } else {
+              uniqueRawRows.push(row);
             }
-            seenItems[contractTotal].add(itemKey);
-          } else if (contractTotal > 0) {
-            const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
-            if (!seenItems[contractTotal]) {
-              seenItems[contractTotal] = new Set();
-            }
-            seenItems[contractTotal].add(itemKey);
           }
-          uniqueRawRows.push(row);
         }
         p._rawRows = uniqueRawRows;
 
