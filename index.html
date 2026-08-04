@@ -1875,6 +1875,55 @@
           return da - db;
         });
 
+        // Propagate contract total (totalPackageCost) to all rows on the same date
+        const dateContracts = {};
+        for (const row of p._rawRows) {
+          if (row.totalPackageCost && row.totalPackageCost > 0) {
+            const d = parseDate(row.paymentDate);
+            if (d) {
+              const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              dateContracts[dateStr] = row.totalPackageCost;
+            }
+          }
+        }
+        
+        for (const row of p._rawRows) {
+          const d = parseDate(row.paymentDate);
+          if (d) {
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            if (dateContracts[dateStr] && (!row.totalPackageCost || row.totalPackageCost === 0)) {
+              row.totalPackageCost = dateContracts[dateStr];
+            }
+          }
+        }
+
+        // Deduplicate repeated invoice rows on later dates with zero payment
+        const seenItems = {};
+        const uniqueRawRows = [];
+        for (const row of p._rawRows) {
+          const contractTotal = row.totalPackageCost || 0;
+          const isZeroPaid = !row.amountPaid || row.amountPaid === 0;
+          
+          if (contractTotal > 0 && isZeroPaid) {
+            const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
+            if (!seenItems[contractTotal]) {
+              seenItems[contractTotal] = new Set();
+            }
+            if (seenItems[contractTotal].has(itemKey)) {
+              continue;
+            }
+            seenItems[contractTotal].add(itemKey);
+          } else if (contractTotal > 0) {
+            const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
+            if (!seenItems[contractTotal]) {
+              seenItems[contractTotal] = new Set();
+            }
+            seenItems[contractTotal].add(itemKey);
+          }
+          uniqueRawRows.push(row);
+        }
+        p._rawRows = uniqueRawRows;
+
         // Group raw rows by date
         const dateGroups = {};
         for (const row of p._rawRows) {
@@ -1951,39 +2000,22 @@
                     pr.proportionalPaid = share;
                   }
                 }
+                dateRemaining = 0;
               } else {
-                // All rows have explicit amountPaid > 0. Trust the explicit amounts.
-                let allocatedTotal = 0;
-                const zeroPaidRows = [];
-                
+                // All rows have explicit amountPaid > 0. Trust the explicit amounts, but cap at dateRemaining.
                 for (const pr of packageRows) {
-                  if (pr.amountPaid > 0) {
-                    pr.proportionalPaid = pr.amountPaid;
-                    allocatedTotal += pr.amountPaid;
-                  } else {
-                    zeroPaidRows.push(pr);
-                  }
-                }
-                
-                const remaining = dateRemaining - allocatedTotal;
-                if (remaining > 0 && zeroPaidRows.length > 0) {
-                  const zeroPaidCost = zeroPaidRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
-                  if (zeroPaidCost > 0) {
-                    for (const pr of zeroPaidRows) {
-                      pr.proportionalPaid = Math.round((pr.packageCost / zeroPaidCost * remaining) * 100) / 100;
-                    }
-                  } else {
-                    const share = Math.round((remaining / zeroPaidRows.length) * 100) / 100;
-                    for (const pr of zeroPaidRows) {
-                      pr.proportionalPaid = share;
-                    }
-                  }
+                  pr.proportionalPaid = Math.min(pr.amountPaid, dateRemaining);
+                  dateRemaining = Math.max(0, dateRemaining - pr.proportionalPaid);
                 }
               }
             }
 
             // Step 4: Determine package quantity factors
             const stickerTotal = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
+            const allNonConsultStickerTotal = dateRows
+              .filter(r => r.type === 'package' || r.type === 'single_session')
+              .reduce((sum, r) => sum + (r.packageCost || 0), 0);
+
             let invoicePackageTotal = 0;
             for (const r of packageRows) {
               if (r.totalPackageCost && r.totalPackageCost > 0) {
@@ -1993,8 +2025,8 @@
             }
 
             let dateQtyFactor = 1;
-            if (invoicePackageTotal >= stickerTotal * 1.95 && stickerTotal > 0) {
-              dateQtyFactor = Math.round(invoicePackageTotal / stickerTotal);
+            if (invoicePackageTotal >= allNonConsultStickerTotal * 1.95 && stickerTotal > 0) {
+              dateQtyFactor = Math.round(invoicePackageTotal / allNonConsultStickerTotal);
             } else {
               const datePaid = packageRows.reduce((sum, r) => sum + (r.proportionalPaid || 0), 0);
               if (datePaid >= stickerTotal * 1.95 && stickerTotal > 0) {
@@ -2218,7 +2250,7 @@
           // IMPORTANT: totalPackageCost may represent a CART BUNDLE total (sum of all packages same date)
           // Only trust it for splitting if there are NO other different packages on the same date.
           const sameDatePackages = mergedServices.filter(s =>
-            s.type === 'package' &&
+            (s.type === 'package' || s.type === 'single_session') &&
             formatDate(s.paymentDate) === formatDate(svc.paymentDate)
           );
           const isCartBundle = sameDatePackages.length > 1;
