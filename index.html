@@ -1353,7 +1353,7 @@
       <div class="section-title"><span class="icon">💾</span> Export Reports</div>
       <div class="export-section">
         <button class="btn btn-success" onclick="exportExcel()" id="export-excel-btn">
-          📥 Download Excel Report (13 Sheets)
+          📥 Download Excel Report (9 Sheets)
         </button>
         <button class="btn" onclick="exportCSV()" id="export-csv-btn">📄 Export CSV</button>
         <button class="btn" onclick="exportPDF()" id="export-pdf-btn">📑 Export PDF Summary</button>
@@ -4659,9 +4659,9 @@
         doc.autoTable({
           startY: y + 4,
           head: [['Doctor', 'Consultation', 'Package', 'Conversion %']],
-          body: Object.entries(m.doctorMap || {}).sort((a,b) => (b[1].total || 0) - (a[1].total || 0)).map(([docName, d]) => [
-            docName, (d.consultation || 0).toString(), (d.package || 0).toString(),
-            d.consultation > 0 ? ((d.package / d.consultation) * 100).toFixed(1) + '%' : '0%'
+          body: Object.entries(m.doctorMap || {}).sort((a,b) => (b[1].totalPackages || 0) - (a[1].totalPackages || 0)).map(([docName, d]) => [
+            docName, (d.consultation || 0).toString(), (d.totalPackages || 0).toString(),
+            (d.overallConvPct || 0).toFixed(1) + '%'
           ]),
           theme: 'grid',
           headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 10 },
