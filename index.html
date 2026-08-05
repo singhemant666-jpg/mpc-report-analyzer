@@ -2189,7 +2189,7 @@
               categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
               categoryPaidSum[cat] = 0;
               row.isInstallment = false;
-              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}_${row.invoiceNo || 'noinv'}`;
               
               const isSameCategoryAsFirst = cat === initialPkgCategory;
               if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
@@ -2205,11 +2205,11 @@
 
               if (prevPaid < prevCost - 0.01) {
                 row.isInstallment = true;
-                row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_inst_${index}_${row.invoiceNo || 'noinv'}`;
                 row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
               } else {
                 row.isInstallment = false;
-                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}`;
+                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}_${row.invoiceNo || 'noinv'}`;
                 
                 const isSameCategoryAsFirst = cat === initialPkgCategory;
                 if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
@@ -2372,26 +2372,22 @@
                 totalPackageCost: unitCost,
                 proportionalPaid: perSessionPaid,
                 paymentMode: svc.paymentMode,
-                invoiceNo: svc.invoiceNo
+                invoiceNo: svc.invoiceNo,
+                purchaseId: svc.purchaseId
               });
               p.packages.push(svc.packageName);
-              p.totalPackageValue += Math.round(unitCost * bundleScaleFactor * 100) / 100;
               p.singleSessionRevenue += perSessionPaid;
             }
             continue;
           }
 
           // Package type: detect multiple purchases
-          // IMPORTANT: totalPackageCost may represent a CART BUNDLE total (sum of all packages same date)
-          // Only trust it for splitting if there are NO other different packages on the same date.
           const sameDatePackages = mergedServices.filter(s =>
             (s.type === 'package' || s.type === 'single_session') &&
             formatDate(s.paymentDate) === formatDate(svc.paymentDate)
           );
           const isCartBundle = sameDatePackages.length > 1;
 
-          // SAFEGUARD: If proportionalPaid < packageCost, it's a PARTIAL payment for ONE package.
-          // Never split partial payments into multiple packages.
           const isPartialPayment = svc.packageCost > 0 && svc.proportionalPaid < svc.packageCost;
 
           let pkgCount = svc.quantity || 1;
@@ -2404,7 +2400,6 @@
             }
           }
 
-          // Cap allocated revenue per package contract at packageCost * pkgCount
           const maxAllowedAllocated = svc.packageCost * pkgCount;
           if (svc.packageCost > 0 && svc.proportionalPaid > maxAllowedAllocated) {
             svc.proportionalPaid = maxAllowedAllocated;
@@ -2415,10 +2410,8 @@
           if (pkgCount === 1) {
             finalServices.push(svc);
             p.packages.push(pkgLabelName);
-            p.totalPackageValue += Math.round(svc.packageCost * bundleScaleFactor * 100) / 100;
             p.packageRevenue += svc.proportionalPaid;
           } else {
-            // Split into separate entries for display
             const perPkgAllocated = Math.round((svc.proportionalPaid / pkgCount) * 100) / 100;
             for (let i = 0; i < pkgCount; i++) {
               finalServices.push({
@@ -2434,14 +2427,26 @@
                 totalPackageCost: svc.packageCost,
                 proportionalPaid: perPkgAllocated,
                 paymentMode: svc.paymentMode,
-                invoiceNo: svc.invoiceNo
+                invoiceNo: svc.invoiceNo,
+                purchaseId: svc.purchaseId
               });
               p.packages.push(pkgLabelName);
-              p.totalPackageValue += Math.round(svc.packageCost * bundleScaleFactor * 100) / 100;
               p.packageRevenue += perPkgAllocated;
             }
           }
         }
+
+        // Sum unique package purchase costs for totalPackageValue
+        const uniquePurchaseMap = {};
+        for (const s of finalServices) {
+          if (s.type === 'package') {
+            const pKey = s.purchaseId || `${s.packageName}_${s.type}_${formatDate(s.paymentDate)}`;
+            if (!uniquePurchaseMap[pKey]) {
+              uniquePurchaseMap[pKey] = Math.round((s.packageCost || 0) * bundleScaleFactor * 100) / 100;
+            }
+          }
+        }
+        p.totalPackageValue = Object.values(uniquePurchaseMap).reduce((a, b) => a + b, 0);
 
         // Sort finalServices chronologically by paymentDate ascending (Earliest date first!)
         finalServices.sort((a, b) => {
@@ -4198,10 +4203,12 @@
             if (targetServices.length === 0) continue;
             const startRow = ws.lastRow ? ws.lastRow.number + 1 : 2;
             let pkgIndex = 0;
+            const totalNonConsultPaid = targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+            const totalPkgVal = targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+
             for (const s of targetServices) {
               pkgIndex++;
               const isConsult = s.type === 'consultation';
-              const pkgVal = isConsult ? 0 : (s.packageCost || 0);
               const pkgPaid = s.proportionalPaid || 0;
               const consultRev = isConsult ? pkgPaid : 0;
               const pkgRev = s.type === 'package' ? pkgPaid : 0;
@@ -4228,8 +4235,8 @@
                 s.leadSource || p.leadSources.join(', '),
                 s.paymentMode || '-',
                 s.invoiceNo || '-',
-                pkgVal,
-                pkgPaid,
+                totalPkgVal,
+                totalNonConsultPaid,
                 0,
                 Math.round(pkgRev * 100) / 100,
                 Math.round(ssRev * 100) / 100,
@@ -4250,8 +4257,8 @@
                 s.leadSource || p.leadSources.join(', '),
                 s.paymentMode || '-',
                 s.invoiceNo || '-',
-                pkgVal,
-                pkgPaid,
+                totalPkgVal,
+                totalNonConsultPaid,
                 cs.isRenewalsSheet ? 0 : Math.round(consultRev * 100) / 100,
                 Math.round(pkgRev * 100) / 100,
                 cs.isRenewalsSheet ? 0 : Math.round(ssRev * 100) / 100,
@@ -4270,7 +4277,7 @@
 
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
-              // Merge Patient Name, Consulting Date, Doctor, Agent, Lead Source, Pkg Value, Amount Paid, Status
+              // Merge Patient Name, Consulting Date, Doctor, Agent, Lead Source, Pkg Value, Amount Paid, Status across sub-rows
               // Non-renewals sheet column indices:
               // 1: Patient Name, 2: Consulting Date, 5: Doctor, 6: Agent, 7: Lead Source, 10: Pkg Value, 11: Amount Paid, 20: Status
               // Renewals sheet column indices:
