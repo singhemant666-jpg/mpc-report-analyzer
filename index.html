@@ -4081,84 +4081,113 @@
               : p.services.filter(s => !s.isRenewal);
 
             if (targetServices.length === 0) continue;
-            const startRow = ws.lastRow ? ws.lastRow.number + 1 : 2;
-            let pkgIndex = 0;
-            const totalNonConsultPaid = targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
-            const totalPkgVal = targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
-
+            // Group targetServices by Invoice No (or date + invoice key)
+            const invoiceGroupsMap = new Map();
             for (const s of targetServices) {
-              pkgIndex++;
-              const isConsult = s.type === 'consultation';
-              const pkgPaid = s.proportionalPaid || 0;
-              const consultRev = isConsult ? pkgPaid : 0;
-              const pkgRev = s.type === 'package' ? pkgPaid : 0;
-              const ssRev = s.type === 'single_session' ? pkgPaid : 0;
+              const dateStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
+              const invKey = `${dateStr}_${s.invoiceNo || 'no_inv'}`;
+              if (!invoiceGroupsMap.has(invKey)) {
+                invoiceGroupsMap.set(invKey, []);
+              }
+              invoiceGroupsMap.get(invKey).push(s);
+            }
 
-              const pmPkgRev = (s.type === 'package' && isPainManagementPackage(s.packageName)) ? pkgPaid : 0;
-              const wellnessPkgRev = (s.type === 'package' && isWellnessPackage(s.packageName)) ? pkgPaid : 0;
-              const roboticSpinePkgRev = (s.type === 'package' && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
-              const bmskPkgRev = (s.type === 'package' && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
+            const startRow = ws.lastRow ? ws.lastRow.number + 1 : 2;
 
-              const stageLabel = isRenewals ? getPackageStageLabel(s, p.services) : '1st Package';
-              const initialPkgName = s.isRenewal ? '-' : s.packageName;
-              const renewedPkgName = s.isRenewal ? s.packageName : '-';
+            for (const [invKey, invGroup] of invoiceGroupsMap.entries()) {
+              const invPaidTotal = invGroup.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+              const invStartRow = ws.lastRow ? ws.lastRow.number + 1 : startRow;
 
-              const rowCells = isRenewals ? [
-                p.name,
-                getPatientConsultingDate(p),
-                formatDate(s.paymentDate) || getPatientPaymentDates(p),
-                initialPkgName,
-                renewedPkgName,
-                stageLabel,
-                s.doctor || p.doctors.join(', '),
-                s.agent || p.agents.join(', '),
-                s.leadSource || p.leadSources.join(', '),
-                s.paymentMode || '-',
-                s.invoiceNo || '-',
-                totalPkgVal,
-                pkgPaid,
-                0,
-                Math.round(pkgRev * 100) / 100,
-                Math.round(ssRev * 100) / 100,
-                Math.round(pmPkgRev * 100) / 100,
-                Math.round(wellnessPkgRev * 100) / 100,
-                Math.round(roboticSpinePkgRev * 100) / 100,
-                Math.round(bmskPkgRev * 100) / 100,
-                p.status,
-                s.userplanId || '-',
-                s.cartId || '-'
-              ] : [
-                p.name,
-                getPatientConsultingDate(p),
-                formatDate(s.paymentDate) || getPatientPaymentDates(p),
-                s.packageName,
-                s.doctor || p.doctors.join(', '),
-                s.agent || p.agents.join(', '),
-                s.leadSource || p.leadSources.join(', '),
-                s.paymentMode || '-',
-                s.invoiceNo || '-',
-                totalPkgVal,
-                pkgPaid,
-                cs.isRenewalsSheet ? 0 : Math.round(consultRev * 100) / 100,
-                Math.round(pkgRev * 100) / 100,
-                cs.isRenewalsSheet ? 0 : Math.round(ssRev * 100) / 100,
-                Math.round(pmPkgRev * 100) / 100,
-                Math.round(wellnessPkgRev * 100) / 100,
-                Math.round(roboticSpinePkgRev * 100) / 100,
-                Math.round(bmskPkgRev * 100) / 100,
-                s.isRenewal ? 'Yes' : 'No',
-                p.status,
-                s.userplanId || '-',
-                s.cartId || '-'
-              ];
+              for (const s of invGroup) {
+                pkgIndex++;
+                const isConsult = s.type === 'consultation';
+                const pkgPaid = s.proportionalPaid || 0;
+                const consultRev = isConsult ? pkgPaid : 0;
+                const pkgRev = s.type === 'package' ? pkgPaid : 0;
+                const ssRev = s.type === 'single_session' ? pkgPaid : 0;
 
-              ws.addRow(rowCells);
+                const pmPkgRev = (s.type === 'package' && isPainManagementPackage(s.packageName)) ? pkgPaid : 0;
+                const wellnessPkgRev = (s.type === 'package' && isWellnessPackage(s.packageName)) ? pkgPaid : 0;
+                const roboticSpinePkgRev = (s.type === 'package' && isRoboticSpinePackage(s.packageName)) ? pkgPaid : 0;
+                const bmskPkgRev = (s.type === 'package' && isBMSKPackage(s.packageName)) ? pkgPaid : 0;
+
+                const stageLabel = isRenewals ? getPackageStageLabel(s, p.services) : '1st Package';
+                const initialPkgName = s.isRenewal ? '-' : s.packageName;
+                const renewedPkgName = s.isRenewal ? s.packageName : '-';
+
+                const rowCells = isRenewals ? [
+                  p.name,
+                  getPatientConsultingDate(p),
+                  formatDate(s.paymentDate) || getPatientPaymentDates(p),
+                  initialPkgName,
+                  renewedPkgName,
+                  stageLabel,
+                  s.doctor || p.doctors.join(', '),
+                  s.agent || p.agents.join(', '),
+                  s.leadSource || p.leadSources.join(', '),
+                  s.paymentMode || '-',
+                  s.invoiceNo || '-',
+                  totalPkgVal,
+                  invPaidTotal,
+                  0,
+                  Math.round(pkgRev * 100) / 100,
+                  Math.round(ssRev * 100) / 100,
+                  Math.round(pmPkgRev * 100) / 100,
+                  Math.round(wellnessPkgRev * 100) / 100,
+                  Math.round(roboticSpinePkgRev * 100) / 100,
+                  Math.round(bmskPkgRev * 100) / 100,
+                  p.status,
+                  s.userplanId || '-',
+                  s.cartId || '-'
+                ] : [
+                  p.name,
+                  getPatientConsultingDate(p),
+                  formatDate(s.paymentDate) || getPatientPaymentDates(p),
+                  s.packageName,
+                  s.doctor || p.doctors.join(', '),
+                  s.agent || p.agents.join(', '),
+                  s.leadSource || p.leadSources.join(', '),
+                  s.paymentMode || '-',
+                  s.invoiceNo || '-',
+                  totalPkgVal,
+                  invPaidTotal,
+                  cs.isRenewalsSheet ? 0 : Math.round(consultRev * 100) / 100,
+                  Math.round(pkgRev * 100) / 100,
+                  cs.isRenewalsSheet ? 0 : Math.round(ssRev * 100) / 100,
+                  Math.round(pmPkgRev * 100) / 100,
+                  Math.round(wellnessPkgRev * 100) / 100,
+                  Math.round(roboticSpinePkgRev * 100) / 100,
+                  Math.round(bmskPkgRev * 100) / 100,
+                  s.isRenewal ? 'Yes' : 'No',
+                  p.status,
+                  s.userplanId || '-',
+                  s.cartId || '-'
+                ];
+
+                ws.addRow(rowCells);
+              }
+
+              const invEndRow = ws.lastRow ? ws.lastRow.number : invStartRow;
+              if (invEndRow > invStartRow) {
+                // Merge Invoice-level columns across sub-rows of this specific invoice:
+                // Non-renewals: 8: Payment Mode, 9: Invoice No., 11: Amount Paid
+                // Renewals: 10: Payment Mode, 11: Invoice No., 13: Amount Paid
+                const invMergeCols = isRenewals ? [10, 11, 13] : [8, 9, 11];
+                invMergeCols.forEach(colIdx => {
+                  try {
+                    ws.mergeCells(invStartRow, colIdx, invEndRow, colIdx);
+                    const cell = ws.getCell(invStartRow, colIdx);
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                  } catch(e) {}
+                });
+              }
             }
 
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
-              // Merge Patient Name, Consulting Date, Doctor, Agent, Lead Source, Pkg Value, Status across sub-rows
-              // Amount Paid (Col 11/13) is left unmerged so each invoice shows its specific paid amount (e.g. 12,000 for 3856, 1,000 for 3857)
+              // Merge Patient-level columns across ALL sub-rows of this patient:
+              // Non-renewals: 1: Patient Name, 2: Consulting Date, 5: Doctor, 6: Agent, 7: Lead Source, 10: Pkg Value, 20: Status
+              // Renewals: 1: Patient Name, 2: Consulting Date, 7: Doctor, 8: Agent, 9: Lead Source, 12: Pkg Value, 21: Status
               const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 12, 21] : [1, 2, 5, 6, 7, 10, 20];
               mergeCols.forEach(colIdx => {
                 try {
