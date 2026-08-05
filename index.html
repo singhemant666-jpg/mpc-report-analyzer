@@ -4084,6 +4084,17 @@
               : p.services.filter(s => !s.isRenewal);
 
             if (targetServices.length === 0) continue;
+
+            // Sort targetServices chronologically and by invoice number so all items for the same invoice are strictly contiguous
+            targetServices.sort((a, b) => {
+              const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+              const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+              if (da !== db) return da - db;
+              const invA = (a.invoiceNo || '').toString();
+              const invB = (b.invoiceNo || '').toString();
+              return invA.localeCompare(invB);
+            });
+
             // Group targetServices by Invoice No (or date + invoice key)
             const invoiceGroupsMap = new Map();
             for (const s of targetServices) {
