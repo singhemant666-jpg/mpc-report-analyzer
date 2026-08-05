@@ -1931,39 +1931,22 @@
           }
         }
 
-        // Propagate non-consultation invoice numbers and payment modes to all package rows on the same date/cart
-        const datePkgInvoiceListMap = {};
+        // Propagate invoice number and payment mode to all package rows of the same transaction/cart
+        let activePkgInv = '';
+        let activePkgPM = '';
         for (const row of p._rawRows) {
-          if (row.type !== 'consultation' && row.invoiceNo && row.invoiceNo !== '-') {
-            const d = parseDate(row.paymentDate);
-            const dateStr = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : 'no_date';
-            if (!datePkgInvoiceListMap[dateStr]) datePkgInvoiceListMap[dateStr] = [];
-            if (!datePkgInvoiceListMap[dateStr].includes(row.invoiceNo)) {
-              datePkgInvoiceListMap[dateStr].push(row.invoiceNo);
+          if (row.type !== 'consultation') {
+            if (row.invoiceNo && row.invoiceNo !== '-') {
+              activePkgInv = row.invoiceNo;
+              activePkgPM = row.paymentMode;
+            } else if (activePkgInv) {
+              row.invoiceNo = activePkgInv;
+              if (!row.paymentMode || row.paymentMode === '-') row.paymentMode = activePkgPM;
             }
-          }
-        }
-
-        // Fill missing invoiceNo / paymentMode for package rows
-        for (let i = 0; i < p._rawRows.length; i++) {
-          const row = p._rawRows[i];
-          if (row.type !== 'consultation' && (!row.invoiceNo || row.invoiceNo === '-')) {
-            // First try preceding row
-            if (i > 0 && p._rawRows[i - 1].type !== 'consultation' && p._rawRows[i - 1].invoiceNo && p._rawRows[i - 1].invoiceNo !== '-') {
-              row.invoiceNo = p._rawRows[i - 1].invoiceNo;
-              if (!row.paymentMode || row.paymentMode === '-') row.paymentMode = p._rawRows[i - 1].paymentMode;
-            } else if (i < p._rawRows.length - 1 && p._rawRows[i + 1].type !== 'consultation' && p._rawRows[i + 1].invoiceNo && p._rawRows[i + 1].invoiceNo !== '-') {
-              // Next try following row
-              row.invoiceNo = p._rawRows[i + 1].invoiceNo;
-              if (!row.paymentMode || row.paymentMode === '-') row.paymentMode = p._rawRows[i + 1].paymentMode;
-            } else {
-              // Fallback to datePkgInvoiceListMap
-              const d = parseDate(row.paymentDate);
-              const dateStr = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : 'no_date';
-              if (datePkgInvoiceListMap[dateStr] && datePkgInvoiceListMap[dateStr].length > 0) {
-                row.invoiceNo = datePkgInvoiceListMap[dateStr][0];
-              }
-            }
+          } else {
+            // Reset for consultation rows so consultation invoices do not bleed into packages
+            activePkgInv = '';
+            activePkgPM = '';
           }
         }
 
@@ -4136,6 +4119,21 @@
               const invB = (b.invoiceNo || '').toString();
               return invA.localeCompare(invB);
             });
+
+            // Ensure any package service without invoiceNo inherits invoiceNo from active package invoice
+            let activeInv = '';
+            let activePM = '';
+            for (const s of targetServices) {
+              if (s.type === 'package') {
+                if (s.invoiceNo && s.invoiceNo !== '-') {
+                  activeInv = s.invoiceNo;
+                  activePM = s.paymentMode;
+                } else if (activeInv) {
+                  s.invoiceNo = activeInv;
+                  if (!s.paymentMode || s.paymentMode === '-') s.paymentMode = activePM;
+                }
+              }
+            }
 
             // Group targetServices by Invoice No (fallback to date if invoice is missing)
             const invoiceGroupsMap = new Map();
