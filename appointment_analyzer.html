@@ -700,6 +700,16 @@ function resetApp() {
 // ════════════════════════════════════════
 // BUILD MAPS
 // ════════════════════════════════════════
+// Helper: correct Package Sessions sum — patientSessions is CUMULATIVE per patient,
+// so for a group of rows we take the MAX value per unique patient, then sum those.
+function calcPkgSess(rows) {
+  const byPt = {};
+  rows.forEach(r => {
+    if (!(r.patient in byPt) || r.patientSessions > byPt[r.patient]) byPt[r.patient] = r.patientSessions;
+  });
+  return Object.values(byPt).reduce((s,v) => s+v, 0);
+}
+
 function buildMaps() {
   patientMap = {}; doctorMap = {};
   for (const r of allRows) {
@@ -708,7 +718,7 @@ function buildMaps() {
     if (r.service) patientMap[r.patient].services.add(r.service);
     patientMap[r.patient].rows.push(r);
     patientMap[r.patient].totalVisits += 1;
-    patientMap[r.patient].totalPackageSessions += r.patientSessions;
+    // patientSessions is cumulative — will be recalculated correctly after loop
     patientMap[r.patient].totalPending += r.pending;
 
     if (r.doctor) {
@@ -716,9 +726,15 @@ function buildMaps() {
       doctorMap[r.doctor].patients.add(r.patient);
       if (r.service) doctorMap[r.doctor].services.add(r.service);
       doctorMap[r.doctor].rows.push(r);
-      doctorMap[r.doctor].totalVisits += 1; // 1 Doctor Appointment Visit
-      doctorMap[r.doctor].totalPackageSessions += r.patientSessions; // Cumulative Patient Package Sessions covered
+      doctorMap[r.doctor].totalVisits += 1;
     }
+  }
+  // Recalculate package sessions correctly (max per patient)
+  for (const pt of Object.keys(patientMap)) {
+    patientMap[pt].totalPackageSessions = calcPkgSess(patientMap[pt].rows);
+  }
+  for (const doc of Object.keys(doctorMap)) {
+    doctorMap[doc].totalPackageSessions = calcPkgSess(doctorMap[doc].rows);
   }
 }
 
@@ -769,7 +785,7 @@ function renderMetrics() {
   const totPts      = Object.keys(patientMap).length;
   const totDocs     = Object.keys(doctorMap).length;
   const totVisits   = allRows.length; // 3,417 Doctor Visits
-  const totPkgSess  = allRows.reduce((s,r)=>s+r.patientSessions,0); // 23,298 Patient Package Sessions
+  const totPkgSess  = calcPkgSess(allRows); // Correct: max per patient, then sum
   const totFuture   = allRows.reduce((s,r)=>s+r.future,0); // 8,188 Future Sessions Left
   const totPend     = allRows.reduce((s,r)=>s+r.pending,0);
   const multiPts    = Object.values(patientMap).filter(p=>p.doctors.size>1).length;
@@ -926,7 +942,7 @@ function renderDoctorPerformance() {
     const patients = new Set(rows.map(r=>r.patient));
     const totalVisitsAll = data.rows.length;
     const visits = rows.length; // Real Doctor Appointment Visits handled
-    const packageSessions = rows.reduce((s,r)=>s+r.patientSessions,0); // Patient Package Sessions completed under doctor
+    const packageSessions = calcPkgSess(rows); // Correct: max per patient in this group
     const ratArr = rows.filter(r=>r.rating>0);
     const avgRat = ratArr.length ? (ratArr.reduce((s,r)=>s+r.rating,0)/ratArr.length) : 0;
     const avgProg = rows.reduce((s,r)=>s+r.progress,0)/rows.length;
@@ -1328,7 +1344,7 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
     if (shownDoctors.length < 2) continue;
 
     const shownVisits   = relevantRows.length;
-    const shownPkgSess  = relevantRows.reduce((s, r) => s + r.patientSessions, 0);
+    const shownPkgSess  = calcPkgSess(relevantRows); // Correct: max per patient
     const shownPending  = relevantRows.reduce((s, r) => s + r.pending, 0);
     const shownStatuses = [...new Set(relevantRows.map(r => r.status))];
 
@@ -1422,7 +1438,7 @@ function getAMSKStats(doc) {
 
   const patients = new Set(rows.map(r => r.patient));
   const visits = rows.length;
-  const pkgSess = rows.reduce((s,r) => s+r.patientSessions, 0);
+  const pkgSess = calcPkgSess(rows); // Correct: max per patient (patientSessions is cumulative)
   const ratRows = rows.filter(r => r.rating > 0);
   const avgRating = ratRows.length ? ratRows.reduce((s,r) => s+r.rating, 0)/ratRows.length : 0;
   const avgProgress = rows.reduce((s,r) => s+r.progress, 0)/rows.length;
