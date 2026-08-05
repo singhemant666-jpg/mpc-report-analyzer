@@ -3659,41 +3659,30 @@
       return '-';
     }
 
-    function getPatientPaymentDates(p) {
-      if (!p || !p.services) return '-';
-      const dates = new Set();
-      for (const s of p.services) {
-        if (s.paymentDate) {
-          const formatted = formatDate(s.paymentDate);
-          if (formatted && formatted !== '-') {
-            dates.add(formatted);
-          }
-        }
-      }
-      if (dates.size === 0) return '-';
-      return Array.from(dates).join(', ');
+    function getPatientPaymentDates(p, displayServices) {
+      const svcs = displayServices || p.services;
+      if (!svcs) return '-';
+      const dates = svcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-');
+      if (dates.length === 0) return '-';
+      if (dates.length === 1) return dates[0];
+      return dates.map(d => `<div style="margin-bottom:2px; font-weight:500;">${d}</div>`).join('');
     }
 
     function getPatientPaymentModes(p, displayServices) {
-      if (!displayServices) return '-';
-      const modes = new Set();
-      for (const s of displayServices) {
-        if (s.paymentMode) {
-          modes.add(s.paymentMode);
-        }
-      }
-      return modes.size > 0 ? Array.from(modes).join(', ') : '-';
+      const svcs = displayServices || p.services;
+      if (!svcs) return '-';
+      const modes = svcs.map(s => s.paymentMode || '-');
+      if (modes.length === 0) return '-';
+      if (modes.length === 1) return modes[0];
+      return modes.map(m => `<div style="margin-bottom:2px; font-weight:500;">${m}</div>`).join('');
     }
 
     function getPatientInvoiceNos(p, displayServices) {
       if (!displayServices) return '-';
-      const nos = new Set();
-      for (const s of displayServices) {
-        if (s.invoiceNo) {
-          nos.add(s.invoiceNo);
-        }
-      }
-      return nos.size > 0 ? Array.from(nos).join(', ') : '-';
+      const invoices = displayServices.map(s => s.invoiceNo).filter(Boolean);
+      if (invoices.length === 0) return '-';
+      if (invoices.length === 1) return invoices[0];
+      return invoices.map(inv => `<div style="margin-bottom:2px; font-weight:500;">${inv}</div>`).join('');
     }
 
     let patientSearchQuery = '';
@@ -3859,7 +3848,7 @@
         return `<tr>
           <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
           <td style="color:var(--cyan);font-weight:500">${getPatientConsultingDate(p)}</td>
-          <td style="color:var(--text-secondary);font-weight:500">${getPatientPaymentDates(p)}</td>
+          <td style="color:var(--text-secondary);font-weight:500">${getPatientPaymentDates(p, displayServices)}</td>
           ${packageColsHTML}
           <td>${p.doctors.join(', ') || '-'}</td>
           <td>${p.agents.join(', ') || '-'}</td>
