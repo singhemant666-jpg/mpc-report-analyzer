@@ -16,6 +16,7 @@ node_modules/
 *.xlsx
 *.xls
 *.csv
+DAILY_COLLECTION_REPORT_2026-07-30T06-20-15-267Z.xlsx
 
 # Python cache & temporary scripts
 __pycache__/
