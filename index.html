@@ -4270,12 +4270,17 @@
 
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
-              const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 21] : [1, 2, 5, 6, 7, 20];
+              // Merge Patient Name, Consulting Date, Doctor, Agent, Lead Source, Pkg Value, Amount Paid, Status
+              // Non-renewals sheet column indices:
+              // 1: Patient Name, 2: Consulting Date, 5: Doctor, 6: Agent, 7: Lead Source, 10: Pkg Value, 11: Amount Paid, 20: Status
+              // Renewals sheet column indices:
+              // 1: Patient Name, 2: Consulting Date, 7: Doctor, 8: Agent, 9: Lead Source, 12: Pkg Value, 13: Amount Paid, 21: Status
+              const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 12, 13, 21] : [1, 2, 5, 6, 7, 10, 11, 20];
               mergeCols.forEach(colIdx => {
                 try {
                   ws.mergeCells(startRow, colIdx, endRow, colIdx);
                   const cell = ws.getCell(startRow, colIdx);
-                  cell.alignment = { vertical: 'middle', horizontal: colIdx === 1 ? 'left' : 'center' };
+                  cell.alignment = { vertical: 'middle', horizontal: (colIdx === 1 || colIdx === 4 || colIdx === 5) ? 'left' : 'center' };
                 } catch(e) {}
               });
             }
