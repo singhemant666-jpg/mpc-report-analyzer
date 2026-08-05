@@ -195,6 +195,43 @@
     .cross-table tr:last-child td { border-bottom: none; }
     .multi-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; background: rgba(245,158,11,0.15); color: var(--amber); font-size: 10px; font-weight: 700; margin-left: 6px; }
 
+    /* ── COMPARE PANEL ── */
+    .cmp-selector { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px 24px; margin-bottom: 24px; }
+    .cmp-selector label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .cmp-selector select { min-width: 220px; }
+    .cmp-vs { font-size: 20px; font-weight: 900; color: var(--accent3); padding: 0 4px; }
+    .cmp-grid { display: grid; grid-template-columns: 1fr 80px 1fr; gap: 0; margin-bottom: 24px; }
+    .cmp-col { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    .cmp-col.left { border-radius: 16px 0 0 16px; border-right: none; }
+    .cmp-col.right { border-radius: 0 16px 16px 0; border-left: none; }
+    .cmp-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--surface2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); gap: 12px; padding: 16px 8px; }
+    .cmp-doc-avatar { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent3)); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .cmp-doc-name { font-size: 15px; font-weight: 800; }
+    .cmp-doc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .cmp-stat-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(30,45,69,0.4); gap: 8px; }
+    .cmp-stat-row:last-child { border-bottom: none; }
+    .cmp-stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cmp-stat-val { font-size: 22px; font-weight: 800; }
+    .cmp-stat-bar-wrap { height: 6px; background: var(--subtle); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+    .cmp-stat-bar { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+    .winner-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+    .cmp-mid-label { font-size: 10px; color: var(--muted); text-align: center; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cmp-mid-icon { font-size: 18px; }
+    .cmp-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    .cmp-verdict { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .cmp-verdict h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .verdict-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(30,45,69,0.4); }
+    .verdict-row:last-child { border-bottom: none; }
+    .verdict-metric { font-size: 12px; color: var(--muted); width: 160px; flex-shrink: 0; font-weight: 600; }
+    .verdict-bar-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+    .verdict-bar-a { height: 20px; border-radius: 4px 0 0 4px; background: linear-gradient(90deg,var(--accent),var(--accent3)); display: flex; align-items: center; padding-left: 6px; font-size: 10px; font-weight: 700; color: #fff; min-width: 2px; overflow: hidden; transition: width 0.8s ease; }
+    .verdict-bar-b { height: 20px; border-radius: 0 4px 4px 0; background: linear-gradient(90deg,var(--green),var(--accent2)); display: flex; align-items: center; padding-left: 6px; font-size: 10px; font-weight: 700; color: #fff; min-width: 2px; overflow: hidden; transition: width 0.8s ease; }
+    .cmp-shared { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+    .cmp-shared-hdr { padding: 16px 20px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .cmp-shared table { width: 100%; border-collapse: collapse; }
+    .cmp-shared th { background: var(--surface2); padding: 10px 16px; font-size: 11px; color: var(--muted); text-align: left; font-weight: 600; }
+    .cmp-shared td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid rgba(30,45,69,0.4); }
+    .cmp-shared tr:last-child td { border-bottom: none; }
     .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
     #appContent { display: none; }
   </style>
@@ -256,6 +293,7 @@
       <div class="tab active" id="tab-patients" onclick="showTab('patients')">👥 All Patients</div>
       <div class="tab" id="tab-doctors" onclick="showTab('doctors')">🩺 Doctor Performance & Incentives</div>
       <div class="tab" id="tab-cross" onclick="showTab('cross')">🔀 Cross-Doctor Patients</div>
+      <div class="tab" id="tab-compare" onclick="showTab('compare')">⚖️ AMSK Doctor Compare</div>
     </div>
 
     <!-- ── TAB: ALL PATIENTS ── -->
@@ -387,6 +425,77 @@
       </div>
     </div>
 
+    <!-- ── TAB: AMSK DOCTOR COMPARE ── -->
+    <div id="panelCompare" style="display:none">
+      <div class="section-header">
+        <h2>⚖️ AMSK Doctor Performance Comparison</h2>
+        <div class="controls">
+          <button class="btn btn-primary" onclick="exportCompareExcel()" style="padding:8px 16px; font-size:12px;">📥 Export Comparison (.xlsx)</button>
+        </div>
+      </div>
+
+      <!-- Doctor Selectors -->
+      <div class="cmp-selector">
+        <div>
+          <label>Doctor A</label><br>
+          <select id="cmpDocA" onchange="buildAMSKCompare()" style="margin-top:6px"></select>
+        </div>
+        <span class="cmp-vs">VS</span>
+        <div>
+          <label>Doctor B</label><br>
+          <select id="cmpDocB" onchange="buildAMSKCompare()" style="margin-top:6px"></select>
+        </div>
+        <div style="margin-left:auto; font-size:12px; color:var(--muted); text-align:right; line-height:1.8">
+          🔬 Comparing AMSK appointments only<br>
+          <span style="color:var(--green)">●</span> Higher = Better for all metrics
+        </div>
+      </div>
+
+      <!-- No-selection placeholder -->
+      <div id="cmpPlaceholder" style="text-align:center; padding:60px; color:var(--muted); font-size:14px;">
+        🔬 Select two AMSK doctors above to compare their performance
+      </div>
+
+      <!-- Comparison Content -->
+      <div id="cmpContent" style="display:none">
+
+        <!-- Side-by-side stat grid -->
+        <div class="cmp-grid">
+          <div class="cmp-col left" id="cmpColA"></div>
+          <div class="cmp-mid" id="cmpMid">
+            <span class="cmp-mid-icon">⚖️</span>
+            <span class="cmp-mid-icon">🏅</span>
+            <span class="cmp-mid-icon">📈</span>
+            <span class="cmp-mid-icon">⭐</span>
+            <span class="cmp-mid-icon">👥</span>
+            <span class="cmp-mid-icon">🔁</span>
+            <span class="cmp-mid-icon">🏥</span>
+            <span class="cmp-mid-icon">💊</span>
+          </div>
+          <div class="cmp-col right" id="cmpColB"></div>
+        </div>
+
+        <!-- Horizontal bar comparison -->
+        <div class="cmp-verdict">
+          <h3>📊 Head-to-Head Performance Breakdown</h3>
+          <div id="cmpVerdictRows"></div>
+        </div>
+
+        <!-- Radar chart -->
+        <div class="cmp-charts">
+          <div class="chart-card"><h3>🕸️ Multi-Metric Radar Comparison</h3><canvas id="cmpRadar"></canvas></div>
+          <div class="chart-card"><h3>📉 Recovery Progress Distribution</h3><canvas id="cmpProgressChart"></canvas></div>
+        </div>
+
+        <!-- Shared patients table -->
+        <div class="cmp-shared">
+          <div class="cmp-shared-hdr">🔀 Shared Patients (treated by both doctors)</div>
+          <div id="cmpSharedBody"></div>
+        </div>
+
+      </div><!-- /cmpContent -->
+    </div>
+
   </div><!-- /appContent -->
 </div>
 
@@ -482,6 +591,7 @@ function handleFile(file) {
       renderDoctorCards();
       renderDoctorPerformance();
       renderCross();
+      populateCompareSelectors();
       document.getElementById('loader').style.display = 'none';
       document.getElementById('appContent').style.display = 'block';
       document.getElementById('rowBadge').textContent = allRows.length + ' visits';
@@ -1200,10 +1310,327 @@ function renderCrossTable(q='', filterDoc='', filterSvc='', filterSt='') {
 // TABS
 // ════════════════════════════════════════
 function showTab(t) {
-  ['patients','doctors','cross'].forEach(n=>{
+  ['patients','doctors','cross','compare'].forEach(n=>{
     document.getElementById('tab-'+n).classList.toggle('active', n===t);
     document.getElementById('panel'+n.charAt(0).toUpperCase()+n.slice(1)).style.display = n===t?'block':'none';
   });
+  if (t === 'compare') buildAMSKCompare();
+}
+
+// ════════════════════════════════════════
+// AMSK DOCTOR COMPARE
+// ════════════════════════════════════════
+let cmpChartRadar = null, cmpChartProg = null;
+
+function populateCompareSelectors() {
+  const amskDocs = Object.entries(doctorMap)
+    .filter(([, d]) => d.rows.some(r => isAMSKService(r.service)))
+    .map(([doc]) => doc)
+    .sort();
+
+  const opts = amskDocs.map(d => `<option value="${d}">${d}</option>`).join('');
+  const selA = document.getElementById('cmpDocA');
+  const selB = document.getElementById('cmpDocB');
+  selA.innerHTML = '<option value="">-- Select Doctor A --</option>' + opts;
+  selB.innerHTML = '<option value="">-- Select Doctor B --</option>' + opts;
+  // default pick first two if available
+  if (amskDocs.length >= 1) selA.value = amskDocs[0];
+  if (amskDocs.length >= 2) selB.value = amskDocs[1];
+}
+
+function getAMSKStats(doc) {
+  const data = doctorMap[doc];
+  if (!data) return null;
+  const rows = data.rows.filter(r => isAMSKService(r.service));
+  if (!rows.length) return null;
+
+  const patients = new Set(rows.map(r => r.patient));
+  const visits = rows.length;
+  const pkgSess = rows.reduce((s,r) => s+r.patientSessions, 0);
+  const ratRows = rows.filter(r => r.rating > 0);
+  const avgRating = ratRows.length ? ratRows.reduce((s,r) => s+r.rating, 0)/ratRows.length : 0;
+  const avgProgress = rows.reduce((s,r) => s+r.progress, 0)/rows.length;
+  const activeCount = rows.filter(r => r.status === 'Active').length;
+  const expiredCount = rows.filter(r => r.status === 'Expired').length;
+  const completionRate = visits ? Math.round((expiredCount / visits)*100) : 0;
+  const highProgress = rows.filter(r => r.progress >= 75).length;
+  const highProgressRate = visits ? Math.round((highProgress/visits)*100) : 0;
+
+  // progress buckets for histogram
+  const buckets = [0,0,0,0,0]; // 0-20, 21-40, 41-60, 61-80, 81-100
+  rows.forEach(r => { const b = Math.min(4, Math.floor(r.progress/20)); buckets[b]++; });
+
+  const totalVisitsAll = data.rows.length;
+  const amskShare = totalVisitsAll ? Math.round((visits/totalVisitsAll)*100) : 0;
+
+  const volumeScore = Math.min(50, (visits/300)*50);
+  const ratingScore = (avgRating/5)*25;
+  const progressScore = (avgProgress/100)*25;
+  const perfScore = Math.round(volumeScore + ratingScore + progressScore);
+
+  return { doc, patients, visits, pkgSess, avgRating, avgProgress, activeCount, completionRate, highProgressRate, amskShare, perfScore, buckets, rows };
+}
+
+function buildAMSKCompare() {
+  const docA = document.getElementById('cmpDocA').value;
+  const docB = document.getElementById('cmpDocB').value;
+
+  if (!docA || !docB || docA === docB) {
+    document.getElementById('cmpPlaceholder').style.display = 'block';
+    document.getElementById('cmpContent').style.display = 'none';
+    document.getElementById('cmpPlaceholder').textContent = (!docA || !docB)
+      ? '🔬 Select two AMSK doctors above to compare their performance'
+      : '⚠️ Please select two different doctors to compare';
+    return;
+  }
+
+  const a = getAMSKStats(docA);
+  const b = getAMSKStats(docB);
+
+  if (!a || !b) {
+    document.getElementById('cmpPlaceholder').style.display = 'block';
+    document.getElementById('cmpContent').style.display = 'none';
+    document.getElementById('cmpPlaceholder').textContent = '⚠️ One or both selected doctors have no AMSK appointments';
+    return;
+  }
+
+  document.getElementById('cmpPlaceholder').style.display = 'none';
+  document.getElementById('cmpContent').style.display = 'block';
+
+  const initials = doc => doc.replace('Dr.','').trim().split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  const winnerA = (va, vb) => va > vb ? '<span class="winner-badge">🏆 Winner</span>' : va === vb ? '<span style="font-size:10px;color:var(--muted)">Tie</span>' : '';
+  const winnerB = (va, vb) => vb > va ? '<span class="winner-badge">🏆 Winner</span>' : va === vb ? '' : '';
+  const colorA = '#3b82f6', colorB = '#10b981';
+
+  // ── Side-by-side columns ──
+  const metrics = [
+    { label: 'Incentive Score', ka: a.perfScore, kb: b.perfScore, max: 100, unit: '/100', color: '#8b5cf6' },
+    { label: 'Avg Recovery %', ka: a.avgProgress, kb: b.avgProgress, max: 100, unit: '%', color: '#10b981' },
+    { label: 'Avg Star Rating', ka: a.avgRating, kb: b.avgRating, max: 5, unit: '★', color: '#f59e0b' },
+    { label: 'Patients Treated', ka: a.patients.size, kb: b.patients.size, max: Math.max(a.patients.size, b.patients.size)||1, unit: '', color: '#3b82f6' },
+    { label: 'AMSK Visits', ka: a.visits, kb: b.visits, max: Math.max(a.visits, b.visits)||1, unit: '', color: '#06b6d4' },
+    { label: 'High Recovery (≥75%)', ka: a.highProgressRate, kb: b.highProgressRate, max: 100, unit: '%', color: '#ec4899' },
+    { label: 'Active Packages', ka: a.activeCount, kb: b.activeCount, max: Math.max(a.activeCount, b.activeCount)||1, unit: '', color: '#f97316' },
+    { label: 'Pkg Sessions Covered', ka: a.pkgSess, kb: b.pkgSess, max: Math.max(a.pkgSess, b.pkgSess)||1, unit: '', color: '#a855f7' },
+  ];
+
+  const colHtml = (stat, side) => {
+    const isA = side === 'a';
+    return metrics.map(m => {
+      const val = isA ? m.ka : m.kb;
+      const opp = isA ? m.kb : m.ka;
+      const pct = Math.min(100, Math.round((val / m.max) * 100));
+      const isWinner = val > opp;
+      const displayVal = m.unit === '★' ? val.toFixed(1) : m.unit === '%' ? val.toFixed(1) : Number.isInteger(val) ? val : val.toFixed(0);
+      return `<div class="cmp-stat-row">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <span class="cmp-stat-label">${m.label}</span>
+            ${isWinner ? '<span class="winner-badge">🏆</span>' : ''}
+          </div>
+          <div class="cmp-stat-val" style="color:${isWinner ? 'var(--green)' : 'var(--text)'}">${displayVal}${m.unit}</div>
+          <div class="cmp-stat-bar-wrap" style="margin-top:6px">
+            <div class="cmp-stat-bar" style="width:${pct}%;background:${isWinner?m.color:'var(--muted)'}"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  const headerHtml = (stat, color) => `
+    <div class="cmp-doc-avatar" style="background:linear-gradient(135deg,${color},${color}99)">${initials(stat.doc)}</div>
+    <div class="cmp-doc-name">${stat.doc}</div>
+    <div class="cmp-doc-sub">${stat.visits} AMSK visits · ${stat.patients.size} patients</div>
+    <div style="margin:12px 0 16px;height:1px;background:var(--border)"></div>`;
+
+  document.getElementById('cmpColA').innerHTML = headerHtml(a, colorA) + colHtml(a, 'a');
+  document.getElementById('cmpColB').innerHTML = headerHtml(b, colorB) + colHtml(b, 'b');
+
+  // ── Verdict / horizontal bars ──
+  const total = (va, vb) => (va + vb) || 1;
+  const verdictMetrics = [
+    { label: '🏅 Incentive Score', va: a.perfScore, vb: b.perfScore, max: 100, fmt: v => v+'/100' },
+    { label: '📈 Avg Recovery %', va: a.avgProgress, vb: b.avgProgress, max: 100, fmt: v => v.toFixed(1)+'%' },
+    { label: '⭐ Avg Star Rating', va: a.avgRating*20, vb: b.avgRating*20, max: 100, fmt: (v,raw) => raw.toFixed(1)+'★', rawA: a.avgRating, rawB: b.avgRating },
+    { label: '👥 Patients Treated', va: a.patients.size, vb: b.patients.size, max: null, fmt: v => v },
+    { label: '🔁 AMSK Visits', va: a.visits, vb: b.visits, max: null, fmt: v => v },
+    { label: '💊 High Recovery Rate', va: a.highProgressRate, vb: b.highProgressRate, max: 100, fmt: v => v+'%' },
+    { label: '🏥 Active Packages', va: a.activeCount, vb: b.activeCount, max: null, fmt: v => v },
+  ];
+
+  document.getElementById('cmpVerdictRows').innerHTML = verdictMetrics.map(m => {
+    const mx = m.max || Math.max(m.va, m.vb) || 1;
+    const wA = Math.round((m.va/mx)*100);
+    const wB = Math.round((m.vb/mx)*100);
+    const fmtA = m.rawA !== undefined ? m.fmt(m.va, m.rawA) : m.fmt(m.va);
+    const fmtB = m.rawB !== undefined ? m.fmt(m.vb, m.rawB) : m.fmt(m.vb);
+    const winA = m.va > m.vb, winB = m.vb > m.va;
+    return `<div class="verdict-row">
+      <span class="verdict-metric">${m.label}</span>
+      <div class="verdict-bar-wrap">
+        <div class="verdict-bar-a" style="width:${wA}%;opacity:${winA?1:0.5}">${fmtA}</div>
+        <div class="verdict-bar-b" style="width:${wB}%;opacity:${winB?1:0.5}">${fmtB}</div>
+      </div>
+      <span style="font-size:11px;color:var(--muted);width:80px;text-align:right">${winA?'<span style="color:#3b82f6;font-weight:700">'+docA.split(' ')[1]+'</span>':winB?'<span style="color:#10b981;font-weight:700">'+docB.split(' ')[1]+'</span>':'Tie'}</span>
+    </div>`;
+  }).join('');
+
+  // ── Radar chart ──
+  if (cmpChartRadar) cmpChartRadar.destroy();
+  cmpChartRadar = new Chart(document.getElementById('cmpRadar'), {
+    type: 'radar',
+    data: {
+      labels: ['Recovery %','Star Rating','Visit Volume','Patients','High Recovery','Active Pkgs'],
+      datasets: [
+        {
+          label: a.doc.replace('Dr.','').trim(),
+          data: [
+            Math.round(a.avgProgress),
+            Math.round(a.avgRating*20),
+            Math.min(100,Math.round((a.visits/300)*100)),
+            Math.min(100,Math.round((a.patients.size/50)*100)),
+            a.highProgressRate,
+            Math.min(100,Math.round((a.activeCount/20)*100))
+          ],
+          borderColor: colorA, backgroundColor: colorA+'33', pointBackgroundColor: colorA, borderWidth: 2
+        },
+        {
+          label: b.doc.replace('Dr.','').trim(),
+          data: [
+            Math.round(b.avgProgress),
+            Math.round(b.avgRating*20),
+            Math.min(100,Math.round((b.visits/300)*100)),
+            Math.min(100,Math.round((b.patients.size/50)*100)),
+            b.highProgressRate,
+            Math.min(100,Math.round((b.activeCount/20)*100))
+          ],
+          borderColor: colorB, backgroundColor: colorB+'33', pointBackgroundColor: colorB, borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { min:0, max:100, ticks:{ color:'#64748b',stepSize:20,font:{size:9}}, grid:{color:'rgba(30,45,69,0.7)'}, pointLabels:{color:'#94a3b8',font:{size:11}}, angleLines:{color:'rgba(30,45,69,0.7)'} } },
+      plugins: { legend:{ labels:{ color:'#94a3b8', font:{size:11} } } }
+    }
+  });
+
+  // ── Progress distribution bar chart ──
+  if (cmpChartProg) cmpChartProg.destroy();
+  cmpChartProg = new Chart(document.getElementById('cmpProgressChart'), {
+    type: 'bar',
+    data: {
+      labels: ['0-20%','21-40%','41-60%','61-80%','81-100%'],
+      datasets: [
+        { label: a.doc.replace('Dr.','').trim(), data: a.buckets, backgroundColor: colorA+'cc', borderRadius: 6, borderSkipped: false },
+        { label: b.doc.replace('Dr.','').trim(), data: b.buckets, backgroundColor: colorB+'cc', borderRadius: 6, borderSkipped: false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend:{ labels:{ color:'#94a3b8',font:{size:11} } }, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': '+ctx.raw+' patients' } } },
+      scales: {
+        x: { ticks:{color:'#64748b'}, grid:{color:'rgba(30,45,69,0.5)'} },
+        y: { ticks:{color:'#64748b'}, grid:{color:'rgba(30,45,69,0.5)'}, title:{display:true,text:'Patients',color:'#64748b'} }
+      }
+    }
+  });
+
+  // ── Shared patients table ──
+  const sharedPts = [...a.patients].filter(pt => b.patients.has(pt));
+  if (!sharedPts.length) {
+    document.getElementById('cmpSharedBody').innerHTML = '<p class="no-data">No shared patients between these two doctors (AMSK appointments).</p>';
+  } else {
+    const rows = sharedPts.map(pt => {
+      const rowsA = a.rows.filter(r => r.patient === pt);
+      const rowsB = b.rows.filter(r => r.patient === pt);
+      const progA = rowsA.reduce((s,r)=>s+r.progress,0)/rowsA.length;
+      const progB = rowsB.reduce((s,r)=>s+r.progress,0)/rowsB.length;
+      const ratA  = rowsA.filter(r=>r.rating>0);
+      const ratB  = rowsB.filter(r=>r.rating>0);
+      const rA = ratA.length ? (ratA.reduce((s,r)=>s+r.rating,0)/ratA.length).toFixed(1) : '—';
+      const rB = ratB.length ? (ratB.reduce((s,r)=>s+r.rating,0)/ratB.length).toFixed(1) : '—';
+      const betterDoc = progA > progB ? `<span style="color:#3b82f6;font-weight:700">${a.doc.split(' ')[1]}</span>` : progB > progA ? `<span style="color:#10b981;font-weight:700">${b.doc.split(' ')[1]}</span>` : 'Equal';
+      return `<tr>
+        <td><strong>${pt}</strong></td>
+        <td style="text-align:center">${rowsA.length}</td>
+        <td style="text-align:center">${progA.toFixed(1)}%</td>
+        <td style="text-align:center">${rA}★</td>
+        <td style="text-align:center">${rowsB.length}</td>
+        <td style="text-align:center">${progB.toFixed(1)}%</td>
+        <td style="text-align:center">${rB}★</td>
+        <td style="text-align:center">${betterDoc}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('cmpSharedBody').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Patient</th>
+          <th style="text-align:center">${a.doc.split(' ').slice(-1)[0]} Visits</th>
+          <th style="text-align:center">${a.doc.split(' ').slice(-1)[0]} Recovery%</th>
+          <th style="text-align:center">${a.doc.split(' ').slice(-1)[0]} Rating</th>
+          <th style="text-align:center">${b.doc.split(' ').slice(-1)[0]} Visits</th>
+          <th style="text-align:center">${b.doc.split(' ').slice(-1)[0]} Recovery%</th>
+          <th style="text-align:center">${b.doc.split(' ').slice(-1)[0]} Rating</th>
+          <th style="text-align:center">Better Outcome</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+}
+
+function exportCompareExcel() {
+  const docA = document.getElementById('cmpDocA').value;
+  const docB = document.getElementById('cmpDocB').value;
+  if (!docA || !docB || docA === docB) { alert('Please select two different AMSK doctors first.'); return; }
+  const a = getAMSKStats(docA);
+  const b = getAMSKStats(docB);
+  if (!a || !b) { alert('No AMSK data found for one or both doctors.'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Head to head
+  const summary = [
+    { 'Metric': 'Doctor', [docA]: docA, [docB]: docB },
+    { 'Metric': 'Incentive Score (/100)', [docA]: a.perfScore, [docB]: b.perfScore },
+    { 'Metric': 'Avg Recovery Progress (%)', [docA]: a.avgProgress.toFixed(1), [docB]: b.avgProgress.toFixed(1) },
+    { 'Metric': 'Avg Star Rating', [docA]: a.avgRating.toFixed(1), [docB]: b.avgRating.toFixed(1) },
+    { 'Metric': 'Patients Treated (AMSK)', [docA]: a.patients.size, [docB]: b.patients.size },
+    { 'Metric': 'AMSK Doctor Visits', [docA]: a.visits, [docB]: b.visits },
+    { 'Metric': 'Patient Pkg Sessions Covered', [docA]: a.pkgSess, [docB]: b.pkgSess },
+    { 'Metric': 'High Recovery Rate (≥75%)', [docA]: a.highProgressRate+'%', [docB]: b.highProgressRate+'%' },
+    { 'Metric': 'Active Packages', [docA]: a.activeCount, [docB]: b.activeCount },
+    { 'Metric': 'Shared Patients', [docA]: [...a.patients].filter(p=>b.patients.has(p)).length, [docB]: [...a.patients].filter(p=>b.patients.has(p)).length },
+  ];
+  const ws1 = XLSX.utils.json_to_sheet(summary);
+  ws1['!cols'] = [{ wch:32 },{ wch:28 },{ wch:28 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Head-to-Head Summary');
+
+  // Sheet 2: Shared patients detail
+  const sharedPts = [...a.patients].filter(pt => b.patients.has(pt));
+  const sharedData = sharedPts.map(pt => {
+    const rA = a.rows.filter(r=>r.patient===pt); const rB = b.rows.filter(r=>r.patient===pt);
+    const pA = rA.reduce((s,r)=>s+r.progress,0)/rA.length;
+    const pB = rB.reduce((s,r)=>s+r.progress,0)/rB.length;
+    const ratA = rA.filter(r=>r.rating>0); const ratB = rB.filter(r=>r.rating>0);
+    return {
+      'Patient Name': pt,
+      [docA+' Visits']: rA.length,
+      [docA+' Avg Recovery %']: pA.toFixed(1)+'%',
+      [docA+' Avg Rating']: ratA.length?(ratA.reduce((s,r)=>s+r.rating,0)/ratA.length).toFixed(1):'N/A',
+      [docB+' Visits']: rB.length,
+      [docB+' Avg Recovery %']: pB.toFixed(1)+'%',
+      [docB+' Avg Rating']: ratB.length?(ratB.reduce((s,r)=>s+r.rating,0)/ratB.length).toFixed(1):'N/A',
+      'Better Outcome Doctor': pA > pB ? docA : pB > pA ? docB : 'Equal'
+    };
+  });
+  if (sharedData.length) {
+    const ws2 = XLSX.utils.json_to_sheet(sharedData);
+    ws2['!cols'] = [{ wch:24 },{ wch:16 },{ wch:20 },{ wch:16 },{ wch:16 },{ wch:20 },{ wch:16 },{ wch:24 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Shared Patients Detail');
+  }
+
+  XLSX.writeFile(wb, `AMSK_Doctor_Comparison_${docA.replace(/\s/g,'_')}_vs_${docB.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 </script>
 </body>
