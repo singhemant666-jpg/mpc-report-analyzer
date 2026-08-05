@@ -1977,63 +1977,8 @@
         // collect all payment modes and invoice numbers.
         // ──────────────────────────────────────────────────────────────────
         const invoiceGroups = {};
-        for (const row of p._rawRows) {
-          const inv = row.invoiceNo ? row.invoiceNo.toString().trim() : '';
-          // Only group if we have a real invoice number (not empty / dash)
-          if (inv && inv !== '-') {
-            const gKey = `${inv}||${row.packageName.toLowerCase().trim()}||${row.type}`;
-            if (!invoiceGroups[gKey]) invoiceGroups[gKey] = [];
-            invoiceGroups[gKey].push(row);
-          }
-        }
-
-        const processedInvoiceKeys = new Set();
-        const uniqueRawRows = [];
-        for (const row of p._rawRows) {
-          const inv = row.invoiceNo ? row.invoiceNo.toString().trim() : '';
-          if (inv && inv !== '-') {
-            const gKey = `${inv}||${row.packageName.toLowerCase().trim()}||${row.type}`;
-            if (processedInvoiceKeys.has(gKey)) continue; // skip duplicate
-            processedInvoiceKeys.add(gKey);
-
-            const group = invoiceGroups[gKey];
-            if (group.length > 1) {
-              // Sort oldest-first so base row has earliest date
-              group.sort((a, b) => {
-                const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
-                const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
-                return da - db;
-              });
-              const baseRow = group[0];
-              // Merge: sum amountPaid from all installment rows
-              baseRow.amountPaid = group.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
-              // Collect all payment modes and invoice nos
-              const modes = new Set(group.map(r => r.paymentMode).filter(Boolean));
-              const invNos = new Set(group.map(r => r.invoiceNo).filter(r => r && r !== '-'));
-              if (modes.size > 0) baseRow.paymentMode = Array.from(modes).join(', ');
-              if (invNos.size > 0) baseRow.invoiceNo = Array.from(invNos).join(', ');
-              uniqueRawRows.push(baseRow);
-            } else {
-              uniqueRawRows.push(row);
-            }
-          } else {
-            // No invoice number — keep as-is but deduplicate zero-paid duplicates
-            const contractTotal = row.totalPackageCost || 0;
-            const isZeroPaid = !row.amountPaid || row.amountPaid === 0;
-            if (contractTotal > 0 && isZeroPaid) {
-              const itemKey = `${row.packageName}_${row.type}`.toLowerCase();
-              const seenKey = `noInv_${contractTotal}`;
-              if (!processedInvoiceKeys.has(`${seenKey}_${itemKey}`)) {
-                processedInvoiceKeys.add(`${seenKey}_${itemKey}`);
-                uniqueRawRows.push(row);
-              }
-              // else skip duplicate zero-paid row
-            } else {
-              uniqueRawRows.push(row);
-            }
-          }
-        }
-        p._rawRows = uniqueRawRows;
+        // Keep all raw rows separate so each invoice payment is treated as an individual record
+        // (Only deduplicate exact identical duplicate rows if any)
 
         // Group raw rows by date
         const dateGroups = {};
@@ -2330,7 +2275,8 @@
 
         for (const svc of mergedServices) {
           svc.paymentMode = svc.paymentModes && svc.paymentModes.length > 0 ? svc.paymentModes.filter(Boolean).join(', ') : '';
-          svc.invoiceNo = svc.invoiceNos && svc.invoiceNos.length > 0 ? svc.invoiceNos.filter(Boolean).join(', ') : '';
+          const uniqueInvoices = svc.invoiceNos && svc.invoiceNos.length > 0 ? [...new Set(svc.invoiceNos.filter(Boolean))] : [];
+          svc.invoiceNo = uniqueInvoices.join(', ');
         }
 
         // Sum of all non-consultation individual package costs (sticker prices)
