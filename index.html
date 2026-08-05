@@ -1905,11 +1905,8 @@
           return da - db;
         });
 
-        // Propagate contract total (totalPackageCost), invoiceNo, and paymentMode across package rows on the same date
-        // CRITICAL: NEVER propagate consultation (type === 'consultation') invoice numbers to package rows!
+        // Propagate contract total (totalPackageCost) across package rows on the same date
         const dateContracts = {};
-        const datePkgInvoices = {};
-        const datePkgModes = {};
         for (const row of p._rawRows) {
           if (row.type !== 'consultation') {
             const d = parseDate(row.paymentDate);
@@ -1917,12 +1914,6 @@
               const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
               if (row.totalPackageCost && row.totalPackageCost > 0) {
                 dateContracts[dateStr] = row.totalPackageCost;
-              }
-              if (row.invoiceNo && row.invoiceNo !== '-') {
-                datePkgInvoices[dateStr] = row.invoiceNo;
-              }
-              if (row.paymentMode && row.paymentMode !== '-') {
-                datePkgModes[dateStr] = row.paymentMode;
               }
             }
           }
@@ -1936,11 +1927,23 @@
               if (dateContracts[dateStr] && (!row.totalPackageCost || row.totalPackageCost === 0)) {
                 row.totalPackageCost = dateContracts[dateStr];
               }
-              if (datePkgInvoices[dateStr] && (!row.invoiceNo || row.invoiceNo === '-')) {
-                row.invoiceNo = datePkgInvoices[dateStr];
+            }
+          }
+        }
+
+        // Fill missing invoiceNo / paymentMode for secondary cart items from the preceding row of the same payment transaction
+        for (let i = 1; i < p._rawRows.length; i++) {
+          const curr = p._rawRows[i];
+          const prev = p._rawRows[i - 1];
+          if (curr.type !== 'consultation' && prev.type !== 'consultation') {
+            const sameDate = curr.paymentDate === prev.paymentDate;
+            const sameCart = (curr.cartId && prev.cartId && curr.cartId === prev.cartId) || (curr.userplanId && prev.userplanId && curr.userplanId === prev.userplanId);
+            if (sameDate || sameCart) {
+              if (!curr.invoiceNo || curr.invoiceNo === '-') {
+                curr.invoiceNo = prev.invoiceNo;
               }
-              if (datePkgModes[dateStr] && (!row.paymentMode || row.paymentMode === '-')) {
-                row.paymentMode = datePkgModes[dateStr];
+              if (!curr.paymentMode || curr.paymentMode === '-') {
+                curr.paymentMode = prev.paymentMode;
               }
             }
           }
