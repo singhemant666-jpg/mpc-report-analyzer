@@ -1905,38 +1905,43 @@
           return da - db;
         });
 
-        // Propagate contract total (totalPackageCost), invoiceNo, and paymentMode to all rows on the same date
+        // Propagate contract total (totalPackageCost), invoiceNo, and paymentMode across package rows on the same date
+        // CRITICAL: NEVER propagate consultation (type === 'consultation') invoice numbers to package rows!
         const dateContracts = {};
-        const dateInvoices = {};
-        const dateModes = {};
+        const datePkgInvoices = {};
+        const datePkgModes = {};
         for (const row of p._rawRows) {
-          const d = parseDate(row.paymentDate);
-          if (d) {
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            if (row.totalPackageCost && row.totalPackageCost > 0) {
-              dateContracts[dateStr] = row.totalPackageCost;
-            }
-            if (row.invoiceNo && row.invoiceNo !== '-') {
-              dateInvoices[dateStr] = row.invoiceNo;
-            }
-            if (row.paymentMode && row.paymentMode !== '-') {
-              dateModes[dateStr] = row.paymentMode;
+          if (row.type !== 'consultation') {
+            const d = parseDate(row.paymentDate);
+            if (d) {
+              const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              if (row.totalPackageCost && row.totalPackageCost > 0) {
+                dateContracts[dateStr] = row.totalPackageCost;
+              }
+              if (row.invoiceNo && row.invoiceNo !== '-') {
+                datePkgInvoices[dateStr] = row.invoiceNo;
+              }
+              if (row.paymentMode && row.paymentMode !== '-') {
+                datePkgModes[dateStr] = row.paymentMode;
+              }
             }
           }
         }
         
         for (const row of p._rawRows) {
-          const d = parseDate(row.paymentDate);
-          if (d) {
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            if (dateContracts[dateStr] && (!row.totalPackageCost || row.totalPackageCost === 0)) {
-              row.totalPackageCost = dateContracts[dateStr];
-            }
-            if (dateInvoices[dateStr] && (!row.invoiceNo || row.invoiceNo === '-')) {
-              row.invoiceNo = dateInvoices[dateStr];
-            }
-            if (dateModes[dateStr] && (!row.paymentMode || row.paymentMode === '-')) {
-              row.paymentMode = dateModes[dateStr];
+          if (row.type !== 'consultation') {
+            const d = parseDate(row.paymentDate);
+            if (d) {
+              const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              if (dateContracts[dateStr] && (!row.totalPackageCost || row.totalPackageCost === 0)) {
+                row.totalPackageCost = dateContracts[dateStr];
+              }
+              if (datePkgInvoices[dateStr] && (!row.invoiceNo || row.invoiceNo === '-')) {
+                row.invoiceNo = datePkgInvoices[dateStr];
+              }
+              if (datePkgModes[dateStr] && (!row.paymentMode || row.paymentMode === '-')) {
+                row.paymentMode = datePkgModes[dateStr];
+              }
             }
           }
         }
@@ -3630,8 +3635,14 @@
 
     function getPatientPaymentDates(p, displayServices) {
       const svcs = displayServices || p.services;
-      if (!svcs) return '-';
-      const dates = svcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-');
+      if (!svcs || svcs.length === 0) return '-';
+      const dates = [];
+      for (const s of svcs) {
+        const d = s.paymentDate ? formatDate(s.paymentDate) : '-';
+        if (dates.length === 0 || dates[dates.length - 1] !== d) {
+          dates.push(d);
+        }
+      }
       if (dates.length === 0) return '-';
       if (dates.length === 1) return dates[0];
       return dates.map(d => `<div style="margin-bottom:2px; font-weight:500;">${d}</div>`).join('');
@@ -3639,16 +3650,30 @@
 
     function getPatientPaymentModes(p, displayServices) {
       const svcs = displayServices || p.services;
-      if (!svcs) return '-';
-      const modes = svcs.map(s => s.paymentMode || '-');
+      if (!svcs || svcs.length === 0) return '-';
+      const modes = [];
+      for (const s of svcs) {
+        const m = s.paymentMode || '-';
+        if (modes.length === 0 || modes[modes.length - 1] !== m) {
+          modes.push(m);
+        }
+      }
       if (modes.length === 0) return '-';
       if (modes.length === 1) return modes[0];
       return modes.map(m => `<div style="margin-bottom:2px; font-weight:500;">${m}</div>`).join('');
     }
 
     function getPatientInvoiceNos(p, displayServices) {
-      if (!displayServices) return '-';
-      const invoices = displayServices.map(s => s.invoiceNo).filter(Boolean);
+      if (!displayServices || displayServices.length === 0) return '-';
+      const invoices = [];
+      for (const s of displayServices) {
+        const inv = s.invoiceNo;
+        if (inv && inv !== '-') {
+          if (invoices.length === 0 || invoices[invoices.length - 1] !== inv) {
+            invoices.push(inv);
+          }
+        }
+      }
       if (invoices.length === 0) return '-';
       if (invoices.length === 1) return invoices[0];
       return invoices.map(inv => `<div style="margin-bottom:2px; font-weight:500;">${inv}</div>`).join('');
