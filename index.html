@@ -3539,31 +3539,25 @@
       const wellnessServices = services.filter(s => s.type === 'package' && isWellnessPackage(s.packageName));
       if (wellnessServices.length === 0) return '-';
 
-      const pkgMap = {};
-      for (const s of wellnessServices) {
+      if (wellnessServices.length === 1) {
+        const s = wellnessServices[0];
         const name = s.packageName || 'Unknown';
-        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
-        pkgMap[name].count++;
-        pkgMap[name].revenue += s.proportionalPaid;
-      }
-
-      const entries = Object.entries(pkgMap);
-      if (entries.length === 1 && entries[0][1].count === 1) {
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
-          <strong style="color:var(--cyan); font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <strong style="color:var(--cyan); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
 
-      const items = entries.map(([name, data]) => {
-        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+      const items = wellnessServices.map((s) => {
+        const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
-          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
-          <strong style="color:var(--cyan);">${formatCurrency(data.revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
+          <strong style="color:var(--cyan);">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }).join('');
 
-      const wellnessTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+      const wellnessTotal = wellnessServices.reduce((sum, s) => sum + s.proportionalPaid, 0);
 
       return `<div>
         ${items}
@@ -3577,31 +3571,25 @@
       const rsServices = services.filter(s => s.type === 'package' && isRoboticSpinePackage(s.packageName));
       if (rsServices.length === 0) return '-';
 
-      const pkgMap = {};
-      for (const s of rsServices) {
+      if (rsServices.length === 1) {
+        const s = rsServices[0];
         const name = s.packageName || 'Unknown';
-        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
-        pkgMap[name].count++;
-        pkgMap[name].revenue += s.proportionalPaid;
-      }
-
-      const entries = Object.entries(pkgMap);
-      if (entries.length === 1 && entries[0][1].count === 1) {
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
-          <strong style="color:var(--rose); font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <strong style="color:var(--rose); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
 
-      const items = entries.map(([name, data]) => {
-        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+      const items = rsServices.map((s) => {
+        const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
-          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
-          <strong style="color:var(--rose);">${formatCurrency(data.revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
+          <strong style="color:var(--rose);">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }).join('');
 
-      const rsTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+      const rsTotal = rsServices.reduce((sum, s) => sum + s.proportionalPaid, 0);
 
       return `<div>
         ${items}
@@ -3615,31 +3603,25 @@
       const bmskServices = services.filter(s => s.type === 'package' && isBMSKPackage(s.packageName));
       if (bmskServices.length === 0) return '-';
 
-      const pkgMap = {};
-      for (const s of bmskServices) {
+      if (bmskServices.length === 1) {
+        const s = bmskServices[0];
         const name = s.packageName || 'Unknown';
-        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
-        pkgMap[name].count++;
-        pkgMap[name].revenue += s.proportionalPaid;
-      }
-
-      const entries = Object.entries(pkgMap);
-      if (entries.length === 1 && entries[0][1].count === 1) {
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
-          <strong style="color:#fb923c; font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <strong style="color:#fb923c; font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
 
-      const items = entries.map(([name, data]) => {
-        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+      const items = bmskServices.map((s) => {
+        const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
-          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
-          <strong style="color:#fb923c;">${formatCurrency(data.revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
+          <strong style="color:#fb923c;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }).join('');
 
-      const bmskTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+      const bmskTotal = bmskServices.reduce((sum, s) => sum + s.proportionalPaid, 0);
 
       return `<div>
         ${items}
@@ -3653,31 +3635,25 @@
       const renServices = services.filter(s => s.isRenewal);
       if (renServices.length === 0) return '-';
 
-      const pkgMap = {};
-      for (const s of renServices) {
+      if (renServices.length === 1) {
+        const s = renServices[0];
         const name = s.packageName || 'Unknown';
-        if (!pkgMap[name]) pkgMap[name] = { count: 0, revenue: 0 };
-        pkgMap[name].count++;
-        pkgMap[name].revenue += s.proportionalPaid;
-      }
-
-      const entries = Object.entries(pkgMap);
-      if (entries.length === 1 && entries[0][1].count === 1) {
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${entries[0][0]}:</span> 
-          <strong style="color:var(--purple); font-weight:700;">${formatCurrency(entries[0][1].revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <strong style="color:var(--purple); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
 
-      const items = entries.map(([name, data]) => {
-        const qtyLabel = data.count > 1 ? ` (x${data.count})` : '';
+      const items = renServices.map((s) => {
+        const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div style="font-size:0.8rem; line-height:1.3; margin-bottom:3px;">
-          <span style="color:var(--text-secondary); font-weight:500;">${name}${qtyLabel}:</span> 
-          <strong style="color:var(--purple);">${formatCurrency(data.revenue)}</strong>
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
+          <strong style="color:var(--purple);">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }).join('');
 
-      const renTotal = entries.reduce((sum, e) => sum + e[1].revenue, 0);
+      const renTotal = renServices.reduce((sum, s) => sum + s.proportionalPaid, 0);
 
       return `<div>
         ${items}
