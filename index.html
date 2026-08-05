@@ -4017,6 +4017,16 @@
       });
     });
 
+    function getExcelColLetter(col) {
+      let temp, letter = '';
+      while (col > 0) {
+        temp = (col - 1) % 26;
+        letter = String.fromCharCode(65 + temp) + letter;
+        col = Math.floor((col - temp - 1) / 26);
+      }
+      return letter;
+    }
+
     // ==================== EXCEL EXPORT ====================
     async function exportExcel() {
       showLoading('Generating Excel workbook...');
@@ -4233,13 +4243,14 @@
               const invEndRow = ws.lastRow ? ws.lastRow.number : invStartRow;
               if (invEndRow > invStartRow) {
                 // Merge Invoice-level columns across sub-rows of this specific invoice:
-                // Non-renewals: 8: Payment Mode, 9: Invoice No., 11: Amount Paid
-                // Renewals: 10: Payment Mode, 11: Invoice No., 13: Amount Paid
+                // Non-renewals: 8: Payment Mode (H), 9: Invoice No. (I), 11: Amount Paid (K)
+                // Renewals: 10: Payment Mode (J), 11: Invoice No. (K), 13: Amount Paid (M)
                 const invMergeCols = isRenewals ? [10, 11, 13] : [8, 9, 11];
                 invMergeCols.forEach(colIdx => {
                   try {
-                    ws.mergeCells(invStartRow, colIdx, invEndRow, colIdx);
-                    const cell = ws.getCell(invStartRow, colIdx);
+                    const colLetter = getExcelColLetter(colIdx);
+                    ws.mergeCells(`${colLetter}${invStartRow}:${colLetter}${invEndRow}`);
+                    const cell = ws.getCell(`${colLetter}${invStartRow}`);
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                   } catch(e) {}
                 });
@@ -4249,13 +4260,14 @@
             const endRow = ws.lastRow ? ws.lastRow.number : startRow;
             if (endRow > startRow) {
               // Merge Patient-level columns across ALL sub-rows of this patient:
-              // Non-renewals: 1: Patient Name, 2: Consulting Date, 5: Doctor, 6: Agent, 7: Lead Source, 10: Pkg Value, 20: Status
-              // Renewals: 1: Patient Name, 2: Consulting Date, 7: Doctor, 8: Agent, 9: Lead Source, 12: Pkg Value, 21: Status
+              // Non-renewals: 1: Patient Name (A), 2: Consulting Date (B), 5: Doctor (E), 6: Agent (F), 7: Lead Source (G), 10: Pkg Value (J), 20: Status (T)
+              // Renewals: 1: Patient Name (A), 2: Consulting Date (B), 7: Doctor (G), 8: Agent (H), 9: Lead Source (I), 12: Pkg Value (L), 21: Status (U)
               const mergeCols = isRenewals ? [1, 2, 7, 8, 9, 12, 21] : [1, 2, 5, 6, 7, 10, 20];
               mergeCols.forEach(colIdx => {
                 try {
-                  ws.mergeCells(startRow, colIdx, endRow, colIdx);
-                  const cell = ws.getCell(startRow, colIdx);
+                  const colLetter = getExcelColLetter(colIdx);
+                  ws.mergeCells(`${colLetter}${startRow}:${colLetter}${endRow}`);
+                  const cell = ws.getCell(`${colLetter}${startRow}`);
                   cell.alignment = { vertical: 'middle', horizontal: (colIdx === 1 || colIdx === 4 || colIdx === 5) ? 'left' : 'center' };
                 } catch(e) {}
               });
