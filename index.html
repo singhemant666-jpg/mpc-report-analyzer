@@ -4105,6 +4105,7 @@
               : p.services.filter(s => !s.isRenewal);
 
             if (targetServices.length === 0) continue;
+            const totalPkgVal = p.totalPackageValue || targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
 
             // Sort targetServices chronologically and by invoice number so all items for the same invoice are strictly contiguous
             targetServices.sort((a, b) => {
