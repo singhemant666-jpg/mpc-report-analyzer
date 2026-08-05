@@ -1895,50 +1895,8 @@
       for (const key of Object.keys(patients)) {
         const p = patients[key];
 
-        // Merge installment rows belonging to the same unique purchase (Userplan ID or Cart ID + Package Name + Type)
-        const groups = {};
-        for (const row of p._rawRows) {
-          const upId = row.userplanId || (row.cartId ? `cart_${row.cartId}_${row.packageName}_${row.type}` : null);
-          if (upId) {
-            const cleanUpId = upId.toString().trim().toLowerCase();
-            if (!groups[cleanUpId]) {
-              groups[cleanUpId] = [];
-            }
-            groups[cleanUpId].push(row);
-          }
-        }
-
-        const mergedRawRows = [];
-        const processedGroups = new Set();
-
-        for (const row of p._rawRows) {
-          const upId = row.userplanId || (row.cartId ? `cart_${row.cartId}_${row.packageName}_${row.type}` : null);
-          if (upId) {
-            const cleanUpId = upId.toString().trim().toLowerCase();
-            if (processedGroups.has(cleanUpId)) continue;
-            processedGroups.add(cleanUpId);
-
-            const group = groups[cleanUpId];
-            group.sort((a, b) => {
-              const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
-              const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
-              return da - db;
-            });
-
-            const baseRow = group[0];
-            baseRow.amountPaid = group.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
-
-            const modes = new Set(group.map(r => r.paymentMode).filter(Boolean));
-            const invoices = new Set(group.map(r => r.invoiceNo).filter(Boolean));
-            if (modes.size > 0) baseRow.paymentMode = Array.from(modes).join(', ');
-            if (invoices.size > 0) baseRow.invoiceNo = Array.from(invoices).join(', ');
-
-            mergedRawRows.push(baseRow);
-          } else {
-            mergedRawRows.push(row);
-          }
-        }
-        p._rawRows = mergedRawRows;
+        // Do not merge raw rows by userplanId/cartId so every invoice payment row remains distinct
+        // Sort raw rows chronologically ascending
 
         // Sort raw rows chronologically ascending
         p._rawRows.sort((a, b) => {
