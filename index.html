@@ -1905,14 +1905,22 @@
           return da - db;
         });
 
-        // Propagate contract total (totalPackageCost) to all rows on the same date
+        // Propagate contract total (totalPackageCost), invoiceNo, and paymentMode to all rows on the same date
         const dateContracts = {};
+        const dateInvoices = {};
+        const dateModes = {};
         for (const row of p._rawRows) {
-          if (row.totalPackageCost && row.totalPackageCost > 0) {
-            const d = parseDate(row.paymentDate);
-            if (d) {
-              const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const d = parseDate(row.paymentDate);
+          if (d) {
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            if (row.totalPackageCost && row.totalPackageCost > 0) {
               dateContracts[dateStr] = row.totalPackageCost;
+            }
+            if (row.invoiceNo && row.invoiceNo !== '-') {
+              dateInvoices[dateStr] = row.invoiceNo;
+            }
+            if (row.paymentMode && row.paymentMode !== '-') {
+              dateModes[dateStr] = row.paymentMode;
             }
           }
         }
@@ -1923,6 +1931,12 @@
             const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             if (dateContracts[dateStr] && (!row.totalPackageCost || row.totalPackageCost === 0)) {
               row.totalPackageCost = dateContracts[dateStr];
+            }
+            if (dateInvoices[dateStr] && (!row.invoiceNo || row.invoiceNo === '-')) {
+              row.invoiceNo = dateInvoices[dateStr];
+            }
+            if (dateModes[dateStr] && (!row.paymentMode || row.paymentMode === '-')) {
+              row.paymentMode = dateModes[dateStr];
             }
           }
         }
@@ -3379,8 +3393,9 @@
       if (filteredSvcs.length === 1) {
         const s = filteredSvcs[0];
         const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
           <strong style="color:${targetType === 'single_session' ? 'var(--amber)' : 'var(--emerald)'}; font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
@@ -3411,8 +3426,9 @@
       if (pmServices.length === 1) {
         const s = pmServices[0];
         const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
           <strong style="color:var(--emerald); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
@@ -3443,8 +3459,9 @@
       if (wellnessServices.length === 1) {
         const s = wellnessServices[0];
         const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
           <strong style="color:var(--cyan); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
@@ -3475,8 +3492,9 @@
       if (rsServices.length === 1) {
         const s = rsServices[0];
         const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
           <strong style="color:var(--rose); font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
@@ -3507,8 +3525,9 @@
       if (bmskServices.length === 1) {
         const s = bmskServices[0];
         const name = s.packageName || 'Unknown';
+        const invTag = s.invoiceNo ? ` <span style="font-size:0.7rem; color:var(--text-muted);">(${s.invoiceNo})</span>` : '';
         return `<div>
-          <span style="color:var(--text-secondary); font-weight:500;">${name}:</span> 
+          <span style="color:var(--text-secondary); font-weight:500;">${name}${invTag}:</span> 
           <strong style="color:#fb923c; font-weight:700;">${formatCurrency(s.proportionalPaid)}</strong>
         </div>`;
       }
