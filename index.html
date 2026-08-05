@@ -2107,11 +2107,14 @@
             const rowDateStr = getRowDateStr(row);
             const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
 
+            const dateStrForId = getRowDateStr(row);
+            const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : dateStrForId;
+
             if (!(cat in categoryCostSum)) {
               categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
               categoryPaidSum[cat] = 0;
               row.isInstallment = false;
-              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}_${row.invoiceNo || 'noinv'}`;
+              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
               
               const isSameCategoryAsFirst = cat === initialPkgCategory;
               if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
@@ -2127,11 +2130,11 @@
 
               if (prevPaid < prevCost - 0.01) {
                 row.isInstallment = true;
-                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_inst_${index}_${row.invoiceNo || 'noinv'}`;
+                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_inst_${invOrDate}`;
                 row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
               } else {
                 row.isInstallment = false;
-                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${index}_${row.invoiceNo || 'noinv'}`;
+                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
                 
                 const isSameCategoryAsFirst = cat === initialPkgCategory;
                 if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
@@ -4094,7 +4097,23 @@
 
             const startRow = ws.lastRow ? ws.lastRow.number + 1 : 2;
 
-            for (const [invKey, invGroup] of invoiceGroupsMap.entries()) {
+            for (const [invKey, rawInvGroup] of invoiceGroupsMap.entries()) {
+              // Deduplicate identical package items under the exact same invoice
+              const invGroup = [];
+              const seenItemKeys = new Set();
+              for (const s of rawInvGroup) {
+                const itemKey = `${s.packageName}_${s.type}_${s.isRenewal}`;
+                if (!seenItemKeys.has(itemKey)) {
+                  seenItemKeys.add(itemKey);
+                  invGroup.push({ ...s });
+                } else {
+                  const existing = invGroup.find(x => `${x.packageName}_${x.type}_${x.isRenewal}` === itemKey);
+                  if (existing) {
+                    existing.proportionalPaid += (s.proportionalPaid || 0);
+                  }
+                }
+              }
+
               const invPaidTotal = invGroup.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
               const invStartRow = ws.lastRow ? ws.lastRow.number + 1 : startRow;
 
