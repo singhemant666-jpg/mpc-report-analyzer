@@ -1931,19 +1931,37 @@
           }
         }
 
-        // Fill missing invoiceNo / paymentMode for secondary cart items from the preceding row of the same payment transaction
-        for (let i = 1; i < p._rawRows.length; i++) {
-          const curr = p._rawRows[i];
-          const prev = p._rawRows[i - 1];
-          if (curr.type !== 'consultation' && prev.type !== 'consultation') {
-            const sameDate = curr.paymentDate === prev.paymentDate;
-            const sameCart = (curr.cartId && prev.cartId && curr.cartId === prev.cartId) || (curr.userplanId && prev.userplanId && curr.userplanId === prev.userplanId);
-            if (sameDate || sameCart) {
-              if (!curr.invoiceNo || curr.invoiceNo === '-') {
-                curr.invoiceNo = prev.invoiceNo;
-              }
-              if (!curr.paymentMode || curr.paymentMode === '-') {
-                curr.paymentMode = prev.paymentMode;
+        // Propagate non-consultation invoice numbers and payment modes to all package rows on the same date/cart
+        const datePkgInvoiceListMap = {};
+        for (const row of p._rawRows) {
+          if (row.type !== 'consultation' && row.invoiceNo && row.invoiceNo !== '-') {
+            const d = parseDate(row.paymentDate);
+            const dateStr = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : 'no_date';
+            if (!datePkgInvoiceListMap[dateStr]) datePkgInvoiceListMap[dateStr] = [];
+            if (!datePkgInvoiceListMap[dateStr].includes(row.invoiceNo)) {
+              datePkgInvoiceListMap[dateStr].push(row.invoiceNo);
+            }
+          }
+        }
+
+        // Fill missing invoiceNo / paymentMode for package rows
+        for (let i = 0; i < p._rawRows.length; i++) {
+          const row = p._rawRows[i];
+          if (row.type !== 'consultation' && (!row.invoiceNo || row.invoiceNo === '-')) {
+            // First try preceding row
+            if (i > 0 && p._rawRows[i - 1].type !== 'consultation' && p._rawRows[i - 1].invoiceNo && p._rawRows[i - 1].invoiceNo !== '-') {
+              row.invoiceNo = p._rawRows[i - 1].invoiceNo;
+              if (!row.paymentMode || row.paymentMode === '-') row.paymentMode = p._rawRows[i - 1].paymentMode;
+            } else if (i < p._rawRows.length - 1 && p._rawRows[i + 1].type !== 'consultation' && p._rawRows[i + 1].invoiceNo && p._rawRows[i + 1].invoiceNo !== '-') {
+              // Next try following row
+              row.invoiceNo = p._rawRows[i + 1].invoiceNo;
+              if (!row.paymentMode || row.paymentMode === '-') row.paymentMode = p._rawRows[i + 1].paymentMode;
+            } else {
+              // Fallback to datePkgInvoiceListMap
+              const d = parseDate(row.paymentDate);
+              const dateStr = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : 'no_date';
+              if (datePkgInvoiceListMap[dateStr] && datePkgInvoiceListMap[dateStr].length > 0) {
+                row.invoiceNo = datePkgInvoiceListMap[dateStr][0];
               }
             }
           }
