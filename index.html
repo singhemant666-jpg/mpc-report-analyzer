@@ -4104,8 +4104,18 @@
               ? p.services.filter(s => s.type === 'package') 
               : p.services.filter(s => !s.isRenewal);
 
-            if (targetServices.length === 0) continue;
-            const totalPkgVal = p.totalPackageValue || targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+            // Calculate total unique package contract value for Column J
+            const uniquePkgCostMap = {};
+            for (const s of targetServices) {
+              if (s.type === 'package') {
+                const pkgKey = s.purchaseId || s.packageName;
+                if (!uniquePkgCostMap[pkgKey]) {
+                  uniquePkgCostMap[pkgKey] = s.packageCost || 0;
+                }
+              }
+            }
+            const totalPkgVal = Object.values(uniquePkgCostMap).reduce((sum, v) => sum + v, 0) || 
+                                targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
 
             // Sort targetServices chronologically and by invoice number so all items for the same invoice are strictly contiguous
             targetServices.sort((a, b) => {
@@ -4117,11 +4127,12 @@
               return invA.localeCompare(invB);
             });
 
-            // Group targetServices by Invoice No (or date + invoice key)
+            // Group targetServices by Invoice No (fallback to date if invoice is missing)
             const invoiceGroupsMap = new Map();
             for (const s of targetServices) {
-              const dateStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
-              const invKey = `${dateStr}_${s.invoiceNo || 'no_inv'}`;
+              const invKey = (s.invoiceNo && s.invoiceNo !== '-')
+                ? s.invoiceNo
+                : (s.paymentDate ? formatDate(s.paymentDate) : 'no_inv');
               if (!invoiceGroupsMap.has(invKey)) {
                 invoiceGroupsMap.set(invKey, []);
               }
