@@ -52,6 +52,58 @@
       --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    /* ==================== LIGHT MODE THEME OVERRIDES ==================== */
+    html[data-theme="light"] {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #f1f5f9;
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --bg-card-solid: #ffffff;
+      --bg-input: #ffffff;
+      --border: #e2e8f0;
+      --border-hover: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --cyan: #0284c7;
+      --purple: #7c3aed;
+      --emerald: #059669;
+      --amber: #d97706;
+      --rose: #e11d48;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 20px rgba(0,0,0,0.08);
+      --shadow-lg: 0 10px 30px rgba(0,0,0,0.12);
+      --shadow-glow-cyan: 0 0 20px rgba(2,132,199,0.15);
+      --shadow-glow-purple: 0 0 20px rgba(124,58,237,0.15);
+    }
+
+    html[data-theme="light"] body::before {
+      background: radial-gradient(circle at 20% 20%, rgba(2,132,199,0.05) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(99,102,241,0.03) 0%, transparent 70%);
+    }
+
+    html[data-theme="light"] .filter-select option {
+      background: #ffffff;
+      color: #0f172a;
+    }
+
+    html[data-theme="light"] thead th {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    html[data-theme="light"] tbody tr:hover {
+      background: rgba(2,132,199,0.04);
+    }
+
+    html[data-theme="light"] .modal-overlay {
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    html[data-theme="light"] .modal {
+      background: #ffffff;
+    }
+
     html { scroll-behavior: smooth; }
 
     body {
@@ -1152,6 +1204,7 @@
         <button class="btn btn-purple btn-sm" onclick="openAIModal()" id="header-ai-btn" style="display:flex; align-items:center; gap:6px;">
           ✨ AI Insights & Audit
         </button>
+        <button class="btn btn-icon" id="theme-toggle-btn" title="Toggle Light/Dark Mode" onclick="toggleTheme()" style="font-size:16px;">☀️</button>
         <button class="btn btn-icon" title="Configuration" onclick="openAdminModal()" id="config-btn">⚙️</button>
       </div>
     </header>
@@ -5468,10 +5521,45 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
       });
     };
 
+    // ==================== THEME MANAGEMENT ====================
+    function initTheme() {
+      const savedTheme = localStorage.getItem('mpc_theme') || 'dark';
+      setTheme(savedTheme, false);
+    }
+
+    function setTheme(theme, notify = true) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('mpc_theme', theme);
+      const btn = document.getElementById('theme-toggle-btn');
+      if (btn) {
+        btn.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+        btn.title = theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+      }
+      if (typeof Chart !== 'undefined') {
+        Chart.defaults.color = theme === 'light' ? '#475569' : '#94a3b8';
+      }
+      if (currentMetrics && currentMetrics.totalPatients) {
+        renderCharts(currentMetrics);
+      }
+      if (notify) {
+        showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode`, 'info');
+      }
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      setTheme(next, true);
+    }
+
+    // Initialize theme immediately
+    initTheme();
+
     // ==================== INIT ====================
     document.addEventListener('DOMContentLoaded', () => {
-      // Load config on startup
+      // Load config & theme on startup
       config = loadConfig();
+      initTheme();
     });
   </script>
 </body>
