@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -5529,7 +5529,7 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
 
     // ==================== THEME MANAGEMENT ====================
     function initTheme() {
-      const savedTheme = localStorage.getItem('mpc_theme') || 'dark';
+      const savedTheme = localStorage.getItem('mpc_theme') || 'light';
       setTheme(savedTheme, false);
     }
 
@@ -5553,7 +5553,7 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
     }
 
     function toggleTheme() {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       setTheme(next, true);
     }
