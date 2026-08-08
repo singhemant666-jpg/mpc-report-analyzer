@@ -4173,7 +4173,6 @@
             const startRow = ws.lastRow ? ws.lastRow.number + 1 : 2;
 
             for (const [invKey, invGroup] of invoiceGroupsMap.entries()) {
-              pkgIndex++;
               const firstSvc = invGroup[0];
               const uniquePkgNames = [...new Set(invGroup.map(s => s.packageName).filter(Boolean))];
               const pkgNameStr = uniquePkgNames.join(', ');
