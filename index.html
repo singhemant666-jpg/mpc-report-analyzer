@@ -2395,16 +2395,36 @@
         }
 
         // Sum unique package purchase costs for totalPackageValue
-        const uniquePurchaseMap = {};
-        for (const s of finalServices) {
-          if (s.type === 'package') {
-            const pKey = s.purchaseId || `${s.packageName}_${s.type}_${formatDate(s.paymentDate)}`;
-            if (!uniquePurchaseMap[pKey]) {
-              uniquePurchaseMap[pKey] = Math.round((s.packageCost || 0) * bundleScaleFactor * 100) / 100;
+        // Rule: Group by bundleTotalFromExcel or unique package contract names (ignore installment payment dates)
+        const initialBundleVal = bundleTotalFromExcel > 0 
+          ? bundleTotalFromExcel 
+          : (() => {
+              const uniqueInitialPkgMap = {};
+              for (const s of finalServices) {
+                if (s.type === 'package' && !s.isRenewal) {
+                  const pKey = `${s.packageName}_initial`.toLowerCase();
+                  if (!uniqueInitialPkgMap[pKey]) {
+                    uniqueInitialPkgMap[pKey] = Math.round((s.packageCost || 0) * bundleScaleFactor * 100) / 100;
+                  }
+                }
+              }
+              return Object.values(uniqueInitialPkgMap).reduce((a, b) => a + b, 0);
+            })();
+
+        const renewalBundleVal = (() => {
+          const uniqueRenewalPkgMap = {};
+          for (const s of finalServices) {
+            if (s.type === 'package' && s.isRenewal) {
+              const pKey = s.purchaseId || `${s.packageName}_renewal_${s.invoiceNo || formatDate(s.paymentDate)}`.toLowerCase();
+              if (!uniqueRenewalPkgMap[pKey]) {
+                uniqueRenewalPkgMap[pKey] = Math.round((s.packageCost || 0) * 100) / 100;
+              }
             }
           }
-        }
-        p.totalPackageValue = Object.values(uniquePurchaseMap).reduce((a, b) => a + b, 0);
+          return Object.values(uniqueRenewalPkgMap).reduce((a, b) => a + b, 0);
+        })();
+
+        p.totalPackageValue = initialBundleVal + renewalBundleVal;
 
         // Sort finalServices chronologically by paymentDate ascending (Earliest date first!)
         finalServices.sort((a, b) => {
@@ -4180,17 +4200,7 @@
               : p.services.filter(s => !s.isRenewal);
 
             // Calculate total unique package contract value for Column J
-            const uniquePkgCostMap = {};
-            for (const s of targetServices) {
-              if (s.type === 'package') {
-                const pkgKey = s.purchaseId || s.packageName;
-                if (!uniquePkgCostMap[pkgKey]) {
-                  uniquePkgCostMap[pkgKey] = s.packageCost || 0;
-                }
-              }
-            }
-            const totalPkgVal = Object.values(uniquePkgCostMap).reduce((sum, v) => sum + v, 0) || 
-                                targetServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+            const totalPkgVal = p.totalPackageValue || 0;
 
             // Sort targetServices chronologically and by invoice number so all items for the same invoice are strictly contiguous
             targetServices.sort((a, b) => {
