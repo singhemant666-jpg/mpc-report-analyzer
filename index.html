@@ -3854,7 +3854,7 @@
           displayServices = p.services.filter(s => !s.isRenewal);
         }
 
-        const pkgVal = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.packageCost || 0), 0);
+        const pkgVal = p.totalPackageValue || 0;
         const nonConsultPaid = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
         
