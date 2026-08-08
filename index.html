@@ -1381,7 +1381,7 @@
     // ==================== CONFIG ====================
     const DEFAULT_CONSULTATION_KEYWORDS = ['consultation', 'consult', "women's health consultation", 'womens health consultation'];
     const DEFAULT_SINGLE_SESSION_KEYWORDS = [
-      'ss-1', 'ss 1', 'single session', 'single-session', 'laser single session', 'prism single session'
+      'ss-1', 'ss 1', 'single session', 'single-session', 'foot insoles', 'foot insole', 'laser single session', 'prism single session'
     ];
 
     let config = loadConfig();
@@ -1396,8 +1396,14 @@
           }
           if (parsed.singleSessionKeywords) {
             parsed.singleSessionKeywords = parsed.singleSessionKeywords.filter(kw => 
-              kw !== 'focused shockwave' && kw !== 'foot insoles' && kw !== 'acoustic wave therapy'
+              kw !== 'focused shockwave' && kw !== 'acoustic wave therapy'
             );
+            if (!parsed.singleSessionKeywords.includes('foot insoles')) {
+              parsed.singleSessionKeywords.push('foot insoles');
+            }
+            if (!parsed.singleSessionKeywords.includes('foot insole')) {
+              parsed.singleSessionKeywords.push('foot insole');
+            }
           }
           if (!parsed.singleSessionKeywords || parsed.singleSessionKeywords.length === 0) {
             parsed.singleSessionKeywords = [...DEFAULT_SINGLE_SESSION_KEYWORDS];
@@ -1646,6 +1652,11 @@
     function classifyService(packageName, amountPaid, totalPackageCost) {
       if (!packageName) return 'unknown';
       const lower = packageName.toLowerCase().trim();
+
+      // Rule 0: Foot Insoles is strictly a single session product purchase
+      if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('insole')) {
+        return 'single_session';
+      }
 
       // Rule 1: Multi-session package pattern (e.g. -3, -4, -5, -6, -8, -10, -12, -16, -18) without SS tag is ALWAYS a package!
       // Example: "Focused Shockwave-4", "Focused Shockwave-3", "Pain Management-12"
