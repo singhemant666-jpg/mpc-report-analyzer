@@ -3073,7 +3073,11 @@
     }
 
     function renderConversionBar(canvasId, dataMap, chartKey) {
-      const entries = Object.entries(dataMap).sort((a, b) => b[1].total - a[1].total).slice(0, 12);
+      let rawEntries = Object.entries(dataMap);
+      if (chartKey === 'doctor') {
+        rawEntries = rawEntries.filter(([name, data]) => name && (name.toLowerCase().includes('consulting') || data.consultation > 0));
+      }
+      const entries = rawEntries.sort((a, b) => b[1].total - a[1].total).slice(0, 12);
       const labels = entries.map(e => e[0]);
       const consultData = entries.map(e => e[1].consultation);
       const packageData = entries.map(e => e[1].package);
@@ -3268,10 +3272,12 @@
       const tbody = document.getElementById('doctor-incentive-tbody');
       if (!tbody) return;
 
-      const doctors = Object.values(m.doctorMap).sort((a, b) => {
-        if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
-        return b.painMgmtRevenue - a.painMgmtRevenue;
-      });
+      const doctors = Object.values(m.doctorMap)
+        .filter(d => d.doctor && (d.doctor.toLowerCase().includes('consulting') || d.consultation > 0))
+        .sort((a, b) => {
+          if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
+          return b.painMgmtRevenue - a.painMgmtRevenue;
+        });
 
       if (doctors.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="no-data">No doctor data available</td></tr>';
