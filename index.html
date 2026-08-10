@@ -2573,8 +2573,10 @@
       const agentMap = {};
       for (const p of pList) {
         for (const agent of p.agents) {
-          if (!agentMap[agent]) agentMap[agent] = { consultation: 0, package: 0, total: 0 };
+          if (!agent) continue;
+          if (!agentMap[agent]) agentMap[agent] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           agentMap[agent].total++;
+          agentMap[agent].revenue += p.totalPaid;
           if (p.hasConsultation) agentMap[agent].consultation++;
           if (p.hasPackage) agentMap[agent].package++;
         }
@@ -2584,8 +2586,10 @@
       const sourceMap = {};
       for (const p of pList) {
         for (const src of p.leadSources) {
-          if (!sourceMap[src]) sourceMap[src] = { consultation: 0, package: 0, total: 0 };
+          if (!src) continue;
+          if (!sourceMap[src]) sourceMap[src] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           sourceMap[src].total++;
+          sourceMap[src].revenue += p.totalPaid;
           if (p.hasConsultation) sourceMap[src].consultation++;
           if (p.hasPackage) sourceMap[src].package++;
         }
@@ -3097,12 +3101,23 @@
       if (chartKey === 'doctor') {
         rawEntries = rawEntries.filter(([name, data]) => name && (name.toLowerCase().includes('consulting') || data.consultation > 0));
       }
-      const entries = rawEntries.sort((a, b) => b[1].total - a[1].total).slice(0, 12);
-      const labels = entries.map(e => e[0]);
-      const consultData = entries.map(e => e[1].consultation);
-      const packageData = entries.map(e => e[1].package);
+
+      // Sort by Revenue (falling back to total patient count)
+      const entries = rawEntries.sort((a, b) => {
+        const revA = a[1].revenue || a[1].totalRevenue || 0;
+        const revB = b[1].revenue || b[1].totalRevenue || 0;
+        if (revB !== revA) return revB - revA;
+        return (b[1].total || 0) - (a[1].total || 0);
+      }).slice(0, 10);
+
+      const labels = entries.map(e => e[0].length > 20 ? e[0].substring(0, 18) + '...' : e[0]);
+      const consultData = entries.map(e => e[1].consultation || 0);
+      const packageData = entries.map(e => e[1].package || e[1].totalPackages || 0);
+      const revenueData = entries.map(e => e[1].revenue || e[1].totalRevenue || 0);
       const convData = entries.map(e => {
-        return e[1].consultation > 0 ? Math.min(100, (e[1].package / e[1].consultation) * 100).toFixed(1) : 0;
+        const c = e[1].consultation || 0;
+        const pk = e[1].package || e[1].totalPackages || 0;
+        return c > 0 ? Math.min(100, Math.round((pk / c) * 100)) : 0;
       });
 
       chartInstances[chartKey] = new Chart(document.getElementById(canvasId), {
@@ -3113,29 +3128,34 @@
             {
               label: 'Consultation',
               data: consultData,
-              backgroundColor: 'rgba(6,182,212,0.7)',
-              borderRadius: 4,
-              barPercentage: 0.7
+              backgroundColor: 'rgba(6,182,212,0.85)',
+              borderRadius: 6,
+              barPercentage: 0.65,
+              categoryPercentage: 0.8
             },
             {
               label: 'Package',
               data: packageData,
-              backgroundColor: 'rgba(139,92,246,0.7)',
-              borderRadius: 4,
-              barPercentage: 0.7
+              backgroundColor: 'rgba(139,92,246,0.85)',
+              borderRadius: 6,
+              barPercentage: 0.65,
+              categoryPercentage: 0.8
             },
             {
-              label: 'Conversion %',
-              data: convData,
+              label: 'Total Revenue (₹)',
+              data: revenueData,
               type: 'line',
               borderColor: '#10b981',
-              backgroundColor: 'rgba(16,185,129,0.1)',
+              backgroundColor: 'rgba(16,185,129,0.15)',
               pointBackgroundColor: '#10b981',
-              pointRadius: 4,
-              borderWidth: 2,
-              tension: 0.4,
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              borderWidth: 3,
+              tension: 0.3,
               yAxisID: 'y1',
-              fill: true
+              fill: false
             }
           ]
         },
@@ -3144,20 +3164,52 @@
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           plugins: {
-            legend: { labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } },
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: { padding: 12, usePointStyle: true, pointStyleWidth: 8, font: { size: 11, weight: '600' } }
+            },
             tooltip: {
               backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
+              borderColor: 'rgba(148,163,184,0.2)',
               borderWidth: 1,
-              padding: 12
+              padding: 12,
+              titleFont: { size: 13, weight: '700' },
+              callbacks: {
+                label: (ctx) => {
+                  if (ctx.dataset.label === 'Total Revenue (₹)') {
+                    const idx = ctx.dataIndex;
+                    const c = consultData[idx];
+                    const pk = packageData[idx];
+                    const conv = convData[idx];
+                    return [
+                      ` 💰 Total Revenue: ${formatCurrency(ctx.parsed.y)}`,
+                      ` 📈 Conversion Rate: ${conv}% (${pk}/${c})`
+                    ];
+                  }
+                  return ` ${ctx.dataset.label}: ${ctx.parsed.y} patients`;
+                }
+              }
             }
           },
           scales: {
-            x: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { maxRotation: 45 } },
-            y: { grid: { color: 'rgba(148,163,184,0.06)' }, beginAtZero: true, title: { display: true, text: 'Count' } },
-            y1: { position: 'right', grid: { display: false }, beginAtZero: true, max: 100,
-              title: { display: true, text: 'Conv %' },
-              ticks: { callback: v => v + '%' }
+            x: {
+              grid: { color: 'rgba(148,163,184,0.06)' },
+              ticks: { font: { size: 10 }, maxRotation: 30 }
+            },
+            y: {
+              grid: { color: 'rgba(148,163,184,0.06)' },
+              beginAtZero: true,
+              grace: '10%',
+              title: { display: true, text: 'Patient Count', font: { size: 10, weight: '600' } }
+            },
+            y1: {
+              position: 'right',
+              grid: { display: false },
+              beginAtZero: true,
+              grace: '20%',
+              title: { display: true, text: 'Revenue (₹)', font: { size: 10, weight: '600' } },
+              ticks: { callback: v => formatCurrencyCompact(v) }
             }
           }
         }
