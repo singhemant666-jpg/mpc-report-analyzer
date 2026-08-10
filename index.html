@@ -2701,28 +2701,30 @@
           }
 
           const dMap = doctorMap[doc];
-          if (p.hasConsultation) dMap.consultation++;
-          dMap.totalRevenue += p.totalPaid;
+          if (p.hasConsultation) {
+            dMap.consultation++;
+            dMap.totalRevenue += p.totalPaid;
 
-          const initialPkgSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal);
-          if (initialPkgSvcs.length > 0) dMap.totalPackages++;
+            const initialPkgSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal);
+            if (initialPkgSvcs.length > 0) dMap.totalPackages++;
 
-          const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
-          if (initialPmSvcs.length > 0) {
-            dMap.painMgmtCount++; // Increment by 1 for this converted patient
-            for (const svc of initialPmSvcs) {
-              dMap.painMgmtRevenue += svc.proportionalPaid;
-              const pkgName = svc.packageName || 'Unknown';
-              dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+            const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
+            if (initialPmSvcs.length > 0) {
+              dMap.painMgmtCount++; // Increment by 1 for this converted patient
+              for (const svc of initialPmSvcs) {
+                dMap.painMgmtRevenue += svc.proportionalPaid;
+                const pkgName = svc.packageName || 'Unknown';
+                dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+              }
             }
-          }
 
-          const initialOtherSvcs = initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName));
-          dMap.otherPackageCount += initialOtherSvcs.length;
+            const initialOtherSvcs = initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName));
+            dMap.otherPackageCount += initialOtherSvcs.length;
 
-          for (const svc of p.services) {
-            if (svc.type === 'single_session') {
-              dMap.singleSessionCount++;
+            for (const svc of p.services) {
+              if (svc.type === 'single_session') {
+                dMap.singleSessionCount++;
+              }
             }
           }
         }
@@ -3265,7 +3267,7 @@
     function renderConversionBar(canvasId, dataMap, chartKey) {
       let rawEntries = Object.entries(dataMap);
       if (chartKey === 'doctor') {
-        rawEntries = rawEntries.filter(([name, data]) => name && (name.toLowerCase().includes('consulting') || data.consultation > 0));
+        rawEntries = rawEntries.filter(([name, data]) => name && data.consultation > 0);
       }
 
       // Sort by Revenue (falling back to total patient count)
@@ -3511,7 +3513,7 @@
       if (!tbody) return;
 
       const doctors = Object.values(m.doctorMap)
-        .filter(d => d.doctor && (d.doctor.toLowerCase().includes('consulting') || d.consultation > 0))
+        .filter(d => d.doctor && d.consultation > 0)
         .sort((a, b) => {
           if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
           return b.painMgmtRevenue - a.painMgmtRevenue;
