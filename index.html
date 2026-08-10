@@ -103,6 +103,89 @@
     html[data-theme="light"] .modal {
       background: #ffffff;
     }
+    /* ── Doctor Leaderboard Cards ── */
+    .lb-grid { display: flex; flex-direction: column; gap: 14px; }
+    .lb-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 20px;
+      align-items: start;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .lb-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .lb-card.rank-1 { border-left: 4px solid #f59e0b; }
+    .lb-card.rank-2 { border-left: 4px solid #94a3b8; }
+    .lb-card.rank-3 { border-left: 4px solid #cd7f32; }
+    .lb-rank {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; text-align: center;
+    }
+    .lb-rank-icon { font-size: 28px; line-height: 1; }
+    .lb-rank-num { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .lb-body { display: flex; flex-direction: column; gap: 14px; }
+    .lb-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .lb-doc-name { font-size: 16px; font-weight: 800; color: var(--text-primary); }
+    .lb-badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .lb-perf-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .lb-perf-badge.gold { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .lb-perf-badge.silver { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+    .lb-perf-badge.bronze { background: rgba(205,127,50,0.15); color: #cd7f32; border: 1px solid rgba(205,127,50,0.3); }
+    .lb-perf-badge.blue { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+    .lb-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .lb-stat-cell {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .lb-stat-label {
+      font-size: 9px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;
+    }
+    .lb-stat-val { font-size: 18px; font-weight: 800; line-height: 1.2; }
+    .lb-stat-val.cyan { color: var(--cyan); }
+    .lb-stat-val.purple { color: var(--purple); }
+    .lb-stat-val.emerald { color: var(--emerald); }
+    .lb-stat-val.amber { color: #f59e0b; }
+    .lb-stat-sub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+    .lb-conv-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .lb-conv-item { flex: 1; min-width: 200px; }
+    .lb-conv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .lb-conv-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .lb-conv-pct { font-size: 13px; font-weight: 800; }
+    .lb-conv-bar { height: 8px; background: var(--bg-primary); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+    .lb-conv-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+    .lb-conv-fill.emerald { background: linear-gradient(90deg, #10b981, #34d399); }
+    .lb-conv-fill.purple { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+    .lb-tiers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .lb-tier-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;
+      background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25);
+    }
+    .lb-tier-pill .count { background: rgba(139,92,246,0.25); padding: 1px 5px; border-radius: 4px; font-size: 9px; }
+    .lb-summary-bar {
+      display: flex; gap: 16px; flex-wrap: wrap; padding: 14px 18px;
+      background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .lb-summary-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .lb-summary-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .lb-summary-label { color: var(--text-muted); font-weight: 600; }
+    .lb-summary-val { font-weight: 800; color: var(--text-primary); }
 
     html { scroll-behavior: smooth; }
 
@@ -1294,29 +1377,8 @@
       <div class="category-grid" id="category-grid"></div>
 
       <!-- Doctor Incentive & Pain Management Breakdown -->
-      <div class="section-title"><span class="icon">🏆</span> Doctor Incentive & Pain Management Conversion Leaderboard</div>
-      <div class="tables-section" style="margin-bottom: 28px;">
-        <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Consulting Doctor</th>
-                  <th>Consultations</th>
-                  <th>Total Pkgs Sold</th>
-                  <th>Pain Mgmt Pkgs</th>
-                  <th>Pain Mgmt Conv %</th>
-                  <th>Pain Mgmt Revenue</th>
-                  <th>Pain Mgmt Tier Breakdown</th>
-                  <th>Incentive Rank</th>
-                </tr>
-              </thead>
-              <tbody id="doctor-incentive-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <div class="section-title"><span class="icon">🏆</span> Doctor Performance & Conversion Leaderboard</div>
+      <div id="doctor-leaderboard-container" style="margin-bottom: 28px;"></div>
 
       <!-- Data Tables -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; margin-bottom:12px;">
@@ -3341,59 +3403,161 @@
 
     // ==================== DOCTOR INCENTIVE LEADERBOARD ====================
     function renderDoctorIncentiveTable(m) {
-      const tbody = document.getElementById('doctor-incentive-tbody');
-      if (!tbody) return;
+      const container = document.getElementById('doctor-leaderboard-container');
+      if (!container) return;
 
       const doctors = Object.values(m.doctorMap)
         .filter(d => d.doctor && (d.doctor.toLowerCase().includes('consulting') || d.consultation > 0))
         .sort((a, b) => {
           if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
+          if (b.totalRevenue !== a.totalRevenue) return b.totalRevenue - a.totalRevenue;
           return b.painMgmtRevenue - a.painMgmtRevenue;
         });
 
       if (doctors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No doctor data available</td></tr>';
+        container.innerHTML = '<div class="no-data" style="padding:40px; text-align:center; color:var(--text-muted);">No consulting doctor data available</div>';
         return;
       }
 
-      const rankIcons = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+      // Aggregate summary
+      const totalConsult = doctors.reduce((s, d) => s + d.consultation, 0);
+      const totalPkgsSold = doctors.reduce((s, d) => s + d.totalPackages, 0);
+      const totalPmPkgs = doctors.reduce((s, d) => s + d.painMgmtCount, 0);
+      const totalDoctorRev = doctors.reduce((s, d) => s + d.totalRevenue, 0);
+      const totalPmRev = doctors.reduce((s, d) => s + d.painMgmtRevenue, 0);
+      const avgConv = totalConsult > 0 ? (totalPkgsSold / totalConsult * 100) : 0;
 
-      tbody.innerHTML = doctors.map((d, idx) => {
-        const rankLabel = rankIcons[idx] || `#${idx + 1}`;
+      const rankIcons = ['🥇', '🥈', '🥉'];
+      const rankClasses = ['rank-1', 'rank-2', 'rank-3'];
+      const badgeConfigs = [
+        { cls: 'gold', label: '⭐ TOP CONVERTER' },
+        { cls: 'silver', label: '🔥 HIGH PERFORMER' },
+        { cls: 'bronze', label: '🔥 HIGH PERFORMER' }
+      ];
 
-        // Build Pain Mgmt Tier Breakdown string e.g. "PM-12 (15) • PM-6 (8)"
-        const tierEntries = Object.entries(d.pmBreakdown)
-          .sort((a, b) => b[1] - a[1]);
-        
-        const tierStr = tierEntries.length > 0
+      let html = `
+        <div class="lb-summary-bar">
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#06b6d4;"></div>
+            <span class="lb-summary-label">Total Consultations:</span>
+            <span class="lb-summary-val">${totalConsult}</span>
+          </div>
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#8b5cf6;"></div>
+            <span class="lb-summary-label">Total Pkgs Sold:</span>
+            <span class="lb-summary-val">${totalPkgsSold}</span>
+          </div>
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#10b981;"></div>
+            <span class="lb-summary-label">PM Packages:</span>
+            <span class="lb-summary-val">${totalPmPkgs}</span>
+          </div>
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#f59e0b;"></div>
+            <span class="lb-summary-label">Total Revenue:</span>
+            <span class="lb-summary-val">${formatCurrency(totalDoctorRev)}</span>
+          </div>
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#f43f5e;"></div>
+            <span class="lb-summary-label">PM Revenue:</span>
+            <span class="lb-summary-val">${formatCurrency(totalPmRev)}</span>
+          </div>
+          <div class="lb-summary-item">
+            <div class="lb-summary-dot" style="background:#3b82f6;"></div>
+            <span class="lb-summary-label">Avg Conversion:</span>
+            <span class="lb-summary-val">${avgConv.toFixed(1)}%</span>
+          </div>
+        </div>
+        <div class="lb-grid">`;
+
+      doctors.forEach((d, idx) => {
+        const rankIcon = rankIcons[idx] || `#${idx + 1}`;
+        const rankClass = rankClasses[idx] || '';
+        const badge = badgeConfigs[idx] || { cls: 'blue', label: '👍 CONTRIBUTOR' };
+        const rankNum = idx < 3 ? ['1ST', '2ND', '3RD'][idx] : `#${idx + 1}`;
+
+        const overallConv = d.overallConvPct || 0;
+        const pmConv = d.painMgmtConvPct || 0;
+        const avgRevPerPatient = d.consultation > 0 ? d.totalRevenue / d.consultation : 0;
+        const otherPkgs = d.otherPackageCount || 0;
+        const ssCnt = d.singleSessionCount || 0;
+
+        // Tier breakdown pills
+        const tierEntries = Object.entries(d.pmBreakdown || {}).sort((a, b) => b[1] - a[1]);
+        const tierHTML = tierEntries.length > 0
           ? tierEntries.map(([name, count]) => {
-              const shortName = name.replace(/Pain Management/i, 'PM');
-              return `<span class="badge badge-purple" style="margin:2px 2px;">${shortName}: ${count}</span>`;
-            }).join(' ')
-          : '<span style="color:var(--text-muted)">-</span>';
+              const short = name.replace(/Pain Management/i, 'PM');
+              return `<span class="lb-tier-pill">${short} <span class="count">×${count}</span></span>`;
+            }).join('')
+          : '<span style="color:var(--text-muted); font-size:11px;">No PM packages</span>';
 
-        let badgeClass = 'badge-cyan';
-        let rankBadge = '👍 Contributor';
-        if (idx === 0) { badgeClass = 'badge-emerald'; rankBadge = '⭐ Top Converter'; }
-        else if (idx === 1 || idx === 2) { badgeClass = 'badge-purple'; rankBadge = '🔥 High Performer'; }
-
-        return `<tr>
-          <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
-          <td style="font-weight:700; color:var(--text-primary);">${d.doctor}</td>
-          <td>${d.consultation}</td>
-          <td>${d.totalPackages}</td>
-          <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
-          <td>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:700; min-width:45px;">${d.painMgmtConvPct.toFixed(1)}%</span>
-              <div class="gauge" style="width:80px;"><div class="gauge-fill" style="width:${Math.min(d.painMgmtConvPct, 100)}%"></div></div>
+        html += `
+          <div class="lb-card ${rankClass}">
+            <div class="lb-rank">
+              <div class="lb-rank-icon">${typeof rankIcon === 'string' && rankIcon.length <= 2 ? rankIcon : rankIcon}</div>
+              <div class="lb-rank-num">${rankNum}</div>
             </div>
-          </td>
-          <td style="font-weight:700; color:var(--amber);">${formatCurrency(d.painMgmtRevenue)}</td>
-          <td>${tierStr}</td>
-          <td><span class="badge ${badgeClass}">${rankBadge}</span></td>
-        </tr>`;
-      }).join('');
+            <div class="lb-body">
+              <div class="lb-header">
+                <div class="lb-doc-name">${d.doctor}</div>
+                <div class="lb-badge-row">
+                  <span class="lb-perf-badge ${badge.cls}">${badge.label}</span>
+                </div>
+              </div>
+
+              <div class="lb-stats-grid">
+                <div class="lb-stat-cell">
+                  <div class="lb-stat-label">🩺 Consultations</div>
+                  <div class="lb-stat-val cyan">${d.consultation}</div>
+                </div>
+                <div class="lb-stat-cell">
+                  <div class="lb-stat-label">📦 Total Pkgs Sold</div>
+                  <div class="lb-stat-val purple">${d.totalPackages}</div>
+                  <div class="lb-stat-sub">PM: ${d.painMgmtCount} • Other: ${otherPkgs}</div>
+                </div>
+                <div class="lb-stat-cell">
+                  <div class="lb-stat-label">💰 Total Revenue</div>
+                  <div class="lb-stat-val amber">${formatCurrency(d.totalRevenue)}</div>
+                  <div class="lb-stat-sub">Avg: ${formatCurrency(Math.round(avgRevPerPatient))}/pt</div>
+                </div>
+                <div class="lb-stat-cell">
+                  <div class="lb-stat-label">💎 PM Revenue</div>
+                  <div class="lb-stat-val emerald">${formatCurrency(d.painMgmtRevenue)}</div>
+                  <div class="lb-stat-sub">${d.totalRevenue > 0 ? ((d.painMgmtRevenue / d.totalRevenue) * 100).toFixed(0) : 0}% of total</div>
+                </div>
+                <div class="lb-stat-cell">
+                  <div class="lb-stat-label">⚡ Single Sessions</div>
+                  <div class="lb-stat-val cyan">${ssCnt}</div>
+                </div>
+              </div>
+
+              <div class="lb-conv-row">
+                <div class="lb-conv-item">
+                  <div class="lb-conv-header">
+                    <span class="lb-conv-label">Overall Conversion</span>
+                    <span class="lb-conv-pct" style="color:var(--emerald);">${overallConv.toFixed(1)}%</span>
+                  </div>
+                  <div class="lb-conv-bar"><div class="lb-conv-fill emerald" style="width:${Math.min(overallConv, 100)}%;"></div></div>
+                </div>
+                <div class="lb-conv-item">
+                  <div class="lb-conv-header">
+                    <span class="lb-conv-label">Pain Mgmt Conversion</span>
+                    <span class="lb-conv-pct" style="color:var(--purple);">${pmConv.toFixed(1)}%</span>
+                  </div>
+                  <div class="lb-conv-bar"><div class="lb-conv-fill purple" style="width:${Math.min(pmConv, 100)}%;"></div></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="lb-conv-label" style="margin-bottom:6px;">PM Tier Breakdown</div>
+                <div class="lb-tiers">${tierHTML}</div>
+              </div>
+            </div>
+          </div>`;
+      });
+
+      html += '</div>';
+      container.innerHTML = html;
     }
 
     // ==================== DATA TABLES ====================
