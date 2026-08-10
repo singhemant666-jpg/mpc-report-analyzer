@@ -1399,18 +1399,6 @@
         </div>
       </div>
 
-      <!-- AI Background Audit Monitor Bar -->
-      <div id="ai-audit-bar" class="ai-audit-bar hidden">
-        <div class="ai-audit-bar-inner">
-          <div class="ai-audit-status">
-            <span class="ai-audit-icon" id="ai-audit-icon">🔄</span>
-            <span class="ai-audit-text" id="ai-audit-text">AI Audit Running...</span>
-          </div>
-          <div class="ai-audit-stats" id="ai-audit-stats"></div>
-          <button class="btn btn-sm ai-audit-expand-btn" id="ai-audit-expand-btn" onclick="toggleAuditDetails()">📋 Details</button>
-        </div>
-        <div class="ai-audit-details hidden" id="ai-audit-details"></div>
-      </div>
 
       <!-- Filters -->
       <div class="section-title"><span class="icon">🔍</span> Filters</div>
@@ -1577,6 +1565,20 @@
         </button>
         <button class="btn" onclick="exportCSV()" id="export-csv-btn">📄 Export CSV</button>
         <button class="btn" onclick="exportPDF()" id="export-pdf-btn">📑 Export PDF Summary</button>
+      </div>
+
+      <!-- AI Background Audit Monitor Bar (at last) -->
+      <div class="section-title" style="margin-top: 28px;"><span class="icon">🛡️</span> AI Watchdog Data Integrity Audit</div>
+      <div id="ai-audit-bar" class="ai-audit-bar hidden" style="margin-bottom: 24px;">
+        <div class="ai-audit-bar-inner">
+          <div class="ai-audit-status">
+            <span class="ai-audit-icon" id="ai-audit-icon">🔄</span>
+            <span class="ai-audit-text" id="ai-audit-text">AI Audit Running...</span>
+          </div>
+          <div class="ai-audit-stats" id="ai-audit-stats"></div>
+          <button class="btn btn-sm ai-audit-expand-btn" id="ai-audit-expand-btn" onclick="toggleAuditDetails()">📋 Details</button>
+        </div>
+        <div class="ai-audit-details hidden" id="ai-audit-details"></div>
       </div>
 
     </section>
