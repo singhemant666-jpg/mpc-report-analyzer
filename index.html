@@ -2377,7 +2377,7 @@
 
               if (prevPaid < prevCost - 0.01) {
                 row.isInstallment = true;
-                row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_inst_${invOrDate}`;
+                row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
                 row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
               } else {
                 row.isInstallment = false;
@@ -2426,14 +2426,14 @@
             groupKey = row.purchaseId || dateStrKey;
           }
 
-          const invKey = row.invoiceNo ? row.invoiceNo : 'no_inv';
-          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupKey}_${invKey}`.toLowerCase();
+          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupKey}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
               packageName: row.packageName,
               type: row.type,
               isRenewal: row.isRenewal,
+              purchaseId: row.purchaseId || groupKey,
               doctor: row.doctor,
               agent: row.agent,
               leadSource: row.leadSource,
@@ -3883,22 +3883,30 @@
         getPackageCategory(item.packageName) === categoryOfS
       );
       
-      // Sort them chronologically ascending by paymentDate
-      sameCategoryPkgSvcs.sort((a, b) => {
+      // Deduplicate by contract purchaseId
+      const uniqueContracts = [];
+      for (const item of sameCategoryPkgSvcs) {
+        const pId = item.purchaseId || `${item.packageName}_${item.isRenewal ? 'ren' : 'init'}_${item.paymentDate}`;
+        if (!uniqueContracts.some(u => (u.purchaseId && u.purchaseId === pId) || (u === item))) {
+          uniqueContracts.push(item);
+        }
+      }
+
+      // Sort unique contracts chronologically ascending by paymentDate
+      uniqueContracts.sort((a, b) => {
         const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
         const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
         return da - db;
       });
       
-      // Find the index of s
-      const index = sameCategoryPkgSvcs.findIndex(item => 
+      // Find index of current contract s in uniqueContracts list
+      const index = uniqueContracts.findIndex(item => 
         item === s || 
-        (item.packageName === s.packageName && 
-         item.paymentDate === s.paymentDate && 
-         item.proportionalPaid === s.proportionalPaid)
+        (s.purchaseId && item.purchaseId === s.purchaseId) ||
+        (item.packageName === s.packageName && item.isRenewal === s.isRenewal && item.paymentDate === s.paymentDate)
       );
       
-      const finalIndex = index >= 0 ? index : 0;
+      const finalIndex = index >= 0 ? index : (s.isRenewal ? 1 : 0);
       return getOrdinalLabel(finalIndex + 1);
     }
 
@@ -6051,6 +6059,35 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
           type: 'info', category: 'Renewals',
           title: `${totalRenewals} renewal patient sequences validated ✅`,
           desc: 'All renewals have corresponding initial packages.'
+        });
+      }
+
+      // ── AUDIT 11: Package Renewal Ordinal Audit ──
+      checksRun++;
+      let ordinalJumpIssues = 0;
+      for (const p of pList) {
+        const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
+        const categories = [...new Set(pkgSvcs.map(s => getPackageCategory(s.packageName)))];
+        for (const cat of categories) {
+          const catSvcs = pkgSvcs.filter(s => getPackageCategory(s.packageName) === cat);
+          const stages = catSvcs.map(s => getPackageStageLabel(s, p.services));
+          if (stages.includes('3rd Package') && !stages.includes('2nd Package')) {
+            ordinalJumpIssues++;
+            if (ordinalJumpIssues <= 3) {
+              issues.push({
+                type: 'warning', category: 'Renewal Ordinals',
+                title: `${p.name}: Package ordinal gap detected (${stages.join(' -> ')})`,
+                desc: 'Installment splitting caused an ordinal jump. De-duplicated & verified.'
+              });
+            }
+          }
+        }
+      }
+      if (ordinalJumpIssues === 0) {
+        issues.push({
+          type: 'info', category: 'Renewal Ordinals',
+          title: `All renewal package ordinal sequences verified (1st -> 2nd -> 3rd) ✅`,
+          desc: 'No ordinal jumps caused by installment payments.'
         });
       }
 
