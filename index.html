@@ -103,6 +103,74 @@
     html[data-theme="light"] .modal {
       background: #ffffff;
     }
+    /* ── AI Background Audit Monitor Bar ── */
+    .ai-audit-bar {
+      background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(6,182,212,0.06));
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 12px;
+      padding: 0;
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .ai-audit-bar.running {
+      border-color: rgba(245,158,11,0.4);
+      background: linear-gradient(135deg, rgba(245,158,11,0.06), rgba(251,191,36,0.04));
+    }
+    .ai-audit-bar.has-issues {
+      border-color: rgba(244,63,94,0.3);
+      background: linear-gradient(135deg, rgba(244,63,94,0.06), rgba(251,113,133,0.04));
+    }
+    .ai-audit-bar.all-clear {
+      border-color: rgba(16,185,129,0.3);
+      background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(52,211,153,0.04));
+    }
+    .ai-audit-bar-inner {
+      display: flex; align-items: center; gap: 14px; padding: 10px 16px; flex-wrap: wrap;
+    }
+    .ai-audit-status { display: flex; align-items: center; gap: 8px; }
+    .ai-audit-icon { font-size: 18px; }
+    .ai-audit-icon.spin { animation: auditSpin 1s linear infinite; }
+    @keyframes auditSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .ai-audit-text { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+    .ai-audit-stats {
+      display: flex; gap: 16px; flex: 1; flex-wrap: wrap;
+    }
+    .ai-audit-stat {
+      display: flex; align-items: center; gap: 5px; font-size: 11px;
+    }
+    .ai-audit-stat .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .ai-audit-stat .label { color: var(--text-muted); font-weight: 600; }
+    .ai-audit-stat .val { font-weight: 800; color: var(--text-primary); }
+    .ai-audit-expand-btn {
+      font-size: 11px !important; padding: 4px 10px !important; border-radius: 6px !important;
+    }
+    .ai-audit-details {
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .ai-audit-details.hidden { display: none; }
+    .audit-issue-row {
+      display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px;
+      border-radius: 8px; margin-bottom: 6px;
+    }
+    .audit-issue-row.error { background: rgba(244,63,94,0.08); border-left: 3px solid #f43f5e; }
+    .audit-issue-row.warning { background: rgba(245,158,11,0.08); border-left: 3px solid #f59e0b; }
+    .audit-issue-row.fixed { background: rgba(16,185,129,0.08); border-left: 3px solid #10b981; }
+    .audit-issue-row.info { background: rgba(59,130,246,0.08); border-left: 3px solid #3b82f6; }
+    .audit-issue-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .audit-issue-body { flex: 1; }
+    .audit-issue-title { font-weight: 700; color: var(--text-primary); font-size: 11px; }
+    .audit-issue-desc { color: var(--text-muted); font-size: 10px; margin-top: 2px; line-height: 1.4; }
+    .audit-section-title {
+      font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--text-muted); margin: 12px 0 6px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    }
+    .audit-section-title:first-child { margin-top: 0; }
+
     /* ── Doctor Leaderboard Cards ── */
     .lb-grid { display: flex; flex-direction: column; gap: 14px; }
     .lb-card {
@@ -1329,6 +1397,19 @@
           <button class="btn btn-purple btn-sm" onclick="openAIModal()">✨ AI Audit & Insights</button>
           <button class="btn btn-sm" onclick="resetApp()">📤 Upload New</button>
         </div>
+      </div>
+
+      <!-- AI Background Audit Monitor Bar -->
+      <div id="ai-audit-bar" class="ai-audit-bar hidden">
+        <div class="ai-audit-bar-inner">
+          <div class="ai-audit-status">
+            <span class="ai-audit-icon" id="ai-audit-icon">🔄</span>
+            <span class="ai-audit-text" id="ai-audit-text">AI Audit Running...</span>
+          </div>
+          <div class="ai-audit-stats" id="ai-audit-stats"></div>
+          <button class="btn btn-sm ai-audit-expand-btn" id="ai-audit-expand-btn" onclick="toggleAuditDetails()">📋 Details</button>
+        </div>
+        <div class="ai-audit-details hidden" id="ai-audit-details"></div>
       </div>
 
       <!-- Filters -->
@@ -5238,10 +5319,13 @@
 
         renderDashboard(currentMetrics, filteredPatients);
 
+        // Run AI Background Audit Watchdog automatically
+        runBackgroundAudit(filteredPatients, currentMetrics);
+
         // Run Groq AI Report Audit automatically
         setTimeout(() => {
           generateAIExecutiveReport();
-        }, 200);
+        }, 500);
 
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
         hideLoading();
@@ -5731,6 +5815,401 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
         .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
         .replace(/^- (.*$)/gim, '<li style="margin-left:16px; margin-bottom:4px;">$1</li>')
         .replace(/\n\n/g, '<br>');
+    }
+
+    // ==================== AI BACKGROUND AUDIT WATCHDOG ENGINE ====================
+    let auditResults = null;
+
+    function toggleAuditDetails() {
+      const details = document.getElementById('ai-audit-details');
+      if (details) details.classList.toggle('hidden');
+    }
+
+    function runBackgroundAudit(patients, metrics) {
+      const bar = document.getElementById('ai-audit-bar');
+      const icon = document.getElementById('ai-audit-icon');
+      const text = document.getElementById('ai-audit-text');
+      const stats = document.getElementById('ai-audit-stats');
+      const details = document.getElementById('ai-audit-details');
+      if (!bar) return;
+
+      // Show running state
+      bar.classList.remove('hidden', 'all-clear', 'has-issues');
+      bar.classList.add('running');
+      if (icon) { icon.textContent = '🔄'; icon.classList.add('spin'); }
+      if (text) text.textContent = 'AI Watchdog auditing all data...';
+
+      // Run audit asynchronously
+      setTimeout(() => {
+        auditResults = performFullAudit(patients, metrics);
+        renderAuditResults(auditResults);
+      }, 300);
+    }
+
+    function performFullAudit(patients, m) {
+      const pList = Object.values(patients || {});
+      const issues = [];
+      let checksRun = 0;
+      let autoFixes = 0;
+
+      // ── AUDIT 1: Revenue Math Reconciliation ──
+      checksRun++;
+      const summedRevenue = pList.reduce((s, p) => s + (p.totalPaid || 0), 0);
+      const reportedRevenue = m.totalRevenue || 0;
+      const revDiff = Math.abs(summedRevenue - reportedRevenue);
+      if (revDiff > 1) {
+        issues.push({
+          type: 'error', category: 'Revenue Math',
+          title: `Revenue mismatch: Sum(patients)=${formatCurrency(summedRevenue)} vs Reported=${formatCurrency(reportedRevenue)}`,
+          desc: `Difference: ${formatCurrency(revDiff)}. Check patient grouping or duplicate entries.`
+        });
+      } else {
+        issues.push({
+          type: 'info', category: 'Revenue Math',
+          title: `Total Revenue ${formatCurrency(reportedRevenue)} — 100% Math Verified ✅`,
+          desc: 'Sum of all patient revenues matches total collection revenue perfectly.'
+        });
+      }
+
+      // ── AUDIT 2: Revenue Component Breakdown Verification ──
+      checksRun++;
+      const sumConsult = pList.reduce((s, p) => s + (p.consultationRevenue || 0), 0);
+      const sumPkg = pList.reduce((s, p) => s + (p.packageRevenue || 0), 0);
+      const sumSS = pList.reduce((s, p) => s + (p.singleSessionRevenue || 0), 0);
+      const componentSum = sumConsult + sumPkg + sumSS;
+      const compDiff = Math.abs(componentSum - reportedRevenue);
+      if (compDiff > 1) {
+        issues.push({
+          type: 'warning', category: 'Revenue Breakdown',
+          title: `Component breakdown mismatch: Consult(${formatCurrency(sumConsult)}) + Pkg(${formatCurrency(sumPkg)}) + SS(${formatCurrency(sumSS)}) = ${formatCurrency(componentSum)}`,
+          desc: `Expected ${formatCurrency(reportedRevenue)}. Difference: ${formatCurrency(compDiff)}.`
+        });
+      } else {
+        issues.push({
+          type: 'info', category: 'Revenue Breakdown',
+          title: `Revenue breakdown verified: Consult + Pkg + SS = Total ✅`,
+          desc: `${formatCurrency(sumConsult)} + ${formatCurrency(sumPkg)} + ${formatCurrency(sumSS)} = ${formatCurrency(componentSum)}`
+        });
+      }
+
+      // ── AUDIT 3: Patient-Level Revenue Validation ──
+      checksRun++;
+      let patientRevIssues = 0;
+      for (const p of pList) {
+        const services = p.services || [];
+        const svcTotal = services.reduce((s, svc) => s + (svc.proportionalPaid || 0), 0);
+        const paidTotal = p.totalPaid || 0;
+        if (Math.abs(svcTotal - paidTotal) > 1) {
+          patientRevIssues++;
+          if (patientRevIssues <= 5) {
+            issues.push({
+              type: 'warning', category: 'Patient Revenue',
+              title: `${p.name}: Service sum(${formatCurrency(svcTotal)}) ≠ Total paid(${formatCurrency(paidTotal)})`,
+              desc: `Difference: ${formatCurrency(Math.abs(svcTotal - paidTotal))}. Possible installment or data entry issue.`
+            });
+          }
+        }
+      }
+      if (patientRevIssues === 0) {
+        issues.push({
+          type: 'info', category: 'Patient Revenue',
+          title: `All ${pList.length} patient revenue records validated ✅`,
+          desc: 'Each patient\'s service-level payments sum to their total paid amount.'
+        });
+      } else if (patientRevIssues > 5) {
+        issues.push({
+          type: 'warning', category: 'Patient Revenue',
+          title: `... and ${patientRevIssues - 5} more patient revenue mismatches`,
+          desc: 'Review individual patient records for installment or entry issues.'
+        });
+      }
+
+      // ── AUDIT 4: Package Price Anomaly Detection ──
+      checksRun++;
+      const pkgPrices = {};
+      for (const p of pList) {
+        for (const svc of (p.services || [])) {
+          if (svc.type === 'consultation' || svc.type === 'single_session') continue;
+          const name = svc.packageName || 'Unknown';
+          if (!pkgPrices[name]) pkgPrices[name] = [];
+          if (svc.proportionalPaid > 0) pkgPrices[name].push(svc.proportionalPaid);
+        }
+      }
+      let priceAnomalies = 0;
+      for (const [pkgName, prices] of Object.entries(pkgPrices)) {
+        if (prices.length < 2) continue;
+        const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const outliers = prices.filter(p => Math.abs(p - avg) > avg * 0.5 && Math.abs(p - avg) > 1000);
+        if (outliers.length > 0) {
+          priceAnomalies++;
+          if (priceAnomalies <= 3) {
+            issues.push({
+              type: 'warning', category: 'Package Pricing',
+              title: `"${pkgName}" has price variance: ${prices.map(p => formatCurrency(p)).join(', ')}`,
+              desc: `Average: ${formatCurrency(avg)}. ${outliers.length} outlier(s) detected (>50% deviation). May indicate installments or data entry errors.`
+            });
+          }
+        }
+      }
+      if (priceAnomalies === 0) {
+        issues.push({
+          type: 'info', category: 'Package Pricing',
+          title: `${Object.keys(pkgPrices).length} package types — pricing consistent ✅`,
+          desc: 'No significant price anomalies detected across package types.'
+        });
+      }
+
+      // ── AUDIT 5: Status Category Consistency ──
+      checksRun++;
+      const validStatuses = [
+        'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
+        'Consultation + Package + Single Session', 'Only Package',
+        'Only Single Session', 'Package + Single Session', 'Unknown'
+      ];
+      let statusIssues = 0;
+      for (const p of pList) {
+        if (!validStatuses.includes(p.status)) {
+          statusIssues++;
+          issues.push({
+            type: 'warning', category: 'Classification',
+            title: `${p.name}: Unknown status "${p.status}"`,
+            desc: 'Patient status does not match any expected classification category.'
+          });
+        }
+        // Verify status matches actual service flags
+        const expectedStatus = determineStatus(p);
+        if (p.status !== expectedStatus && p.status !== 'Unknown') {
+          statusIssues++;
+          if (statusIssues <= 3) {
+            issues.push({
+              type: 'warning', category: 'Classification',
+              title: `${p.name}: Status mismatch — stored "${p.status}" vs expected "${expectedStatus}"`,
+              desc: `hasConsultation=${p.hasConsultation}, hasPackage=${p.hasPackage}, hasSingleSession=${p.hasSingleSession}`
+            });
+          }
+          // Auto-fix
+          p.status = expectedStatus;
+          autoFixes++;
+        }
+      }
+      if (statusIssues === 0) {
+        issues.push({
+          type: 'info', category: 'Classification',
+          title: `All patient classifications verified against service flags ✅`,
+          desc: 'hasConsultation, hasPackage, hasSingleSession flags match assigned categories.'
+        });
+      }
+
+      // ── AUDIT 6: Doctor Conversion Math Verification ──
+      checksRun++;
+      let docMathIssues = 0;
+      for (const doc of Object.values(m.doctorMap || {})) {
+        const expectedOverall = doc.consultation > 0 ? Math.min(100, doc.totalPackages / doc.consultation * 100) : 0;
+        const expectedPM = doc.consultation > 0 ? Math.min(100, doc.painMgmtCount / doc.consultation * 100) : 0;
+        if (Math.abs((doc.overallConvPct || 0) - expectedOverall) > 0.2) {
+          docMathIssues++;
+          issues.push({
+            type: 'warning', category: 'Doctor Metrics',
+            title: `${doc.doctor}: Overall Conv % mismatch — ${(doc.overallConvPct || 0).toFixed(1)}% vs expected ${expectedOverall.toFixed(1)}%`,
+            desc: `Pkgs=${doc.totalPackages}, Consults=${doc.consultation}`
+          });
+          doc.overallConvPct = expectedOverall;
+          autoFixes++;
+        }
+        if (Math.abs((doc.painMgmtConvPct || 0) - expectedPM) > 0.2) {
+          docMathIssues++;
+          issues.push({
+            type: 'warning', category: 'Doctor Metrics',
+            title: `${doc.doctor}: PM Conv % mismatch — ${(doc.painMgmtConvPct || 0).toFixed(1)}% vs expected ${expectedPM.toFixed(1)}%`,
+            desc: `PM Pkgs=${doc.painMgmtCount}, Consults=${doc.consultation}`
+          });
+          doc.painMgmtConvPct = expectedPM;
+          autoFixes++;
+        }
+      }
+      if (docMathIssues === 0) {
+        issues.push({
+          type: 'info', category: 'Doctor Metrics',
+          title: `All doctor conversion percentages mathematically verified ✅`,
+          desc: `${Object.keys(m.doctorMap || {}).length} doctors checked — formulas correct.`
+        });
+      }
+
+      // ── AUDIT 7: Package Value vs Paid Amount Check ──
+      checksRun++;
+      let pkgValueIssues = 0;
+      for (const p of pList) {
+        for (const svc of (p.services || [])) {
+          if (svc.type === 'consultation' || svc.type === 'single_session') continue;
+          const pkgCost = svc.packageCost || 0;
+          const paid = svc.proportionalPaid || 0;
+          // Flag if paid > package cost (overpayment)
+          if (pkgCost > 0 && paid > pkgCost * 1.05) {
+            pkgValueIssues++;
+            if (pkgValueIssues <= 3) {
+              issues.push({
+                type: 'warning', category: 'Package Value',
+                title: `${p.name}: Paid(${formatCurrency(paid)}) > Package Cost(${formatCurrency(pkgCost)}) for "${svc.packageName}"`,
+                desc: 'Patient paid more than the listed package cost. Could be GST, addon, or data entry issue.'
+              });
+            }
+          }
+        }
+      }
+      if (pkgValueIssues === 0) {
+        issues.push({
+          type: 'info', category: 'Package Value',
+          title: `Package paid amounts within expected range ✅`,
+          desc: 'No overpayment anomalies detected.'
+        });
+      }
+
+      // ── AUDIT 8: Duplicate Patient Detection ──
+      checksRun++;
+      const nameMap = {};
+      for (const p of pList) {
+        const normName = (p.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!nameMap[normName]) nameMap[normName] = [];
+        nameMap[normName].push(p);
+      }
+      const dupes = Object.entries(nameMap).filter(([_, arr]) => arr.length > 1);
+      if (dupes.length > 0) {
+        const dupeCount = dupes.reduce((s, [_, arr]) => s + arr.length, 0);
+        issues.push({
+          type: 'info', category: 'Duplicates',
+          title: `${dupes.length} potential duplicate patient name(s) found (${dupeCount} records)`,
+          desc: dupes.slice(0, 5).map(([name, arr]) => `"${arr[0].name}" × ${arr.length}`).join(', ') + (dupes.length > 5 ? '...' : '')
+        });
+      } else {
+        issues.push({
+          type: 'info', category: 'Duplicates',
+          title: `No duplicate patient names detected ✅`,
+          desc: `All ${pList.length} patient names are unique.`
+        });
+      }
+
+      // ── AUDIT 9: Status Count vs Total Patients Verification ──
+      checksRun++;
+      const statusSum = Object.entries(m.statusCounts || {})
+        .filter(([k]) => k !== 'Package Renewal')
+        .reduce((s, [_, v]) => s + v, 0);
+      if (statusSum !== pList.length) {
+        issues.push({
+          type: 'warning', category: 'Status Counts',
+          title: `Status count sum(${statusSum}) ≠ Total patients(${pList.length})`,
+          desc: 'Some patients may have Unknown or unmapped statuses.'
+        });
+      } else {
+        issues.push({
+          type: 'info', category: 'Status Counts',
+          title: `Status counts sum to total patients (${pList.length}) ✅`,
+          desc: 'All category counts validated.'
+        });
+      }
+
+      // ── AUDIT 10: Renewal Sequence Validation ──
+      checksRun++;
+      let renewalIssues = 0;
+      for (const p of pList) {
+        const renewalSvcs = (p.services || []).filter(s => s.isRenewal && s.type === 'package');
+        const nonRenewalPkgs = (p.services || []).filter(s => !s.isRenewal && s.type === 'package');
+        if (renewalSvcs.length > 0 && nonRenewalPkgs.length === 0) {
+          renewalIssues++;
+          if (renewalIssues <= 3) {
+            issues.push({
+              type: 'warning', category: 'Renewals',
+              title: `${p.name}: Has renewal(s) but no initial package`,
+              desc: `${renewalSvcs.length} renewal(s) found without a 1st package record.`
+            });
+          }
+        }
+      }
+      if (renewalIssues === 0) {
+        const totalRenewals = pList.filter(p => (p.services || []).some(s => s.isRenewal)).length;
+        issues.push({
+          type: 'info', category: 'Renewals',
+          title: `${totalRenewals} renewal patient sequences validated ✅`,
+          desc: 'All renewals have corresponding initial packages.'
+        });
+      }
+
+      return {
+        issues,
+        checksRun,
+        autoFixes,
+        totalPatients: pList.length,
+        totalRevenue: reportedRevenue,
+        errors: issues.filter(i => i.type === 'error').length,
+        warnings: issues.filter(i => i.type === 'warning').length,
+        passed: issues.filter(i => i.type === 'info').length
+      };
+    }
+
+    function renderAuditResults(results) {
+      const bar = document.getElementById('ai-audit-bar');
+      const icon = document.getElementById('ai-audit-icon');
+      const text = document.getElementById('ai-audit-text');
+      const stats = document.getElementById('ai-audit-stats');
+      const details = document.getElementById('ai-audit-details');
+      if (!bar) return;
+
+      icon.classList.remove('spin');
+      bar.classList.remove('running');
+
+      const hasProblems = results.errors > 0 || results.warnings > 0;
+
+      if (hasProblems) {
+        bar.classList.add('has-issues');
+        icon.textContent = results.errors > 0 ? '⚠️' : '🔶';
+        text.textContent = `AI Audit: ${results.errors + results.warnings} issue(s) found${results.autoFixes > 0 ? `, ${results.autoFixes} auto-fixed` : ''}`;
+      } else {
+        bar.classList.add('all-clear');
+        icon.textContent = '✅';
+        text.textContent = 'AI Audit: All Checks Passed — Data 100% Verified';
+      }
+
+      stats.innerHTML = `
+        <div class="ai-audit-stat"><div class="dot" style="background:#10b981;"></div><span class="label">Passed:</span><span class="val">${results.passed}</span></div>
+        <div class="ai-audit-stat"><div class="dot" style="background:#f59e0b;"></div><span class="label">Warnings:</span><span class="val">${results.warnings}</span></div>
+        <div class="ai-audit-stat"><div class="dot" style="background:#f43f5e;"></div><span class="label">Errors:</span><span class="val">${results.errors}</span></div>
+        <div class="ai-audit-stat"><div class="dot" style="background:#3b82f6;"></div><span class="label">Checks:</span><span class="val">${results.checksRun}</span></div>
+        ${results.autoFixes > 0 ? `<div class="ai-audit-stat"><div class="dot" style="background:#8b5cf6;"></div><span class="label">Auto-Fixed:</span><span class="val">${results.autoFixes}</span></div>` : ''}
+      `;
+
+      // Group issues by category
+      const categories = {};
+      for (const issue of results.issues) {
+        if (!categories[issue.category]) categories[issue.category] = [];
+        categories[issue.category].push(issue);
+      }
+
+      let detailHTML = '';
+      for (const [cat, catIssues] of Object.entries(categories)) {
+        const allPassed = catIssues.every(i => i.type === 'info');
+        const statusIcon = allPassed ? '✅' : (catIssues.some(i => i.type === 'error') ? '❌' : '⚠️');
+        detailHTML += `<div class="audit-section-title">${statusIcon} ${cat}</div>`;
+        for (const issue of catIssues) {
+          const iconMap = { error: '❌', warning: '⚠️', fixed: '🔧', info: '✅' };
+          detailHTML += `
+            <div class="audit-issue-row ${issue.type}">
+              <span class="audit-issue-icon">${iconMap[issue.type] || '📋'}</span>
+              <div class="audit-issue-body">
+                <div class="audit-issue-title">${issue.title}</div>
+                <div class="audit-issue-desc">${issue.desc}</div>
+              </div>
+            </div>`;
+        }
+      }
+
+      if (details) details.innerHTML = detailHTML;
+
+      // If auto-fixes were made, re-render dashboard
+      if (results.autoFixes > 0) {
+        showToast(`AI Watchdog auto-fixed ${results.autoFixes} issue(s)`, 'info');
+        // Re-compute metrics with fixed data
+        currentMetrics = computeMetrics(filteredPatients);
+        renderDashboard(currentMetrics, filteredPatients);
+      }
     }
 
     // ==================== DEBUG HELPERS ====================
