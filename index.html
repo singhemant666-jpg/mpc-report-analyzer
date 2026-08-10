@@ -2491,9 +2491,9 @@
         //          but the EMR bundle total (col7) = ₹25,800
         //          Each item's effective cost = (item sticker / total sticker) * bundle total.
         const bundleTotalFromExcel = (() => {
-          // Find the first raw row that has a valid totalPackageCost (col7)
+          // Find the first raw row that has a valid totalPackageCost (col7) for a package
           for (const row of p._rawRows) {
-            if (row.totalPackageCost && row.totalPackageCost > 0 && row.type !== 'consultation') {
+            if (row.type === 'package' && row.totalPackageCost && row.totalPackageCost > 0) {
               return row.totalPackageCost;
             }
           }
@@ -2506,9 +2506,9 @@
           svc.invoiceNo = uniqueInvoices.join(', ');
         }
 
-        // Sum of all non-consultation individual package costs (sticker prices)
+        // Sum of all package costs (sticker prices)
         const stickerTotal = mergedServices
-          .filter(s => s.type !== 'consultation')
+          .filter(s => s.type === 'package')
           .reduce((sum, s) => sum + (s.packageCost || 0), 0);
 
         // If the bundle total is less than the sticker total, apply proportional scaling
@@ -4080,7 +4080,16 @@
           displayServices = p.services.filter(s => !s.isRenewal);
         }
 
-        const pkgVal = p.totalPackageValue || 0;
+        const pkgVal = (() => {
+          const pkgSvcs = displayServices.filter(s => s.type === 'package');
+          if (pkgSvcs.length > 0) {
+            return pkgSvcs.reduce((sum, s) => {
+              const cost = (s.packageCost && s.packageCost > 0) ? s.packageCost : getPackagePrice(s.packageName, s.proportionalPaid);
+              return sum + cost;
+            }, 0);
+          }
+          return p.totalPackageValue || 0;
+        })();
         const nonConsultPaid = displayServices.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const consultPaid = (tab.id === 'renewals' || tab.id === 'only_pkg') ? 0 : p.consultationRevenue;
         
