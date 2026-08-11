@@ -549,7 +549,8 @@
 
     function cleanLocation(val) {
       if (!val) return 'Unknown';
-      let str = String(val).trim();
+      // Strip non-breaking spaces and collapse inner multiple spaces
+      let str = String(val).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
       if (!str || str === '-' || str.toLowerCase() === 'na' || str.toLowerCase() === 'null') return 'Unknown';
 
       const lower = str.toLowerCase();
@@ -569,7 +570,8 @@
         return 'Unknown';
       }
 
-      return formatLabel(str);
+      // Title case string cleanly
+      return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     }
 
     // Helper: Normalize & Categorize Lead Data
@@ -724,7 +726,14 @@
       const sheets = [...new Set(leads.map(l => l.sheetName).filter(Boolean))].sort();
       const agents = [...new Set(leads.map(l => l.caller).filter(Boolean))].sort();
       const issues = [...new Set(leads.map(l => l.issue).filter(Boolean))].sort();
-      const areas = [...new Set(leads.map(l => l.area).filter(a => a && a !== 'Unknown'))].sort((a, b) => a.localeCompare(b));
+      const areaMap = {};
+      leads.forEach(l => {
+        if (l.area && l.area !== 'Unknown') {
+          const key = l.area.toLowerCase().trim();
+          if (!areaMap[key]) areaMap[key] = l.area.trim();
+        }
+      });
+      const areas = Object.values(areaMap).sort((a, b) => a.localeCompare(b));
 
       if (sheetSel) {
         const curr = sheetSel.value;
