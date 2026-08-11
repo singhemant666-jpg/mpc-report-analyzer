@@ -494,6 +494,14 @@
       return `${dd}-${mm}-${yyyy}`;
     }
 
+    function toLocalInputDateStr(d) {
+      if (!d) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
     function applyDatePreset() {
       const preset = document.getElementById('filter-date-preset').value;
       const startInput = document.getElementById('filter-start-date');
@@ -530,8 +538,8 @@
         end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
       }
 
-      startInput.value = start ? start.toISOString().slice(0,10) : '';
-      endInput.value = end ? end.toISOString().slice(0,10) : '';
+      startInput.value = start ? toLocalInputDateStr(start) : '';
+      endInput.value = end ? toLocalInputDateStr(end) : '';
       applyFilters();
     }
 
