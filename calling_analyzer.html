@@ -486,18 +486,22 @@
 
     function getRawDateField(item) {
       if (!item || typeof item !== 'object') return null;
-      // Strict priority check for lead creation date columns first!
+      // 1. Priority 1: Operational Calling Sheet Date Column (Date / CALLER NAME Date)
       if (item['CALLER NAME Date'] !== undefined && item['CALLER NAME Date'] !== null && String(item['CALLER NAME Date']).trim() !== '') return item['CALLER NAME Date'];
       if (item.Date !== undefined && item.Date !== null && String(item.Date).trim() !== '') return item.Date;
       if (item.date !== undefined && item.date !== null && String(item.date).trim() !== '') return item.date;
-      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
-      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
+
+      // 2. Priority 2: Booking Date / Converted Date
       if (item['Booking Date'] !== undefined && item['Booking Date'] !== null && String(item['Booking Date']).trim() !== '') return item['Booking Date'];
       if (item['Converted Date'] !== undefined && item['Converted Date'] !== null && String(item['Converted Date']).trim() !== '') return item['Converted Date'];
 
+      // 3. Priority 3: Meta Ad creation timestamp (only if Date cell is completely empty)
+      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
+      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
+
       for (const key of Object.keys(item)) {
         const k = key.trim().toLowerCase();
-        if (k.includes('date') || k.includes('created') || k.includes('timestamp')) {
+        if (k.includes('date')) {
           if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
             return item[key];
           }
@@ -943,10 +947,8 @@
 
     // Apply Filter Logic
     function applyFilters() {
-      const startDateVal = document.getElementById('filter-start-date').value;
-      const endDateVal = document.getElementById('filter-end-date').value;
-      const startDate = startDateVal ? new Date(startDateVal + 'T00:00:00') : null;
-      const endDate = endDateVal ? new Date(endDateVal + 'T23:59:59') : null;
+      const startDateVal = document.getElementById('filter-start-date').value; // "YYYY-MM-DD"
+      const endDateVal = document.getElementById('filter-end-date').value;     // "YYYY-MM-DD"
 
       const sheet = document.getElementById('filter-sheet') ? document.getElementById('filter-sheet').value : '';
       const agent = document.getElementById('filter-agent').value;
@@ -956,8 +958,17 @@
       const query = document.getElementById('search-input').value.toLowerCase();
 
       filteredLeads = rawLeadsData.filter(l => {
-        if (startDate && l.leadDate && l.leadDate < startDate) return false;
-        if (endDate && l.leadDate && l.leadDate > endDate) return false;
+        if (startDateVal || endDateVal) {
+          if (!l.leadDate) return false;
+          const yyyy = l.leadDate.getFullYear();
+          const mm = String(l.leadDate.getMonth() + 1).padStart(2, '0');
+          const dd = String(l.leadDate.getDate()).padStart(2, '0');
+          const leadYmd = `${yyyy}-${mm}-${dd}`;
+
+          if (startDateVal && leadYmd < startDateVal) return false;
+          if (endDateVal && leadYmd > endDateVal) return false;
+        }
+
         if (sheet && l.sheetName !== sheet) return false;
         if (agent && l.caller !== agent) return false;
         if (issue && l.issue !== issue) return false;
