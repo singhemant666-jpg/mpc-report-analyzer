@@ -498,93 +498,105 @@
         fetchLiveLeads(true);
       }
     }
+    // Helper: parse a single raw date string into a UTC noon Date
+    function parseSingleDateStr(raw) {
+      if (!raw) return null;
+      if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
+      
+      const str = String(raw).trim();
+      if (!str || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return null;
 
-    function getRawDateField(item) {
-      if (!item || typeof item !== 'object') return null;
-
-      // 1. Priority 1: created_time (Column C) - the actual IST lead creation timestamp
-      //    This is the most reliable date field from Facebook/Meta Ads
-      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
-      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
-
-      // 2. Priority 2: Operational Calling Sheet Date Column (CALLER NAME Date / Date)
-      if (item['CALLER NAME Date'] !== undefined && item['CALLER NAME Date'] !== null && String(item['CALLER NAME Date']).trim() !== '') return item['CALLER NAME Date'];
-      if (item.Date !== undefined && item.Date !== null && String(item.Date).trim() !== '') return item.Date;
-      if (item.date !== undefined && item.date !== null && String(item.date).trim() !== '') return item.date;
-
-      // 3. Priority 3: Booking Date / Converted Date
-      if (item['Booking Date'] !== undefined && item['Booking Date'] !== null && String(item['Booking Date']).trim() !== '') return item['Booking Date'];
-      if (item['Converted Date'] !== undefined && item['Converted Date'] !== null && String(item['Converted Date']).trim() !== '') return item['Converted Date'];
-
-      for (const key of Object.keys(item)) {
-        const k = key.trim().toLowerCase();
-        if (k.includes('date')) {
-          if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
-            return item[key];
-          }
+      // 1. DD-MM-YYYY, DD 08 2026, DD/MM/YYYY, DD.MM.YYYY
+      const dmy = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{2,4})/);
+      if (dmy) {
+        const day = parseInt(dmy[1], 10);
+        const month = parseInt(dmy[2], 10) - 1;
+        let year = parseInt(dmy[3], 10);
+        if (year < 100) year += 2000;
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+          return new Date(Date.UTC(year, month, day, 12, 0, 0));
         }
+      }
+
+      // 2. DD.MM or DD/MM (e.g. "15.08" or "11/08")
+      const dm = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})$/);
+      if (dm) {
+        const day = parseInt(dm[1], 10);
+        const month = parseInt(dm[2], 10) - 1;
+        const year = new Date().getFullYear();
+        if (!isNaN(day) && !isNaN(month) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+          return new Date(Date.UTC(year, month, day, 12, 0, 0));
+        }
+      }
+
+      // 3. YYYY-MM-DD or YYYY/MM/DD
+      const ymd = str.match(/^(\d{4})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{1,2})/);
+      if (ymd) {
+        const year = parseInt(ymd[1], 10);
+        const month = parseInt(ymd[2], 10) - 1;
+        const day = parseInt(ymd[3], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          return new Date(Date.UTC(year, month, day, 12, 0, 0));
+        }
+      }
+
+      // 4. ISO string (e.g. "2026-08-10T18:30:00.000Z" or "2026-08-11T03:32:58-05:00")
+      //    Add +5.5 hours IST offset so UTC export converts to correct IST date
+      if (str.includes('T')) {
+        const isoDate = new Date(str);
+        if (!isNaN(isoDate.getTime())) {
+          const istDate = new Date(isoDate.getTime() + (5.5 * 60 * 60 * 1000));
+          return new Date(Date.UTC(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate(), 12, 0, 0));
+        }
+      }
+
+      const d = new Date(str);
+      if (d instanceof Date && !isNaN(d.getTime())) {
+        return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0));
       }
       return null;
     }
 
-    // Helper: Robust Date Parser for DD-MM-YYYY, DD 08 2026, DD.MM.YYYY, YYYY-MM-DD, ISO, etc.
+    // Helper: Parse lead date using BOTH created_time (Col C) AND CALLER NAME Date (Col Y)
+    //   Picks the LATEST IST date from either column so leads matching today from either source are included.
     function parseLeadDate(item) {
       try {
-        const raw = getRawDateField(item);
-        if (!raw) return null;
-        if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
-        
-        const str = String(raw).trim();
-        if (!str || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return null;
+        if (!item || typeof item !== 'object') return null;
 
-        // 1. Handle DD-MM-YYYY, DD 08 2026, DD/MM/YYYY, DD.MM.YYYY
-        const dmy = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{2,4})/);
-        if (dmy) {
-          const day = parseInt(dmy[1], 10);
-          const month = parseInt(dmy[2], 10) - 1; // 0-indexed
-          let year = parseInt(dmy[3], 10);
-          if (year < 100) year += 2000; // Handle '26 -> 2026
-          if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-            return new Date(Date.UTC(year, month, day, 12, 0, 0));
-          }
+        // Collect candidate dates from all date columns
+        const candidates = [];
+
+        // Column C: created_time (Facebook/Meta Ads IST timestamp)
+        const ct = item.created_time || item.timestamp;
+        const ctDate = parseSingleDateStr(ct);
+        if (ctDate) candidates.push(ctDate);
+
+        // Column Y: CALLER NAME Date (operational calling sheet date)
+        const cnd = item['CALLER NAME Date'] || item.Date || item.date;
+        const cndDate = parseSingleDateStr(cnd);
+        if (cndDate) candidates.push(cndDate);
+
+        // Booking Date / Converted Date (fallback)
+        const bd = item['Booking Date'] || item['Converted Date'];
+        const bdDate = parseSingleDateStr(bd);
+        if (bdDate) candidates.push(bdDate);
+
+        // If we have candidates, pick the LATEST date
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => b.getTime() - a.getTime());
+          return candidates[0]; // Latest date wins
         }
 
-        // 2. Handle DD.MM or DD/MM (e.g. "15.08" or "11/08")
-        const dm = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})$/);
-        if (dm) {
-          const day = parseInt(dm[1], 10);
-          const month = parseInt(dm[2], 10) - 1;
-          const year = new Date().getFullYear();
-          if (!isNaN(day) && !isNaN(month) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-            return new Date(Date.UTC(year, month, day, 12, 0, 0));
+        // Last resort: scan for any key containing "date"
+        for (const key of Object.keys(item)) {
+          const k = key.trim().toLowerCase();
+          if (k.includes('date')) {
+            const val = item[key];
+            if (val !== undefined && val !== null && String(val).trim() !== '') {
+              const parsed = parseSingleDateStr(val);
+              if (parsed) return parsed;
+            }
           }
-        }
-
-        // 3. Handle YYYY-MM-DD or YYYY/MM/DD (e.g. "2026-08-11")
-        const ymd = str.match(/^(\d{4})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{1,2})/);
-        if (ymd) {
-          const year = parseInt(ymd[1], 10);
-          const month = parseInt(ymd[2], 10) - 1;
-          const day = parseInt(ymd[3], 10);
-          if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-            return new Date(Date.UTC(year, month, day, 12, 0, 0));
-          }
-        }
-
-        // 4. Handle ISO string timestamp (e.g. "2026-08-10T18:30:00.000Z")
-        //    Add +5.5 hours IST offset (19,800,000 ms) so Google Sheet UTC export converts to exact IST date
-        //    Store as Noon UTC (12:00 UTC) to prevent timezone shifts anywhere on Earth
-        if (str.includes('T')) {
-          const isoDate = new Date(str);
-          if (!isNaN(isoDate.getTime())) {
-            const istDate = new Date(isoDate.getTime() + (5.5 * 60 * 60 * 1000));
-            return new Date(Date.UTC(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate(), 12, 0, 0));
-          }
-        }
-
-        const d = new Date(str);
-        if (d instanceof Date && !isNaN(d.getTime())) {
-          return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0));
         }
         return null;
       } catch (e) {
