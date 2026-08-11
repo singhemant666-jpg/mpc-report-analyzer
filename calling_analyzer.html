@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Calling Leads Analyzer | MPC Clinic</title>
+
+  <!-- Google Fonts & Chart.js & SheetJS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ── CSS VARIABLES & DESIGN SYSTEM ── */
+    :root {
+      --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      --bg-dark: #090d16;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --card-border: rgba(226, 232, 240, 0.8);
+      --text-primary: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --header-bg: rgba(255, 255, 255, 0.85);
+      --accent-blue: #2563eb;
+      --accent-purple: #7c3aed;
+      --cyan: #0284c7;
+      --emerald: #059669;
+      --amber: #d97706;
+      --rose: #e11d48;
+      --radius: 14px;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html[data-theme="dark"] {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(18, 24, 38, 0.9);
+      --card-border: rgba(30, 41, 59, 0.8);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --header-bg: rgba(15, 23, 42, 0.85);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 10% 10%, rgba(37, 99, 235, 0.08) 0px, transparent 50%),
+        radial-gradient(at 90% 90%, rgba(124, 58, 237, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER & NAV BAR ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--header-bg);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+    .header-logo { height: 38px; object-fit: contain; }
+    .header-title-group h1 { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+    .header-title-group p { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+    .nav-tabs-group { display: flex; gap: 6px; background: rgba(0,0,0,0.04); padding: 4px; border-radius: 10px; }
+    html[data-theme="dark"] .nav-tabs-group { background: rgba(255,255,255,0.05); }
+    .nav-link {
+      padding: 6px 14px; font-size: 0.8rem; font-weight: 600; border-radius: 8px; text-decoration: none;
+      color: var(--text-muted); transition: var(--transition); display: flex; align-items: center; gap: 6px;
+    }
+    .nav-link:hover { color: var(--text-primary); }
+    .nav-link.active { background: #ffffff; color: var(--accent-blue); box-shadow: var(--shadow-sm); }
+    html[data-theme="dark"] .nav-link.active { background: #1e293b; color: #60a5fa; }
+
+    .header-controls { display: flex; align-items: center; gap: 10px; }
+
+    /* ── BUTTONS & BADGES ── */
+    .btn {
+      padding: 7px 14px; font-size: 0.82rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px; transition: var(--transition);
+      background: #f1f5f9; color: var(--text-secondary);
+    }
+    html[data-theme="dark"] .btn { background: #1e293b; color: var(--text-primary); }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent-blue), #1d4ed8); color: #fff; }
+    .btn-purple { background: linear-gradient(135deg, var(--accent-purple), #6d28d9); color: #fff; }
+    .btn-success { background: linear-gradient(135deg, var(--emerald), #047857); color: #fff; }
+    .btn-icon { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 8px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .badge-emerald { background: rgba(5,150,105,0.12); color: #059669; border: 1px solid rgba(5,150,105,0.3); }
+    .badge-amber { background: rgba(217,119,6,0.12); color: #d97706; border: 1px solid rgba(217,119,6,0.3); }
+    .badge-rose { background: rgba(225,29,72,0.12); color: #e11d48; border: 1px solid rgba(225,29,72,0.3); }
+    .badge-purple { background: rgba(124,58,237,0.12); color: #7c3aed; border: 1px solid rgba(124,58,237,0.3); }
+    .badge-cyan { background: rgba(2,132,199,0.12); color: #0284c7; border: 1px solid rgba(2,132,199,0.3); }
+    .badge-muted { background: rgba(100,116,139,0.12); color: #64748b; border: 1px solid rgba(100,116,139,0.3); }
+
+    /* ── CONTAINER & CARDS ── */
+    .container { max-width: 1440px; margin: 0 auto; padding: 20px; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 0.95rem; font-weight: 800; color: var(--text-primary);
+      display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ── LIVE SYNC STATUS BAR ── */
+    .sync-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.06));
+      border: 1px solid rgba(37,99,235,0.2); border-radius: 12px; padding: 10px 16px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .sync-status { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 700; }
+    .sync-dot { width: 9px; height: 9px; border-radius: 50%; background: #059669; box-shadow: 0 0 8px #059669; }
+    .sync-dot.syncing { background: #d97706; box-shadow: 0 0 8px #d97706; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+    /* ── METRICS GRID ── */
+    .metrics-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 14px 16px;
+      position: relative; overflow: hidden; transition: var(--transition);
+    }
+    .metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .metric-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .metric-value { font-size: 1.65rem; font-weight: 800; color: var(--text-primary); margin: 4px 0 2px 0; }
+    .metric-sub { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+
+    /* ── AGENT LEADERBOARD ── */
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .agent-card {
+      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px; transition: var(--transition); position: relative;
+    }
+    .agent-card:hover { transform: translateY(-2px); border-color: var(--accent-purple); }
+    .agent-header { display: flex; align-items: center; justify-content: space-between; }
+    .agent-name { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+    .agent-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 8px; }
+    html[data-theme="dark"] .agent-stats-row { background: rgba(255,255,255,0.03); }
+    .agent-stat-num { font-size: 1.1rem; font-weight: 800; }
+    .agent-stat-lbl { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+
+    /* ── FILTERS BAR ── */
+    .filters-bar {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--card-bg);
+      border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 16px; margin-bottom: 24px;
+    }
+    .filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+    .filter-label { font-size: 0.68rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+    .filter-select, .filter-input {
+      padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--card-border);
+      background: var(--header-bg); color: var(--text-primary); font-family: var(--font-family); outline: none;
+    }
+
+    /* ── CHARTS GRID ── */
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .chart-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; }
+    .chart-container { position: relative; height: 240px; }
+
+    /* ── TABLE STYLES ── */
+    .table-wrapper { overflow-x: auto; border-radius: 10px; border: 1px solid var(--card-border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: left; }
+    th {
+      background: rgba(0,0,0,0.03); color: var(--text-muted); font-weight: 800; padding: 10px 12px;
+      text-transform: uppercase; font-size: 0.68rem; border-bottom: 1px solid var(--card-border); cursor: pointer;
+    }
+    html[data-theme="dark"] th { background: rgba(255,255,255,0.03); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--card-border); color: var(--text-secondary); vertical-align: middle; }
+    tr:hover td { background: rgba(0,0,0,0.02); }
+    html[data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px;
+      padding: 24px; width: 90%; max-width: 540px; box-shadow: var(--shadow-md);
+    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .modal-title { font-size: 1.1rem; font-weight: 800; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER & NAVIGATION BAR -->
+  <header>
+    <div class="header-brand">
+      <img src="logo.png" alt="MPC Logo" class="header-logo" onerror="this.style.display='none'">
+      <div class="header-title-group">
+        <h1>📞 Real-Time Calling Leads Analyzer</h1>
+        <p>Live Google Sheets Integration • Executive Lead Calling Intelligence</p>
+      </div>
+    </div>
+
+    <!-- Universal Cross-App Navigation Links -->
+    <div class="nav-tabs-group">
+      <a href="index.html" class="nav-link">
+        <span>📊</span> Collection Report
+      </a>
+      <a href="appointment_analyzer.html" class="nav-link">
+        <span>📅</span> Appointments
+      </a>
+      <a href="calling_analyzer.html" class="nav-link active">
+        <span>📞</span> Calling Leads
+      </a>
+    </div>
+
+    <div class="header-controls">
+      <button class="btn btn-purple btn-sm" onclick="openConfigModal()">⚙️ Script API Config</button>
+      <button class="btn btn-success btn-sm" onclick="exportLeadsExcel()">📥 Download Excel</button>
+      <button class="btn btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle Theme">☀️</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- LIVE SYNC STATUS BAR -->
+    <div class="sync-bar">
+      <div class="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-status-text">Connected Live to Google Sheets</span>
+        <span style="font-size:0.75rem; color:var(--text-muted); margin-left:8px;" id="last-sync-time"></span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;" id="countdown-text">Auto-refresh in 15s</span>
+        <button class="btn btn-sm" onclick="fetchLiveLeads(true)">🔄 Sync Now</button>
+      </div>
+    </div>
+
+    <!-- METRICS OVERVIEW GRID -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">📞 Total Leads</div>
+        <div class="metric-value" id="kpi-total-leads">0</div>
+        <div class="metric-sub" id="kpi-total-sub">All sheets combined</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🤙 Calls Attempted</div>
+        <div class="metric-value" style="color:var(--cyan);" id="kpi-attempted">0</div>
+        <div class="metric-sub" id="kpi-attempted-sub">0% attempted</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🎯 Appointments Booked</div>
+        <div class="metric-value" style="color:var(--emerald);" id="kpi-booked">0</div>
+        <div class="metric-sub" id="kpi-booked-sub">0% conversion rate</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">⏳ Follow-ups Pending</div>
+        <div class="metric-value" style="color:var(--amber);" id="kpi-pending">0</div>
+        <div class="metric-sub">Will let us know / Callbacks</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">🚫 Unreachable / NA</div>
+        <div class="metric-value" style="color:var(--rose);" id="kpi-unreachable">0</div>
+        <div class="metric-sub">Switched off / Disconnecting</div>
+      </div>
+    </div>
+
+    <!-- CALLING AGENT LEADERBOARD -->
+    <div class="section-title"><span class="icon">🏆</span> Calling Agent Performance Leaderboard</div>
+    <div class="agent-grid" id="agent-leaderboard-grid"></div>
+
+    <!-- FILTERS BAR -->
+    <div class="filters-bar">
+      <div class="filter-item">
+        <label class="filter-label">Calling Agent</label>
+        <select class="filter-select" id="filter-agent" onchange="applyFilters()">
+          <option value="">All Agents</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">Health Issue</label>
+        <select class="filter-select" id="filter-issue" onchange="applyFilters()">
+          <option value="">All Health Issues</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">Location / Area</label>
+        <select class="filter-select" id="filter-area" onchange="applyFilters()">
+          <option value="">All Locations</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">Lead Status</label>
+        <select class="filter-select" id="filter-status" onchange="applyFilters()">
+          <option value="">All Statuses</option>
+          <option value="booked">🎯 Booked</option>
+          <option value="pending">⏳ Follow-up Pending</option>
+          <option value="unreachable">🚫 Unreachable / NA</option>
+          <option value="unattempted">⚪ Unattempted</option>
+        </select>
+      </div>
+      <div class="filter-item" style="flex:1; min-width:200px;">
+        <label class="filter-label">Search Lead</label>
+        <input type="text" class="filter-input" id="search-input" placeholder="🔍 Search name, phone, area..." oninput="applyFilters()">
+      </div>
+    </div>
+
+    <!-- CHARTS GRID -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="section-title" style="margin-bottom:8px;">📊 Call Dispositions</div>
+        <div class="chart-container"><canvas id="chart-disposition"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title" style="margin-bottom:8px;">🏥 Health Issues Breakdown</div>
+        <div class="chart-container"><canvas id="chart-issues"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title" style="margin-bottom:8px;">📍 Leads by Mumbai Location</div>
+        <div class="chart-container"><canvas id="chart-location"></canvas></div>
+      </div>
+    </div>
+
+    <!-- LIVE LEADS MASTER DATA TABLE -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <div class="section-title" style="margin-bottom:0;"><span class="icon">📋</span> Master Calling Leads Table</div>
+        <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;" id="table-count-badge">Showing 0 leads</span>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Lead Name</th>
+              <th>Phone</th>
+              <th>Caller (Agent)</th>
+              <th>Health Issue</th>
+              <th>Pain Duration</th>
+              <th>Location</th>
+              <th>Attempt 1 Notes</th>
+              <th>Attempt 2 Notes</th>
+              <th>Attempt 3 Notes</th>
+              <th>Final Status</th>
+            </tr>
+          </thead>
+          <tbody id="leads-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- GOOGLE SCRIPT API CONFIG MODAL -->
+  <div class="modal-overlay hidden" id="config-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ Google Script API Config</div>
+        <button class="btn btn-icon" onclick="closeConfigModal()">✕</button>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">
+        Paste your deployed Google Apps Script Web App URL below to sync your Google Sheet live in real-time.
+      </p>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+        <label style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">GOOGLE APPS SCRIPT WEB APP URL</label>
+        <input type="text" id="api-url-input" class="filter-input" style="width:100%; font-size:0.8rem; padding:8px 12px;" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn" onclick="closeConfigModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveApiUrl()">Save & Sync Live</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ENGINE ==================== -->
+  <script>
+    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzLoqYG6ISkZQaB427oqmuFvsZubOwqdcunhXRaO1QOObj65KPKI6i6Hy7rE7hfRflP/exec';
+
+    let rawLeadsData = [];
+    let filteredLeads = [];
+    let chartInstances = {};
+    let countdownSec = 15;
+    let timerInterval = null;
+
+    // Load API URL from localStorage or fallback to default
+    function getApiUrl() {
+      return localStorage.getItem('mpc_leads_api_url') || DEFAULT_API_URL;
+    }
+
+    // Initialize Theme
+    function initTheme() {
+      const savedTheme = localStorage.getItem('mpc_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.innerHTML = savedTheme === 'dark' ? '☀️' : '🌙';
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('mpc_theme', next);
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.innerHTML = next === 'dark' ? '☀️' : '🌙';
+    }
+
+    // Modal Handlers
+    function openConfigModal() {
+      document.getElementById('api-url-input').value = getApiUrl();
+      document.getElementById('config-modal').classList.remove('hidden');
+    }
+    function closeConfigModal() {
+      document.getElementById('config-modal').classList.add('hidden');
+    }
+    function saveApiUrl() {
+      const input = document.getElementById('api-url-input').value.trim();
+      if (input) {
+        localStorage.setItem('mpc_leads_api_url', input);
+        closeConfigModal();
+        fetchLiveLeads(true);
+      }
+    }
+
+    // Helper: Normalize & Categorize Lead Data
+    function normalizeLead(item, index) {
+      const name = item.full_name || item.name || `Lead #${index + 1}`;
+      const phone = (item.phone_number || item.phone || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
+      const caller = item['CALLER NAME'] || item.caller || 'Unassigned';
+      const issue = formatLabel(item['what_issue_are_you_facing?'] || 'Not Specified');
+      const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
+      const area = formatLabel(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || 'Unknown');
+      
+      const att1 = item['ATTEMPT 1'] || item['ATT 1'] || '';
+      const att2 = item['ATT 2'] || '';
+      const att3 = item['ATT 3'] || '';
+
+      const allNotes = `${att1} ${att2} ${att3}`.toLowerCase();
+
+      // Determine Lead Status & Disposition
+      let status = 'unattempted';
+      let statusText = 'Unattempted';
+      let badgeClass = 'badge-muted';
+
+      if (allNotes.includes('booked')) {
+        status = 'booked';
+        statusText = '🎯 Booked';
+        badgeClass = 'badge-emerald';
+      } else if (allNotes.includes('let us know') || allNotes.includes('will call') || allNotes.includes('busy') || allNotes.includes('travelling')) {
+        status = 'pending';
+        statusText = '⏳ Follow-up';
+        badgeClass = 'badge-amber';
+      } else if (allNotes.includes('switched off') || allNotes.includes('disconnecting') || allNotes.includes('na') || allNotes.includes('no.')) {
+        status = 'unreachable';
+        statusText = '🚫 Unreachable';
+        badgeClass = 'badge-rose';
+      } else if (att1.trim() !== '') {
+        status = 'attempted';
+        statusText = '🤙 Contacted';
+        badgeClass = 'badge-cyan';
+      }
+
+      return {
+        id: index + 1,
+        name,
+        phone,
+        caller,
+        issue,
+        duration,
+        area,
+        att1,
+        att2,
+        att3,
+        status,
+        statusText,
+        badgeClass
+      };
+    }
+
+    function formatLabel(str) {
+      if (!str) return 'Unknown';
+      return str.replace(/_/g, ' ')
+                .replace(/\//g, ' / ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Fetch Live Leads Data from Google Script URL
+    async function fetchLiveLeads(manual = false) {
+      const dot = document.getElementById('sync-dot');
+      const statusText = document.getElementById('sync-status-text');
+      if (dot) dot.classList.add('syncing');
+      if (statusText) statusText.textContent = 'Syncing Live Data...';
+
+      try {
+        const response = await fetch(getApiUrl());
+        const json = await response.json();
+        
+        if (Array.isArray(json)) {
+          rawLeadsData = json.map((item, idx) => normalizeLead(item, idx));
+          populateFilterOptions(rawLeadsData);
+          applyFilters();
+
+          if (dot) dot.classList.remove('syncing');
+          if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Leads)`;
+          document.getElementById('last-sync-time').textContent = `• Updated ${new Date().toLocaleTimeString()}`;
+        }
+      } catch (err) {
+        console.error('Error fetching live leads:', err);
+        if (dot) dot.classList.remove('syncing');
+        if (statusText) statusText.textContent = 'Sync Warning (Check Script URL)';
+      }
+
+      resetTimer();
+    }
+
+    function resetTimer() {
+      countdownSec = 15;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        countdownSec--;
+        const el = document.getElementById('countdown-text');
+        if (el) el.textContent = `Auto-refresh in ${countdownSec}s`;
+        if (countdownSec <= 0) {
+          fetchLiveLeads();
+        }
+      }, 1000);
+    }
+
+    // Populate Filter Dropdowns Dynamically
+    function populateFilterOptions(leads) {
+      const agentSel = document.getElementById('filter-agent');
+      const issueSel = document.getElementById('filter-issue');
+      const areaSel = document.getElementById('filter-area');
+
+      const agents = [...new Set(leads.map(l => l.caller).filter(Boolean))].sort();
+      const issues = [...new Set(leads.map(l => l.issue).filter(Boolean))].sort();
+      const areas = [...new Set(leads.map(l => l.area).filter(Boolean))].sort();
+
+      if (agentSel.options.length <= 1) {
+        agents.forEach(a => agentSel.innerHTML += `<option value="${a}">${a}</option>`);
+      }
+      if (issueSel.options.length <= 1) {
+        issues.forEach(i => issueSel.innerHTML += `<option value="${i}">${i}</option>`);
+      }
+      if (areaSel.options.length <= 1) {
+        areas.forEach(a => areaSel.innerHTML += `<option value="${a}">${a}</option>`);
+      }
+    }
+
+    // Apply Filter Logic
+    function applyFilters() {
+      const agent = document.getElementById('filter-agent').value;
+      const issue = document.getElementById('filter-issue').value;
+      const area = document.getElementById('filter-area').value;
+      const status = document.getElementById('filter-status').value;
+      const query = document.getElementById('search-input').value.toLowerCase();
+
+      filteredLeads = rawLeadsData.filter(l => {
+        if (agent && l.caller !== agent) return false;
+        if (issue && l.issue !== issue) return false;
+        if (area && l.area !== area) return false;
+        if (status && l.status !== status) return false;
+        if (query) {
+          const match = (l.name || '').toLowerCase().includes(query) ||
+                        (l.phone || '').toLowerCase().includes(query) ||
+                        (l.area || '').toLowerCase().includes(query) ||
+                        (l.caller || '').toLowerCase().includes(query);
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      renderKPIs(filteredLeads);
+      renderAgentLeaderboard(filteredLeads);
+      renderCharts(filteredLeads);
+      renderTable(filteredLeads);
+    }
+
+    // Render Key Metrics Cards
+    function renderKPIs(leads) {
+      const total = leads.length;
+      const attempted = leads.filter(l => l.status !== 'unattempted').length;
+      const booked = leads.filter(l => l.status === 'booked').length;
+      const pending = leads.filter(l => l.status === 'pending').length;
+      const unreachable = leads.filter(l => l.status === 'unreachable').length;
+
+      const attPct = total > 0 ? ((attempted / total) * 100).toFixed(1) : '0';
+      const bookPct = attempted > 0 ? ((booked / attempted) * 100).toFixed(1) : '0';
+
+      document.getElementById('kpi-total-leads').textContent = total;
+      document.getElementById('kpi-attempted').textContent = attempted;
+      document.getElementById('kpi-attempted-sub').textContent = `${attPct}% of leads called`;
+
+      document.getElementById('kpi-booked').textContent = booked;
+      document.getElementById('kpi-booked-sub').textContent = `${bookPct}% conversion rate`;
+
+      document.getElementById('kpi-pending').textContent = pending;
+      document.getElementById('kpi-unreachable').textContent = unreachable;
+    }
+
+    // Render Agent Performance Leaderboard
+    function renderAgentLeaderboard(leads) {
+      const grid = document.getElementById('agent-leaderboard-grid');
+      if (!grid) return;
+
+      const agentMap = {};
+      leads.forEach(l => {
+        const caller = l.caller || 'Unassigned';
+        if (!agentMap[caller]) {
+          agentMap[caller] = { name: caller, total: 0, attempted: 0, booked: 0 };
+        }
+        agentMap[caller].total++;
+        if (l.status !== 'unattempted') agentMap[caller].attempted++;
+        if (l.status === 'booked') agentMap[caller].booked++;
+      });
+
+      const sortedAgents = Object.values(agentMap).sort((a, b) => b.booked - a.booked || b.total - a.total);
+
+      if (sortedAgents.length === 0) {
+        grid.innerHTML = '<div style="color:var(--text-muted); grid-column:1/-1;">No agent data available</div>';
+        return;
+      }
+
+      grid.innerHTML = sortedAgents.map((a, idx) => {
+        const convRate = a.attempted > 0 ? ((a.booked / a.attempted) * 100).toFixed(1) : '0';
+        let badge = '<span class="badge badge-muted">Caller</span>';
+        if (idx === 0) badge = '<span class="badge badge-emerald">⭐ Top Converter</span>';
+        else if (idx === 1 || idx === 2) badge = '<span class="badge badge-purple">🔥 High Performer</span>';
+
+        return `
+          <div class="agent-card">
+            <div class="agent-header">
+              <div class="agent-name">${a.name}</div>
+              ${badge}
+            </div>
+            <div class="agent-stats-row">
+              <div>
+                <div class="agent-stat-num" style="color:var(--text-primary);">${a.total}</div>
+                <div class="agent-stat-lbl">Leads</div>
+              </div>
+              <div>
+                <div class="agent-stat-num" style="color:var(--cyan);">${a.attempted}</div>
+                <div class="agent-stat-lbl">Called</div>
+              </div>
+              <div>
+                <div class="agent-stat-num" style="color:var(--emerald);">${a.booked}</div>
+                <div class="agent-stat-lbl">Booked</div>
+              </div>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:2px;">
+              <span>Conversion Rate:</span>
+              <strong style="color:var(--emerald);">${convRate}%</strong>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // Render Analytics Charts
+    function renderCharts(leads) {
+      // 1. Disposition Chart
+      const statusCounts = { 'Booked': 0, 'Follow-up Pending': 0, 'Unreachable': 0, 'Unattempted': 0 };
+      leads.forEach(l => {
+        if (l.status === 'booked') statusCounts['Booked']++;
+        else if (l.status === 'pending') statusCounts['Follow-up Pending']++;
+        else if (l.status === 'unreachable') statusCounts['Unreachable']++;
+        else statusCounts['Unattempted']++;
+      });
+
+      renderChart('chart-disposition', 'doughnut', Object.keys(statusCounts), Object.values(statusCounts), ['#059669', '#d97706', '#e11d48', '#64748b']);
+
+      // 2. Health Issues Chart
+      const issueMap = {};
+      leads.forEach(l => issueMap[l.issue] = (issueMap[l.issue] || 0) + 1);
+      const topIssues = Object.entries(issueMap).sort((a,b) => b[1] - a[1]).slice(0, 6);
+      renderChart('chart-issues', 'bar', topIssues.map(e => e[0]), topIssues.map(e => e[1]), '#7c3aed');
+
+      // 3. Location Chart
+      const locMap = {};
+      leads.forEach(l => locMap[l.area] = (locMap[l.area] || 0) + 1);
+      const topLocs = Object.entries(locMap).sort((a,b) => b[1] - a[1]).slice(0, 6);
+      renderChart('chart-location', 'bar', topLocs.map(e => e[0]), topLocs.map(e => e[1]), '#0284c7');
+    }
+
+    function renderChart(id, type, labels, data, colors) {
+      if (chartInstances[id]) chartInstances[id].destroy();
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+
+      chartInstances[id] = new Chart(ctx, {
+        type,
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: Array.isArray(colors) ? colors : colors,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: type === 'doughnut', position: 'bottom' } }
+        }
+      });
+    }
+
+    // Render Master Data Table
+    function renderTable(leads) {
+      const tbody = document.getElementById('leads-tbody');
+      const badge = document.getElementById('table-count-badge');
+      if (badge) badge.textContent = `Showing ${leads.length} leads`;
+      if (!tbody) return;
+
+      if (leads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = leads.map((l, idx) => `
+        <tr>
+          <td><strong>${idx + 1}</strong></td>
+          <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
+          <td style="font-weight:600; color:var(--cyan);">${l.phone || '-'}</td>
+          <td><strong style="color:var(--purple);">${l.caller}</strong></td>
+          <td>${l.issue}</td>
+          <td>${l.duration}</td>
+          <td>${l.area}</td>
+          <td style="font-size:0.75rem; color:var(--text-secondary); max-width:180px;">${l.att1 || '-'}</td>
+          <td style="font-size:0.75rem; color:var(--text-secondary); max-width:180px;">${l.att2 || '-'}</td>
+          <td style="font-size:0.75rem; color:var(--text-secondary); max-width:180px;">${l.att3 || '-'}</td>
+          <td><span class="badge ${l.badgeClass}">${l.statusText}</span></td>
+        </tr>`).join('');
+    }
+
+    // Export Leads to Excel
+    function exportLeadsExcel() {
+      if (filteredLeads.length === 0) return;
+      const data = filteredLeads.map(l => ({
+        'Lead Name': l.name,
+        'Phone': l.phone,
+        'Calling Agent': l.caller,
+        'Health Issue': l.issue,
+        'Pain Duration': l.duration,
+        'Location': l.area,
+        'Attempt 1 Notes': l.att1,
+        'Attempt 2 Notes': l.att2,
+        'Attempt 3 Notes': l.att3,
+        'Status': l.statusText
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Calling Leads');
+      XLSX.writeFile(wb, `MPC_Calling_Leads_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // On Load
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      fetchLiveLeads();
+    });
+  </script>
+</body>
+</html>
