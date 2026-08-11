@@ -555,13 +555,13 @@
         }
 
         // 4. Handle ISO string timestamp (e.g. "2026-08-10T18:30:00.000Z")
-        //    Use native Date() to properly convert UTC to local timezone (IST)
-        //    "2026-08-10T18:30:00.000Z" = Aug 11 00:00 IST, NOT Aug 10!
+        //    Add +5.5 hours IST offset (19,800,000 ms) so Google Sheet UTC export converts to exact IST date
+        //    "2026-08-10T18:30:00.000Z" + 5.5h = Aug 11 00:00 IST -> Aug 11, 2026!
         if (str.includes('T')) {
           const isoDate = new Date(str);
           if (!isNaN(isoDate.getTime())) {
-            // Extract LOCAL date components (IST), not UTC
-            return new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate());
+            const istDate = new Date(isoDate.getTime() + (5.5 * 60 * 60 * 1000));
+            return new Date(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate());
           }
         }
 
