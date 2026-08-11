@@ -265,24 +265,34 @@
         <div class="metric-sub" id="kpi-total-sub">All sheets combined</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">🤙 Calls Attempted</div>
-        <div class="metric-value" style="color:var(--cyan);" id="kpi-attempted">0</div>
-        <div class="metric-sub" id="kpi-attempted-sub">0% attempted</div>
+        <div class="metric-label">🎯 Total Booked</div>
+        <div class="metric-value" style="color:var(--emerald);" id="kpi-total-booked">0</div>
+        <div class="metric-sub" id="kpi-total-booked-sub">0% booking rate</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">🎯 Appointments Booked</div>
-        <div class="metric-value" style="color:var(--emerald);" id="kpi-booked">0</div>
-        <div class="metric-sub" id="kpi-booked-sub">0% conversion rate</div>
+        <div class="metric-label">✅ Consulted & Visited</div>
+        <div class="metric-value" style="color:#047857;" id="kpi-consulted">0</div>
+        <div class="metric-sub">Dark Green • Came for clinic consultation</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">⏳ Follow-ups Pending</div>
+        <div class="metric-label">📅 Booked (Pending Visit)</div>
+        <div class="metric-value" style="color:var(--cyan);" id="kpi-booked-no-visit">0</div>
+        <div class="metric-sub">Cyan/Blue • Booked, not visited yet</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">⏳ Spoken / Follow-up</div>
         <div class="metric-value" style="color:var(--amber);" id="kpi-pending">0</div>
-        <div class="metric-sub">Will let us know / Callbacks</div>
+        <div class="metric-sub">Yellow • Spoke / Reports / Call back</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">🚫 Unreachable / NA</div>
-        <div class="metric-value" style="color:var(--rose);" id="kpi-unreachable">0</div>
-        <div class="metric-sub">Switched off / Disconnecting</div>
+        <div class="metric-label">❌ Not Interested / Bad Lead</div>
+        <div class="metric-value" style="color:var(--rose);" id="kpi-not-interested">0</div>
+        <div class="metric-sub">Red • Out of city / No requirement</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">📞 Unreachable / Blank</div>
+        <div class="metric-value" style="color:var(--text-muted);" id="kpi-unreachable">0</div>
+        <div class="metric-sub" id="kpi-attempted-sub">White • Ringing / Switch off / Blank</div>
       </div>
     </div>
 
@@ -338,10 +348,12 @@
         <label class="filter-label">Lead Status</label>
         <select class="filter-select" id="filter-status" onchange="applyFilters()">
           <option value="">All Statuses</option>
-          <option value="booked">🎯 Booked</option>
-          <option value="pending">⏳ Follow-up Pending</option>
-          <option value="unreachable">🚫 Unreachable / NA</option>
-          <option value="unattempted">⚪ Unattempted</option>
+          <option value="consulted">✅ Consulted & Visited (Dark Green)</option>
+          <option value="booked_no_visit">📅 Booked - Pending Visit (Cyan/Blue)</option>
+          <option value="booked">🎯 Booked (Green)</option>
+          <option value="pending">⏳ Spoken / Follow-up (Yellow)</option>
+          <option value="not_interested">❌ Not Interested / Bad Lead (Red)</option>
+          <option value="unreachable">📞 Unreachable / Blank (White)</option>
         </select>
       </div>
       <div class="filter-item" style="flex:1; min-width:200px;">
@@ -862,9 +874,13 @@
     // Render Key Metrics Cards
     function renderKPIs(leads) {
       const total = leads.length;
-      const attempted = leads.filter(l => l.status !== 'unattempted').length;
-      const booked = leads.filter(l => l.status === 'booked').length;
+      const consulted = leads.filter(l => l.status === 'consulted').length;
+      const bookedNoVisit = leads.filter(l => l.status === 'booked_no_visit').length;
+      const lightBooked = leads.filter(l => l.status === 'booked').length;
+      
+      const totalBooked = consulted + bookedNoVisit + lightBooked;
       const pending = leads.filter(l => l.status === 'pending').length;
+      const notInterested = leads.filter(l => l.status === 'not_interested').length;
       const unreachable = leads.filter(l => l.status === 'unreachable').length;
 
       let att1Total = 0, att2Total = 0, att3Total = 0;
@@ -875,18 +891,20 @@
       });
       const totalDials = att1Total + att2Total + att3Total;
 
-      const attPct = total > 0 ? ((attempted / total) * 100).toFixed(1) : '0';
-      const bookPct = attempted > 0 ? ((booked / attempted) * 100).toFixed(1) : '0';
+      const bookPct = total > 0 ? ((totalBooked / total) * 100).toFixed(1) : '0';
 
-      document.getElementById('kpi-total-leads').textContent = total;
-      document.getElementById('kpi-attempted').textContent = attempted;
-      document.getElementById('kpi-attempted-sub').textContent = `Dials: ${totalDials} (1st:${att1Total} | 2nd:${att2Total} | 3rd:${att3Total})`;
+      if (document.getElementById('kpi-total-leads')) document.getElementById('kpi-total-leads').textContent = total;
+      if (document.getElementById('kpi-total-booked')) document.getElementById('kpi-total-booked').textContent = totalBooked;
+      if (document.getElementById('kpi-total-booked-sub')) document.getElementById('kpi-total-booked-sub').textContent = `${bookPct}% booking rate`;
 
-      document.getElementById('kpi-booked').textContent = booked;
-      document.getElementById('kpi-booked-sub').textContent = `${bookPct}% conversion rate`;
+      if (document.getElementById('kpi-consulted')) document.getElementById('kpi-consulted').textContent = consulted;
+      if (document.getElementById('kpi-booked-no-visit')) document.getElementById('kpi-booked-no-visit').textContent = bookedNoVisit;
 
-      document.getElementById('kpi-pending').textContent = pending;
-      document.getElementById('kpi-unreachable').textContent = unreachable;
+      if (document.getElementById('kpi-pending')) document.getElementById('kpi-pending').textContent = pending;
+      if (document.getElementById('kpi-not-interested')) document.getElementById('kpi-not-interested').textContent = notInterested;
+      if (document.getElementById('kpi-unreachable')) document.getElementById('kpi-unreachable').textContent = unreachable;
+
+      if (document.getElementById('kpi-attempted-sub')) document.getElementById('kpi-attempted-sub').textContent = `Dials: ${totalDials} (1st:${att1Total} | 2nd:${att2Total} | 3rd:${att3Total})`;
     }
 
     // Render Agent Performance Leaderboard
@@ -898,7 +916,7 @@
       leads.forEach(l => {
         const caller = l.caller || 'Unassigned';
         if (!agentMap[caller]) {
-          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0 };
+          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0 };
         }
         agentMap[caller].total++;
         if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
@@ -910,8 +928,12 @@
                       (l.att3 && l.att3.trim() !== '' ? 1 : 0);
         agentMap[caller].totalDials += dials;
 
-        if (l.status !== 'unattempted') agentMap[caller].attempted++;
-        if (l.status === 'booked') agentMap[caller].booked++;
+        if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
+          agentMap[caller].booked++;
+        }
+        if (l.status === 'consulted') {
+          agentMap[caller].consulted++;
+        }
       });
 
       const sortedAgents = Object.values(agentMap).sort((a, b) => b.booked - a.booked || b.totalDials - a.totalDials);
@@ -922,7 +944,7 @@
       }
 
       grid.innerHTML = sortedAgents.map((a, idx) => {
-        const convRate = a.attempted > 0 ? ((a.booked / a.attempted) * 100).toFixed(1) : '0';
+        const convRate = a.total > 0 ? ((a.booked / a.total) * 100).toFixed(1) : '0';
         const intensity = a.total > 0 ? (a.totalDials / a.total).toFixed(1) : '0';
 
         let badge = '<span class="badge badge-muted">Caller</span>';
@@ -954,7 +976,7 @@
               </div>
             </div>
             <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Call Intensity: <strong style="color:var(--accent-purple);">${intensity} dials/lead</strong></span>
+              <span>Consulted: <strong style="color:#047857;">${a.consulted}</strong></span>
               <span>Conversion: <strong style="color:var(--emerald);">${convRate}%</strong></span>
             </div>
           </div>`;
@@ -964,14 +986,21 @@
     // Render Analytics Charts
     function renderCharts(leads) {
       // 1. Disposition Chart
-      const statusCounts = { 'Booked': 0, 'Follow-up Pending': 0, 'Unreachable': 0, 'Unattempted': 0 };
-      leads.forEach(l => {
-        if (l.status === 'booked') statusCounts['Booked']++;
-        else if (l.status === 'pending') statusCounts['Follow-up Pending']++;
-        else if (l.status === 'unreachable') statusCounts['Unreachable']++;
-        else statusCounts['Unattempted']++;
-      });
-      renderChart('chart-disposition', 'doughnut', Object.keys(statusCounts), Object.values(statusCounts), ['#059669', '#d97706', '#e11d48', '#64748b']);
+      const statusCounts = {
+        '✅ Consulted & Visited': leads.filter(l => l.status === 'consulted').length,
+        '📅 Booked (No Visit)': leads.filter(l => l.status === 'booked_no_visit').length,
+        '🎯 Booked': leads.filter(l => l.status === 'booked').length,
+        '⏳ Spoken / Follow-up': leads.filter(l => l.status === 'pending').length,
+        '❌ Not Interested': leads.filter(l => l.status === 'not_interested').length,
+        '📞 Unreachable / Blank': leads.filter(l => l.status === 'unreachable').length
+      };
+      renderChart(
+        'chart-disposition',
+        'doughnut',
+        Object.keys(statusCounts),
+        Object.values(statusCounts),
+        ['#047857', '#0284c7', '#059669', '#d97706', '#e11d48', '#64748b']
+      );
 
       // 2. Call Attempt Intensity Chart (1st, 2nd, 3rd Attempts by Caller)
       const agentMap = {};
