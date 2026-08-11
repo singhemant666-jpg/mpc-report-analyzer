@@ -742,57 +742,71 @@
       const convertedDateVal = String(item['Converted Date'] || item.converted_date || '').trim();
 
       const rawBg = item._bgColor || item._color || item.bgColor || item.color || item.bg || '';
-      const isGreenRow = isGreenColor(rawBg);
-      const isYellowRow = isYellowColor(rawBg);
-      const isRedRow = isRedColor(rawBg);
+      const colorType = getRowColorType(rawBg);
 
-      const isPending = 
-        isYellowRow ||
+      const isNotInterestedText = 
+        allNotes.includes('not interested') ||
+        allNotes.includes('out of city') ||
+        allNotes.includes('did not enquire') ||
+        allNotes.includes('no requirement') ||
+        allNotes.includes('bad lead') ||
+        allNotes.includes('not needed');
+
+      const isSpokenPendingText = 
         allNotes.includes('let us know') || 
         allNotes.includes('will call') || 
         allNotes.includes('call once free') ||
+        allNotes.includes('share mri') ||
+        allNotes.includes('send details') ||
+        allNotes.includes('will inform') ||
         allNotes.includes('busy') || 
         allNotes.includes('travelling') || 
         allNotes.includes('keep details') ||
         allNotes.includes('ask husband');
 
-      const isUnreachable = 
-        isRedRow ||
-        allNotes.includes('switched off') || 
-        allNotes.includes('disconnecting') || 
-        allNotes.includes('out of city') ||
-        allNotes.includes('invalid') ||
-        allNotes.includes('no.');
-
-      const isExplicitBooked = 
-        isGreenRow ||
+      const isExplicitBookedText = 
         allNotes.includes('booked') ||
-        allNotes.includes('hooked') || // Handles "Hooked 15/08 at 3pm" typo
+        allNotes.includes('hooked') ||
         allNotes.includes('boked') ||
         allNotes.includes('tentative') ||
         codeVal.includes('booked') ||
-        codeVal.includes('hooked') ||
-        codeVal.includes('boked') ||
         bookingDateVal !== '' ||
         convertedDateVal !== '' ||
-        (/\b\d{1,2}\/\d{1,2}\b/.test(allNotes) && /\b(am|pm)\b/i.test(allNotes) && !isPending);
+        (/\b\d{1,2}\/\d{1,2}\b/.test(allNotes) && /\b(am|pm)\b/i.test(allNotes) && !isSpokenPendingText);
 
-      if (isExplicitBooked && !isPending && !isUnreachable) {
+      // Determine Lead Status based on Color Rules
+      if (colorType === 'consulted') {
+        status = 'consulted';
+        statusText = '✅ Consulted & Visited';
+        badgeClass = 'badge-dark-emerald';
+      } else if (colorType === 'booked_no_visit') {
+        status = 'booked_no_visit';
+        statusText = '📅 Booked (No Visit)';
+        badgeClass = 'badge-cyan';
+      } else if (colorType === 'booked') {
         status = 'booked';
         statusText = '🎯 Booked';
         badgeClass = 'badge-emerald';
-      } else if (isPending) {
+      } else if (colorType === 'pending' || isSpokenPendingText) {
         status = 'pending';
-        statusText = '⏳ Follow-up';
+        statusText = '⏳ Spoken / Follow-up';
         badgeClass = 'badge-amber';
-      } else if (isUnreachable) {
-        status = 'unreachable';
-        statusText = '🚫 Unreachable';
+      } else if (colorType === 'not_interested' || isNotInterestedText) {
+        status = 'not_interested';
+        statusText = '❌ Not Interested';
         badgeClass = 'badge-rose';
+      } else if (isExplicitBookedText && !isSpokenPendingText && !isNotInterestedText) {
+        status = 'booked';
+        statusText = '🎯 Booked';
+        badgeClass = 'badge-emerald';
       } else if (att1.trim() !== '') {
         status = 'attempted';
         statusText = '🤙 Contacted';
         badgeClass = 'badge-cyan';
+      } else {
+        status = 'unreachable';
+        statusText = '📞 Unreachable / Blank';
+        badgeClass = 'badge-muted';
       }
 
       return {
