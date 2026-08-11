@@ -484,18 +484,52 @@
       }
     }
 
-    // Helper: Date Parser for DD-MM-YYYY, YYYY-MM-DD, ISO, etc.
+    function getRawDateField(item) {
+      if (!item || typeof item !== 'object') return null;
+      for (const key of Object.keys(item)) {
+        const k = key.trim().toLowerCase();
+        if (k === 'date' || k.includes('date') || k.includes('created_time') || k.includes('timestamp')) {
+          if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
+            return item[key];
+          }
+        }
+      }
+      return null;
+    }
+
+    // Helper: Date Parser for DD-MM-YYYY, DD 08 2026, DD.MM.YYYY, YYYY-MM-DD, ISO, etc.
     function parseLeadDate(item) {
-      const raw = item.Date || item['CALLER NAME Date'] || item.created_time || item['Booking Date'] || item['Converted Date'] || item.date;
+      const raw = getRawDateField(item);
       if (!raw) return null;
       if (raw instanceof Date && !isNaN(raw)) return raw;
+      
       const str = String(raw).trim();
       if (!str) return null;
 
-      // Handle DD-MM-YYYY or DD/MM/YYYY (e.g. 10-08-2026, 11-08-2026)
-      const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      // 1. Handle DD-MM-YYYY, DD 08 2026, DD/MM/YYYY, DD.MM.YYYY (e.g. "11 08 2026", "11-08-2026", "11.08.2026")
+      const dmy = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{4})/);
       if (dmy) {
-        return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+        const day = parseInt(dmy[1], 10);
+        const month = parseInt(dmy[2], 10) - 1; // 0-indexed
+        const year = parseInt(dmy[3], 10);
+        return new Date(year, month, day);
+      }
+
+      // 2. Handle YYYY-MM-DD or YYYY/MM/DD (e.g. "2026-08-11")
+      const ymd = str.match(/^(\d{4})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{1,2})/);
+      if (ymd) {
+        const year = parseInt(ymd[1], 10);
+        const month = parseInt(ymd[2], 10) - 1;
+        const day = parseInt(ymd[3], 10);
+        return new Date(year, month, day);
+      }
+
+      // 3. Handle ISO string timestamp (e.g. "2026-08-11T..."), avoiding UTC shift
+      if (str.includes('T')) {
+        const parts = str.split('T')[0].split('-');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
       }
 
       const d = new Date(str);
