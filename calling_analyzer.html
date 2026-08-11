@@ -357,6 +357,10 @@
         <div class="chart-container"><canvas id="chart-disposition"></canvas></div>
       </div>
       <div class="chart-card">
+        <div class="section-title" style="margin-bottom:8px;">📞 Call Attempt Intensity (1st / 2nd / 3rd)</div>
+        <div class="chart-container"><canvas id="chart-attempts"></canvas></div>
+      </div>
+      <div class="chart-card">
         <div class="section-title" style="margin-bottom:8px;">🏥 Health Issues Breakdown</div>
         <div class="chart-container"><canvas id="chart-issues"></canvas></div>
       </div>
@@ -759,12 +763,20 @@
       const pending = leads.filter(l => l.status === 'pending').length;
       const unreachable = leads.filter(l => l.status === 'unreachable').length;
 
+      let att1Total = 0, att2Total = 0, att3Total = 0;
+      leads.forEach(l => {
+        if (l.att1 && l.att1.trim() !== '') att1Total++;
+        if (l.att2 && l.att2.trim() !== '') att2Total++;
+        if (l.att3 && l.att3.trim() !== '') att3Total++;
+      });
+      const totalDials = att1Total + att2Total + att3Total;
+
       const attPct = total > 0 ? ((attempted / total) * 100).toFixed(1) : '0';
       const bookPct = attempted > 0 ? ((booked / attempted) * 100).toFixed(1) : '0';
 
       document.getElementById('kpi-total-leads').textContent = total;
       document.getElementById('kpi-attempted').textContent = attempted;
-      document.getElementById('kpi-attempted-sub').textContent = `${attPct}% of leads called`;
+      document.getElementById('kpi-attempted-sub').textContent = `Dials: ${totalDials} (1st:${att1Total} | 2nd:${att2Total} | 3rd:${att3Total})`;
 
       document.getElementById('kpi-booked').textContent = booked;
       document.getElementById('kpi-booked-sub').textContent = `${bookPct}% conversion rate`;
@@ -782,14 +794,23 @@
       leads.forEach(l => {
         const caller = l.caller || 'Unassigned';
         if (!agentMap[caller]) {
-          agentMap[caller] = { name: caller, total: 0, attempted: 0, booked: 0 };
+          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0 };
         }
         agentMap[caller].total++;
+        if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
+        if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+        if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+        
+        const dials = (l.att1 && l.att1.trim() !== '' ? 1 : 0) +
+                      (l.att2 && l.att2.trim() !== '' ? 1 : 0) +
+                      (l.att3 && l.att3.trim() !== '' ? 1 : 0);
+        agentMap[caller].totalDials += dials;
+
         if (l.status !== 'unattempted') agentMap[caller].attempted++;
         if (l.status === 'booked') agentMap[caller].booked++;
       });
 
-      const sortedAgents = Object.values(agentMap).sort((a, b) => b.booked - a.booked || b.total - a.total);
+      const sortedAgents = Object.values(agentMap).sort((a, b) => b.booked - a.booked || b.totalDials - a.totalDials);
 
       if (sortedAgents.length === 0) {
         grid.innerHTML = '<div style="color:var(--text-muted); grid-column:1/-1;">No agent data available</div>';
@@ -798,6 +819,8 @@
 
       grid.innerHTML = sortedAgents.map((a, idx) => {
         const convRate = a.attempted > 0 ? ((a.booked / a.attempted) * 100).toFixed(1) : '0';
+        const intensity = a.total > 0 ? (a.totalDials / a.total).toFixed(1) : '0';
+
         let badge = '<span class="badge badge-muted">Caller</span>';
         if (idx === 0) badge = '<span class="badge badge-emerald">⭐ Top Converter</span>';
         else if (idx === 1 || idx === 2) badge = '<span class="badge badge-purple">🔥 High Performer</span>';
@@ -808,23 +831,27 @@
               <div class="agent-name">${a.name}</div>
               ${badge}
             </div>
-            <div class="agent-stats-row">
+            <div class="agent-stats-row" style="grid-template-columns: repeat(4, 1fr);">
               <div>
                 <div class="agent-stat-num" style="color:var(--text-primary);">${a.total}</div>
                 <div class="agent-stat-lbl">Leads</div>
               </div>
               <div>
-                <div class="agent-stat-num" style="color:var(--cyan);">${a.attempted}</div>
-                <div class="agent-stat-lbl">Called</div>
+                <div class="agent-stat-num" style="color:var(--accent-purple);">${a.totalDials}</div>
+                <div class="agent-stat-lbl">Dials</div>
+              </div>
+              <div>
+                <div class="agent-stat-num" style="color:var(--cyan);">${a.att1}/${a.att2}/${a.att3}</div>
+                <div class="agent-stat-lbl">1st/2nd/3rd</div>
               </div>
               <div>
                 <div class="agent-stat-num" style="color:var(--emerald);">${a.booked}</div>
                 <div class="agent-stat-lbl">Booked</div>
               </div>
             </div>
-            <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:2px;">
-              <span>Conversion Rate:</span>
-              <strong style="color:var(--emerald);">${convRate}%</strong>
+            <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
+              <span>Call Intensity: <strong style="color:var(--accent-purple);">${intensity} dials/lead</strong></span>
+              <span>Conversion: <strong style="color:var(--emerald);">${convRate}%</strong></span>
             </div>
           </div>`;
       }).join('');
@@ -840,20 +867,68 @@
         else if (l.status === 'unreachable') statusCounts['Unreachable']++;
         else statusCounts['Unattempted']++;
       });
-
       renderChart('chart-disposition', 'doughnut', Object.keys(statusCounts), Object.values(statusCounts), ['#059669', '#d97706', '#e11d48', '#64748b']);
 
-      // 2. Health Issues Chart
+      // 2. Call Attempt Intensity Chart (1st, 2nd, 3rd Attempts by Caller)
+      const agentMap = {};
+      leads.forEach(l => {
+        const caller = l.caller || 'Unassigned';
+        if (!agentMap[caller]) agentMap[caller] = { att1: 0, att2: 0, att3: 0 };
+        if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
+        if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+        if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+      });
+      const topAgents = Object.entries(agentMap).sort((a,b) => (b[1].att1+b[1].att2+b[1].att3) - (a[1].att1+a[1].att2+a[1].att3)).slice(0, 7);
+      const labels = topAgents.map(e => e[0]);
+      const att1Arr = topAgents.map(e => e[1].att1);
+      const att2Arr = topAgents.map(e => e[1].att2);
+      const att3Arr = topAgents.map(e => e[1].att3);
+      renderStackedChart('chart-attempts', labels, att1Arr, att2Arr, att3Arr);
+
+      // 3. Health Issues Chart
       const issueMap = {};
       leads.forEach(l => issueMap[l.issue] = (issueMap[l.issue] || 0) + 1);
       const topIssues = Object.entries(issueMap).sort((a,b) => b[1] - a[1]).slice(0, 6);
       renderChart('chart-issues', 'bar', topIssues.map(e => e[0]), topIssues.map(e => e[1]), '#7c3aed');
 
-      // 3. Location Chart
+      // 4. Location Chart
       const locMap = {};
       leads.forEach(l => locMap[l.area] = (locMap[l.area] || 0) + 1);
       const topLocs = Object.entries(locMap).sort((a,b) => b[1] - a[1]).slice(0, 6);
       renderChart('chart-location', 'bar', topLocs.map(e => e[0]), topLocs.map(e => e[1]), '#0284c7');
+    }
+
+    function renderStackedChart(id, labels, ds1, ds2, ds3) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+
+      if (chartInstances[id]) {
+        chartInstances[id].data.labels = labels;
+        chartInstances[id].data.datasets[0].data = ds1;
+        chartInstances[id].data.datasets[1].data = ds2;
+        chartInstances[id].data.datasets[2].data = ds3;
+        chartInstances[id].update('none');
+        return;
+      }
+
+      chartInstances[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: '1st Attempt', data: ds1, backgroundColor: '#0284c7', borderRadius: 4 },
+            { label: '2nd Attempt', data: ds2, backgroundColor: '#d97706', borderRadius: 4 },
+            { label: '3rd Attempt', data: ds3, backgroundColor: '#7c3aed', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          scales: { x: { stacked: true }, y: { stacked: true } },
+          plugins: { legend: { display: true, position: 'bottom' } }
+        }
+      });
     }
 
     function renderChart(id, type, labels, data, colors) {
