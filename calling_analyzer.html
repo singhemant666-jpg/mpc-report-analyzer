@@ -661,22 +661,33 @@
       // White / Transparent / Default Google Sheet backgrounds -> null
       if (c === '#ffffff' || c === 'transparent' || c === '' || c === '#fff') return null;
 
-      // 1. Dark Green (#008000, #2e7d32, #1b5e20, #388e3c, #059669, #38761d, #274e13, #6aa84f) -> Consulted & Visited
-      if (c === '#008000' || c === '#2e7d32' || c === '#1b5e20' || c === '#388e3c' || c === '#059669' || c === '#27ae60' || c === '#38761d' || c === '#274e13' || c === '#6aa84f') return 'consulted';
+      // === EXACT Google Sheet colors from YOUR live data ===
       
-      // 2. Cyan / Light Blue (#00ffff, #00bcd4, #00e5ff, #0284c7, #4dd0e1, #80deea, #46bdc6, #a4c2f4, #c9daf8) -> Booked (No Visit)
+      // 1. Dark Green -> Consulted & Visited (patient came to clinic)
+      //    #34a853 = Google's dark green (91 rows in your sheet)
+      if (c === '#34a853' || c === '#008000' || c === '#2e7d32' || c === '#1b5e20' || c === '#388e3c' || c === '#059669' || c === '#27ae60' || c === '#38761d' || c === '#274e13' || c === '#6aa84f') return 'consulted';
+      
+      // 2. Cyan / Light Blue -> Booked but didn't visit
+      //    #00ffff = Cyan (52 rows in your sheet)
       if (c === '#00ffff' || c === '#00bcd4' || c === '#00e5ff' || c === '#0284c7' || c === '#4dd0e1' || c === '#80deea' || c === '#46bdc6' || c === '#a4c2f4' || c === '#c9daf8' || c === 'cyan' || c === 'blue') return 'booked_no_visit';
       
-      // 3. Light / Bright Green (#00ff00, #00e676, #4caf50, #76ff03, #b7e1cd, #d9ead3, #93c47d) -> Booked
-      if (c === '#00ff00' || c === '#00e676' || c === '#4caf50' || c === '#76ff03' || c === '#b7e1cd' || c === '#d9ead3' || c === '#93c47d' || c === 'green') return 'booked';
+      // 3. Light / Bright Green -> Booked appointment
+      //    #00ff00 = Bright green (254 rows), #03f03d (2 rows)
+      if (c === '#00ff00' || c === '#03f03d' || c === '#00e676' || c === '#4caf50' || c === '#76ff03' || c === '#b7e1cd' || c === '#d9ead3' || c === '#93c47d' || c === 'green') return 'booked';
       
-      // 4. Yellow (#ffff00, #ffeb3b, #f1c40f, #fff2cc, #ffd966, #ffe599) -> Spoken / Follow-up
+      // 4. Yellow -> Spoken / Follow-up
+      //    #ffff00 = Yellow (375 rows in your sheet)
       if (c === '#ffff00' || c === '#ffeb3b' || c === '#f1c40f' || c === '#fff2cc' || c === '#ffd966' || c === '#ffe599' || c === 'yellow') return 'pending';
-      
-      // 5. Red (#ff0000, #f44336, #e74c3c, #fce5cd, #f4ccd0, #e6b8af, #dd7e6b, #cc4125) -> Not Interested / Bad Lead
-      if (c === '#ff0000' || c === '#f44336' || c === '#e74c3c' || c === '#fce5cd' || c === '#f4ccd0' || c === '#e6b8af' || c === '#dd7e6b' || c === '#cc4125' || c === 'red') return 'not_interested';
 
-      // RGB Color Math Fallback for custom Google Sheet palette swatches
+      // 5. Magenta / Pink -> Follow-up (special)
+      //    #ff00ff = Magenta (17 rows in your sheet)
+      if (c === '#ff00ff' || c === 'magenta' || c === 'pink') return 'pending';
+      
+      // 6. Red -> Not Interested / Bad Lead
+      //    #ea4335 = Google's red (548 rows!), #ff0000 (2 rows), #cc0000 (1 row), #f4cccc (1 row)
+      if (c === '#ea4335' || c === '#ff0000' || c === '#cc0000' || c === '#f4cccc' || c === '#f44336' || c === '#e74c3c' || c === '#e6b8af' || c === '#dd7e6b' || c === '#cc4125' || c === 'red') return 'not_interested';
+
+      // RGB Color Math Fallback for any other custom swatches
       if (c.startsWith('#') && c.length === 7) {
         const r = parseInt(c.slice(1,3), 16);
         const g = parseInt(c.slice(3,5), 16);
