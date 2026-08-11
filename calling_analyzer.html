@@ -568,11 +568,18 @@
       let statusText = 'Unattempted';
       let badgeClass = 'badge-muted';
 
-      if (allNotes.includes('booked')) {
+      const isBooked = 
+        allNotes.includes('booked') ||
+        allNotes.includes('tentative') ||
+        /\b\d{1,2}(:\d{2})?\s*(am|pm)\b/i.test(allNotes) ||
+        (item['Booking Date'] && String(item['Booking Date']).trim() !== '') ||
+        (item['Converted Date'] && String(item['Converted Date']).trim() !== '');
+
+      if (isBooked) {
         status = 'booked';
         statusText = '🎯 Booked';
         badgeClass = 'badge-emerald';
-      } else if (allNotes.includes('let us know') || allNotes.includes('will call') || allNotes.includes('busy') || allNotes.includes('travelling')) {
+      } else if (allNotes.includes('let us know') || allNotes.includes('will call') || allNotes.includes('busy') || allNotes.includes('travelling') || allNotes.includes('keep details')) {
         status = 'pending';
         statusText = '⏳ Follow-up';
         badgeClass = 'badge-amber';
