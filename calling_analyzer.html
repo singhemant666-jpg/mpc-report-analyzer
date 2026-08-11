@@ -292,6 +292,12 @@
     <!-- FILTERS BAR -->
     <div class="filters-bar">
       <div class="filter-item">
+        <label class="filter-label">Sheet Tab / Form</label>
+        <select class="filter-select" id="filter-sheet" onchange="applyFilters()">
+          <option value="">All Sheets (8 Sheets)</option>
+        </select>
+      </div>
+      <div class="filter-item">
         <label class="filter-label">Calling Agent</label>
         <select class="filter-select" id="filter-agent" onchange="applyFilters()">
           <option value="">All Agents</option>
@@ -321,7 +327,7 @@
       </div>
       <div class="filter-item" style="flex:1; min-width:200px;">
         <label class="filter-label">Search Lead</label>
-        <input type="text" class="filter-input" id="search-input" placeholder="🔍 Search name, phone, area..." oninput="applyFilters()">
+        <input type="text" class="filter-input" id="search-input" placeholder="🔍 Search name, phone, area, sheet..." oninput="applyFilters()">
       </div>
     </div>
 
@@ -352,6 +358,7 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>Sheet Tab / Form</th>
               <th>Lead Name</th>
               <th>Phone</th>
               <th>Caller (Agent)</th>
@@ -446,6 +453,7 @@
       const name = item.full_name || item.name || `Lead #${index + 1}`;
       const phone = (item.phone_number || item.phone || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
       const caller = item['CALLER NAME'] || item.caller || 'Unassigned';
+      const sheetName = item._sheetName || item.sheetName || item.sheet || 'Main Sheet';
       const issue = formatLabel(item['what_issue_are_you_facing?'] || 'Not Specified');
       const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
       const area = formatLabel(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || 'Unknown');
@@ -484,6 +492,7 @@
         name,
         phone,
         caller,
+        sheetName,
         issue,
         duration,
         area,
@@ -520,7 +529,7 @@
           applyFilters();
 
           if (dot) dot.classList.remove('syncing');
-          if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Leads)`;
+          if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Total Leads Across All Sheets)`;
           document.getElementById('last-sync-time').textContent = `• Updated ${new Date().toLocaleTimeString()}`;
         }
       } catch (err) {
@@ -547,27 +556,33 @@
 
     // Populate Filter Dropdowns Dynamically
     function populateFilterOptions(leads) {
+      const sheetSel = document.getElementById('filter-sheet');
       const agentSel = document.getElementById('filter-agent');
       const issueSel = document.getElementById('filter-issue');
       const areaSel = document.getElementById('filter-area');
 
+      const sheets = [...new Set(leads.map(l => l.sheetName).filter(Boolean))].sort();
       const agents = [...new Set(leads.map(l => l.caller).filter(Boolean))].sort();
       const issues = [...new Set(leads.map(l => l.issue).filter(Boolean))].sort();
       const areas = [...new Set(leads.map(l => l.area).filter(Boolean))].sort();
 
-      if (agentSel.options.length <= 1) {
+      if (sheetSel && sheetSel.options.length <= 1) {
+        sheets.forEach(s => sheetSel.innerHTML += `<option value="${s}">${s}</option>`);
+      }
+      if (agentSel && agentSel.options.length <= 1) {
         agents.forEach(a => agentSel.innerHTML += `<option value="${a}">${a}</option>`);
       }
-      if (issueSel.options.length <= 1) {
+      if (issueSel && issueSel.options.length <= 1) {
         issues.forEach(i => issueSel.innerHTML += `<option value="${i}">${i}</option>`);
       }
-      if (areaSel.options.length <= 1) {
+      if (areaSel && areaSel.options.length <= 1) {
         areas.forEach(a => areaSel.innerHTML += `<option value="${a}">${a}</option>`);
       }
     }
 
     // Apply Filter Logic
     function applyFilters() {
+      const sheet = document.getElementById('filter-sheet') ? document.getElementById('filter-sheet').value : '';
       const agent = document.getElementById('filter-agent').value;
       const issue = document.getElementById('filter-issue').value;
       const area = document.getElementById('filter-area').value;
@@ -575,6 +590,7 @@
       const query = document.getElementById('search-input').value.toLowerCase();
 
       filteredLeads = rawLeadsData.filter(l => {
+        if (sheet && l.sheetName !== sheet) return false;
         if (agent && l.caller !== agent) return false;
         if (issue && l.issue !== issue) return false;
         if (area && l.area !== area) return false;
@@ -583,6 +599,7 @@
           const match = (l.name || '').toLowerCase().includes(query) ||
                         (l.phone || '').toLowerCase().includes(query) ||
                         (l.area || '').toLowerCase().includes(query) ||
+                        (l.sheetName || '').toLowerCase().includes(query) ||
                         (l.caller || '').toLowerCase().includes(query);
           if (!match) return false;
         }
@@ -731,13 +748,14 @@
       if (!tbody) return;
 
       if (leads.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
         return;
       }
 
       tbody.innerHTML = leads.map((l, idx) => `
         <tr>
           <td><strong>${idx + 1}</strong></td>
+          <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
           <td style="font-weight:600; color:var(--cyan);">${l.phone || '-'}</td>
           <td><strong style="color:var(--purple);">${l.caller}</strong></td>
@@ -755,6 +773,7 @@
     function exportLeadsExcel() {
       if (filteredLeads.length === 0) return;
       const data = filteredLeads.map(l => ({
+        'Sheet Tab': l.sheetName,
         'Lead Name': l.name,
         'Phone': l.phone,
         'Calling Agent': l.caller,
