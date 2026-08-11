@@ -486,9 +486,18 @@
 
     function getRawDateField(item) {
       if (!item || typeof item !== 'object') return null;
+      // Strict priority check for lead creation date columns first!
+      if (item['CALLER NAME Date'] !== undefined && item['CALLER NAME Date'] !== null && String(item['CALLER NAME Date']).trim() !== '') return item['CALLER NAME Date'];
+      if (item.Date !== undefined && item.Date !== null && String(item.Date).trim() !== '') return item.Date;
+      if (item.date !== undefined && item.date !== null && String(item.date).trim() !== '') return item.date;
+      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
+      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
+      if (item['Booking Date'] !== undefined && item['Booking Date'] !== null && String(item['Booking Date']).trim() !== '') return item['Booking Date'];
+      if (item['Converted Date'] !== undefined && item['Converted Date'] !== null && String(item['Converted Date']).trim() !== '') return item['Converted Date'];
+
       for (const key of Object.keys(item)) {
         const k = key.trim().toLowerCase();
-        if (k === 'date' || k.includes('date') || k.includes('created_time') || k.includes('timestamp')) {
+        if (k.includes('date') || k.includes('created') || k.includes('timestamp')) {
           if (item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '') {
             return item[key];
           }
@@ -497,47 +506,72 @@
       return null;
     }
 
-    // Helper: Date Parser for DD-MM-YYYY, DD 08 2026, DD.MM.YYYY, YYYY-MM-DD, ISO, etc.
+    // Helper: Robust Date Parser for DD-MM-YYYY, DD 08 2026, DD.MM.YYYY, YYYY-MM-DD, ISO, etc.
     function parseLeadDate(item) {
-      const raw = getRawDateField(item);
-      if (!raw) return null;
-      if (raw instanceof Date && !isNaN(raw)) return raw;
-      
-      const str = String(raw).trim();
-      if (!str) return null;
+      try {
+        const raw = getRawDateField(item);
+        if (!raw) return null;
+        if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
+        
+        const str = String(raw).trim();
+        if (!str || str.toLowerCase() === 'null' || str.toLowerCase() === 'undefined') return null;
 
-      // 1. Handle DD-MM-YYYY, DD 08 2026, DD/MM/YYYY, DD.MM.YYYY (e.g. "11 08 2026", "11-08-2026", "11.08.2026")
-      const dmy = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{4})/);
-      if (dmy) {
-        const day = parseInt(dmy[1], 10);
-        const month = parseInt(dmy[2], 10) - 1; // 0-indexed
-        const year = parseInt(dmy[3], 10);
-        return new Date(year, month, day);
-      }
-
-      // 2. Handle YYYY-MM-DD or YYYY/MM/DD (e.g. "2026-08-11")
-      const ymd = str.match(/^(\d{4})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{1,2})/);
-      if (ymd) {
-        const year = parseInt(ymd[1], 10);
-        const month = parseInt(ymd[2], 10) - 1;
-        const day = parseInt(ymd[3], 10);
-        return new Date(year, month, day);
-      }
-
-      // 3. Handle ISO string timestamp (e.g. "2026-08-11T..."), avoiding UTC shift
-      if (str.includes('T')) {
-        const parts = str.split('T')[0].split('-');
-        if (parts.length === 3) {
-          return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        // 1. Handle DD-MM-YYYY, DD 08 2026, DD/MM/YYYY, DD.MM.YYYY
+        const dmy = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{2,4})/);
+        if (dmy) {
+          const day = parseInt(dmy[1], 10);
+          const month = parseInt(dmy[2], 10) - 1; // 0-indexed
+          let year = parseInt(dmy[3], 10);
+          if (year < 100) year += 2000; // Handle '26 -> 2026
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+            return new Date(year, month, day);
+          }
         }
-      }
 
-      const d = new Date(str);
-      return !isNaN(d.getTime()) ? d : null;
+        // 2. Handle DD.MM or DD/MM (e.g. "15.08" or "11/08")
+        const dm = str.match(/^(\d{1,2})[\s\.\-\/]+(\d{1,2})$/);
+        if (dm) {
+          const day = parseInt(dm[1], 10);
+          const month = parseInt(dm[2], 10) - 1;
+          const year = new Date().getFullYear();
+          if (!isNaN(day) && !isNaN(month) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+            return new Date(year, month, day);
+          }
+        }
+
+        // 3. Handle YYYY-MM-DD or YYYY/MM/DD (e.g. "2026-08-11")
+        const ymd = str.match(/^(\d{4})[\s\.\-\/]+(\d{1,2})[\s\.\-\/]+(\d{1,2})/);
+        if (ymd) {
+          const year = parseInt(ymd[1], 10);
+          const month = parseInt(ymd[2], 10) - 1;
+          const day = parseInt(ymd[3], 10);
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            return new Date(year, month, day);
+          }
+        }
+
+        // 4. Handle ISO string timestamp (e.g. "2026-08-11T..."), avoiding UTC shift
+        if (str.includes('T')) {
+          const parts = str.split('T')[0].split('-');
+          if (parts.length === 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+              return new Date(y, m, d);
+            }
+          }
+        }
+
+        const d = new Date(str);
+        return (d instanceof Date && !isNaN(d.getTime())) ? d : null;
+      } catch (e) {
+        return null;
+      }
     }
 
     function formatDateDisplay(d) {
-      if (!d) return '-';
+      if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '-';
       const dd = String(d.getDate()).padStart(2, '0');
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const yyyy = d.getFullYear();
@@ -545,7 +579,7 @@
     }
 
     function toLocalInputDateStr(d) {
-      if (!d) return '';
+      if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '';
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
