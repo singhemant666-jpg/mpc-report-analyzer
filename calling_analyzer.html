@@ -428,9 +428,12 @@
         <label style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">GOOGLE APPS SCRIPT WEB APP URL</label>
         <input type="text" id="api-url-input" class="filter-input" style="width:100%; font-size:0.8rem; padding:8px 12px;" placeholder="https://script.google.com/macros/s/.../exec">
       </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px;">
-        <button class="btn" onclick="closeConfigModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveApiUrl()">Save & Sync Live</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <button class="btn" style="color:var(--rose);" onclick="resetApiUrl()">🔄 Reset Default URL</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" onclick="closeConfigModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveApiUrl()">Save & Sync Live</button>
+        </div>
       </div>
     </div>
   </div>
@@ -447,7 +450,16 @@
 
     // Load API URL from localStorage or fallback to default
     function getApiUrl() {
-      return localStorage.getItem('mpc_leads_api_url') || DEFAULT_API_URL;
+      const url = localStorage.getItem('mpc_leads_api_url');
+      return (url && url.trim() !== '') ? url.trim() : DEFAULT_API_URL;
+    }
+
+    function resetApiUrl() {
+      localStorage.removeItem('mpc_leads_api_url');
+      if (document.getElementById('api-url-input')) {
+        document.getElementById('api-url-input').value = DEFAULT_API_URL;
+      }
+      saveApiUrl();
     }
 
     // Initialize Theme
