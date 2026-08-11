@@ -550,16 +550,14 @@
           }
         }
 
-        // 4. Handle ISO string timestamp (e.g. "2026-08-11T..."), avoiding UTC shift
+        // 4. Handle ISO string timestamp (e.g. "2026-08-10T18:30:00.000Z")
+        //    Use native Date() to properly convert UTC to local timezone (IST)
+        //    "2026-08-10T18:30:00.000Z" = Aug 11 00:00 IST, NOT Aug 10!
         if (str.includes('T')) {
-          const parts = str.split('T')[0].split('-');
-          if (parts.length === 3) {
-            const y = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10) - 1;
-            const d = parseInt(parts[2], 10);
-            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
-              return new Date(y, m, d);
-            }
+          const isoDate = new Date(str);
+          if (!isNaN(isoDate.getTime())) {
+            // Extract LOCAL date components (IST), not UTC
+            return new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate());
           }
         }
 
