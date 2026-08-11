@@ -501,18 +501,20 @@
 
     function getRawDateField(item) {
       if (!item || typeof item !== 'object') return null;
-      // 1. Priority 1: Operational Calling Sheet Date Column (Date / CALLER NAME Date)
+
+      // 1. Priority 1: created_time (Column C) - the actual IST lead creation timestamp
+      //    This is the most reliable date field from Facebook/Meta Ads
+      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
+      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
+
+      // 2. Priority 2: Operational Calling Sheet Date Column (CALLER NAME Date / Date)
       if (item['CALLER NAME Date'] !== undefined && item['CALLER NAME Date'] !== null && String(item['CALLER NAME Date']).trim() !== '') return item['CALLER NAME Date'];
       if (item.Date !== undefined && item.Date !== null && String(item.Date).trim() !== '') return item.Date;
       if (item.date !== undefined && item.date !== null && String(item.date).trim() !== '') return item.date;
 
-      // 2. Priority 2: Booking Date / Converted Date
+      // 3. Priority 3: Booking Date / Converted Date
       if (item['Booking Date'] !== undefined && item['Booking Date'] !== null && String(item['Booking Date']).trim() !== '') return item['Booking Date'];
       if (item['Converted Date'] !== undefined && item['Converted Date'] !== null && String(item['Converted Date']).trim() !== '') return item['Converted Date'];
-
-      // 3. Priority 3: Meta Ad creation timestamp (only if Date cell is completely empty)
-      if (item.created_time !== undefined && item.created_time !== null && String(item.created_time).trim() !== '') return item.created_time;
-      if (item.timestamp !== undefined && item.timestamp !== null && String(item.timestamp).trim() !== '') return item.timestamp;
 
       for (const key of Object.keys(item)) {
         const k = key.trim().toLowerCase();
