@@ -292,6 +292,24 @@
     <!-- FILTERS BAR -->
     <div class="filters-bar">
       <div class="filter-item">
+        <label class="filter-label">Date Preset</label>
+        <select class="filter-select" id="filter-date-preset" onchange="applyDatePreset()">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="last7">Last 7 Days</option>
+          <option value="last30">Last 30 Days</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">From Date</label>
+        <input type="date" class="filter-input" id="filter-start-date" onchange="applyFilters()">
+      </div>
+      <div class="filter-item">
+        <label class="filter-label">To Date</label>
+        <input type="date" class="filter-input" id="filter-end-date" onchange="applyFilters()">
+      </div>
+      <div class="filter-item">
         <label class="filter-label">Sheet Tab / Form</label>
         <select class="filter-select" id="filter-sheet" onchange="applyFilters()">
           <option value="">All Sheets (8 Sheets)</option>
@@ -358,6 +376,7 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>Date</th>
               <th>Sheet Tab / Form</th>
               <th>Lead Name</th>
               <th>Phone</th>
@@ -448,6 +467,73 @@
       }
     }
 
+    // Helper: Date Parser for DD-MM-YYYY, YYYY-MM-DD, ISO, etc.
+    function parseLeadDate(item) {
+      const raw = item.Date || item['CALLER NAME Date'] || item.created_time || item['Booking Date'] || item['Converted Date'] || item.date;
+      if (!raw) return null;
+      if (raw instanceof Date && !isNaN(raw)) return raw;
+      const str = String(raw).trim();
+      if (!str) return null;
+
+      // Handle DD-MM-YYYY or DD/MM/YYYY (e.g. 10-08-2026, 11-08-2026)
+      const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmy) {
+        return new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+      }
+
+      const d = new Date(str);
+      return !isNaN(d.getTime()) ? d : null;
+    }
+
+    function formatDateDisplay(d) {
+      if (!d) return '-';
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+
+    function applyDatePreset() {
+      const preset = document.getElementById('filter-date-preset').value;
+      const startInput = document.getElementById('filter-start-date');
+      const endInput = document.getElementById('filter-end-date');
+
+      if (preset === 'all') {
+        startInput.value = '';
+        endInput.value = '';
+        applyFilters();
+        return;
+      }
+
+      const now = new Date();
+      let start = null;
+      let end = null;
+
+      if (preset === 'today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      } else if (preset === 'yesterday') {
+        const y = new Date(now);
+        y.setDate(y.getDate() - 1);
+        start = new Date(y.getFullYear(), y.getMonth(), y.getDate());
+        end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59);
+      } else if (preset === 'last7') {
+        const s = new Date(now);
+        s.setDate(s.getDate() - 6);
+        start = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      } else if (preset === 'last30') {
+        const s = new Date(now);
+        s.setDate(s.getDate() - 29);
+        start = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      }
+
+      startInput.value = start ? start.toISOString().slice(0,10) : '';
+      endInput.value = end ? end.toISOString().slice(0,10) : '';
+      applyFilters();
+    }
+
     // Helper: Normalize & Categorize Lead Data
     function normalizeLead(item, index) {
       const name = item.full_name || item.name || `Lead #${index + 1}`;
@@ -458,6 +544,9 @@
       const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
       const area = formatLabel(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || 'Unknown');
       
+      const leadDate = parseLeadDate(item);
+      const leadDateStr = formatDateDisplay(leadDate);
+
       const att1 = item['ATTEMPT 1'] || item['ATT 1'] || '';
       const att2 = item['ATT 2'] || '';
       const att3 = item['ATT 3'] || '';
@@ -496,6 +585,8 @@
         issue,
         duration,
         area,
+        leadDate,
+        leadDateStr,
         att1,
         att2,
         att3,
@@ -582,6 +673,11 @@
 
     // Apply Filter Logic
     function applyFilters() {
+      const startDateVal = document.getElementById('filter-start-date').value;
+      const endDateVal = document.getElementById('filter-end-date').value;
+      const startDate = startDateVal ? new Date(startDateVal + 'T00:00:00') : null;
+      const endDate = endDateVal ? new Date(endDateVal + 'T23:59:59') : null;
+
       const sheet = document.getElementById('filter-sheet') ? document.getElementById('filter-sheet').value : '';
       const agent = document.getElementById('filter-agent').value;
       const issue = document.getElementById('filter-issue').value;
@@ -590,6 +686,8 @@
       const query = document.getElementById('search-input').value.toLowerCase();
 
       filteredLeads = rawLeadsData.filter(l => {
+        if (startDate && l.leadDate && l.leadDate < startDate) return false;
+        if (endDate && l.leadDate && l.leadDate > endDate) return false;
         if (sheet && l.sheetName !== sheet) return false;
         if (agent && l.caller !== agent) return false;
         if (issue && l.issue !== issue) return false;
@@ -600,7 +698,8 @@
                         (l.phone || '').toLowerCase().includes(query) ||
                         (l.area || '').toLowerCase().includes(query) ||
                         (l.sheetName || '').toLowerCase().includes(query) ||
-                        (l.caller || '').toLowerCase().includes(query);
+                        (l.caller || '').toLowerCase().includes(query) ||
+                        (l.leadDateStr || '').toLowerCase().includes(query);
           if (!match) return false;
         }
         return true;
@@ -748,13 +847,14 @@
       if (!tbody) return;
 
       if (leads.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
         return;
       }
 
       tbody.innerHTML = leads.map((l, idx) => `
         <tr>
           <td><strong>${idx + 1}</strong></td>
+          <td style="font-weight:600; color:var(--text-muted);">${l.leadDateStr}</td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
           <td style="font-weight:600; color:var(--cyan);">${l.phone || '-'}</td>
@@ -773,6 +873,7 @@
     function exportLeadsExcel() {
       if (filteredLeads.length === 0) return;
       const data = filteredLeads.map(l => ({
+        'Date': l.leadDateStr,
         'Sheet Tab': l.sheetName,
         'Lead Name': l.name,
         'Phone': l.phone,
