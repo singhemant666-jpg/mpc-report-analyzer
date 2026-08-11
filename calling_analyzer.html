@@ -547,6 +547,31 @@
       applyFilters();
     }
 
+    function cleanLocation(val) {
+      if (!val) return 'Unknown';
+      let str = String(val).trim();
+      if (!str || str === '-' || str.toLowerCase() === 'na' || str.toLowerCase() === 'null') return 'Unknown';
+
+      const lower = str.toLowerCase();
+      // Filter out dates or call attempt notes accidentally typed into Location column (e.g. "07.08 Not Reach", "08.08 Ringing")
+      if (
+        /\d{1,2}[\.\/]\d{1,2}/.test(str) ||
+        lower.includes('not reach') ||
+        lower.includes('ringing') ||
+        lower.includes('busy') ||
+        lower.includes('disconnect') ||
+        lower.includes('switch') ||
+        lower.includes('call') ||
+        lower.includes('invalid') ||
+        lower.includes('asked') ||
+        lower.includes('let us know')
+      ) {
+        return 'Unknown';
+      }
+
+      return formatLabel(str);
+    }
+
     // Helper: Normalize & Categorize Lead Data
     function normalizeLead(item, index) {
       const name = item.full_name || item.name || `Lead #${index + 1}`;
@@ -556,7 +581,7 @@
       const sheetName = item._sheetName || item.sheetName || item.sheet || 'Main Sheet';
       const issue = formatLabel(item['what_issue_are_you_facing?'] || 'Not Specified');
       const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
-      const area = formatLabel(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || 'Unknown');
+      const area = cleanLocation(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION);
       
       const leadDate = parseLeadDate(item);
       const leadDateStr = formatDateDisplay(leadDate);
@@ -699,19 +724,27 @@
       const sheets = [...new Set(leads.map(l => l.sheetName).filter(Boolean))].sort();
       const agents = [...new Set(leads.map(l => l.caller).filter(Boolean))].sort();
       const issues = [...new Set(leads.map(l => l.issue).filter(Boolean))].sort();
-      const areas = [...new Set(leads.map(l => l.area).filter(Boolean))].sort();
+      const areas = [...new Set(leads.map(l => l.area).filter(a => a && a !== 'Unknown'))].sort((a, b) => a.localeCompare(b));
 
-      if (sheetSel && sheetSel.options.length <= 1) {
-        sheets.forEach(s => sheetSel.innerHTML += `<option value="${s}">${s}</option>`);
+      if (sheetSel) {
+        const curr = sheetSel.value;
+        sheetSel.innerHTML = '<option value="">All Sheets (8 Sheets)</option>' + sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+        sheetSel.value = curr;
       }
-      if (agentSel && agentSel.options.length <= 1) {
-        agents.forEach(a => agentSel.innerHTML += `<option value="${a}">${a}</option>`);
+      if (agentSel) {
+        const curr = agentSel.value;
+        agentSel.innerHTML = '<option value="">All Agents</option>' + agents.map(a => `<option value="${a}">${a}</option>`).join('');
+        agentSel.value = curr;
       }
-      if (issueSel && issueSel.options.length <= 1) {
-        issues.forEach(i => issueSel.innerHTML += `<option value="${i}">${i}</option>`);
+      if (issueSel) {
+        const curr = issueSel.value;
+        issueSel.innerHTML = '<option value="">All Health Issues</option>' + issues.map(i => `<option value="${i}">${i}</option>`).join('');
+        issueSel.value = curr;
       }
-      if (areaSel && areaSel.options.length <= 1) {
-        areas.forEach(a => areaSel.innerHTML += `<option value="${a}">${a}</option>`);
+      if (areaSel) {
+        const curr = areaSel.value;
+        areaSel.innerHTML = '<option value="">All Locations</option>' + areas.map(a => `<option value="${a}">${a}</option>`).join('');
+        areaSel.value = curr;
       }
     }
 
