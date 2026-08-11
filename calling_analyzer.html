@@ -252,6 +252,7 @@
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;" id="countdown-text">Auto-refresh in 15s</span>
+        <button class="btn btn-sm" id="pause-btn" onclick="toggleAutoRefresh()">⏸️ Pause</button>
         <button class="btn btn-sm" onclick="fetchLiveLeads(true)">🔄 Sync Now</button>
       </div>
     </div>
@@ -604,8 +605,20 @@
                 .replace(/\b\w/g, l => l.toUpperCase());
     }
 
+    let autoRefreshPaused = false;
+
+    function toggleAutoRefresh() {
+      autoRefreshPaused = !autoRefreshPaused;
+      const btn = document.getElementById('pause-btn');
+      const el = document.getElementById('countdown-text');
+      if (btn) btn.innerHTML = autoRefreshPaused ? '▶️ Resume' : '⏸️ Pause';
+      if (el) el.textContent = autoRefreshPaused ? 'Auto-refresh Paused' : `Auto-refresh in ${countdownSec}s`;
+    }
+
     // Fetch Live Leads Data from Google Script URL
     async function fetchLiveLeads(manual = false) {
+      if (autoRefreshPaused && !manual) return;
+      
       const dot = document.getElementById('sync-dot');
       const statusText = document.getElementById('sync-status-text');
       if (dot) dot.classList.add('syncing');
@@ -637,6 +650,7 @@
       countdownSec = 15;
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
+        if (autoRefreshPaused) return;
         countdownSec--;
         const el = document.getElementById('countdown-text');
         if (el) el.textContent = `Auto-refresh in ${countdownSec}s`;
@@ -818,9 +832,16 @@
     }
 
     function renderChart(id, type, labels, data, colors) {
-      if (chartInstances[id]) chartInstances[id].destroy();
       const ctx = document.getElementById(id);
       if (!ctx) return;
+
+      if (chartInstances[id]) {
+        // Update datasets and labels smoothly in-place without destroying chart instance or re-playing entrance animations!
+        chartInstances[id].data.labels = labels;
+        chartInstances[id].data.datasets[0].data = data;
+        chartInstances[id].update('none');
+        return;
+      }
 
       chartInstances[id] = new Chart(ctx, {
         type,
@@ -835,6 +856,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: { duration: 400 },
           plugins: { legend: { display: type === 'doughnut', position: 'bottom' } }
         }
       });
