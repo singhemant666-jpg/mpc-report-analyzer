@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Real-Time Calling Leads Analyzer | MPC Clinic</title>
 
   <!-- Google Fonts & Chart.js & SheetJS -->
@@ -884,7 +887,9 @@
       if (statusText) statusText.textContent = 'Syncing Live Data...';
 
       try {
-        const response = await fetch(getApiUrl());
+        const baseUrl = getApiUrl();
+        const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        const response = await fetch(fetchUrl, { cache: 'no-store' });
         const json = await response.json();
         
         if (Array.isArray(json)) {
