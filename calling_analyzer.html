@@ -1102,9 +1102,24 @@
         const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
         const response = await fetch(fetchUrl, { cache: 'no-store' });
         const json = await response.json();
-        
+
+        // Support both old plain-array response AND new { success, data, meta } envelope
+        let rows = null;
         if (Array.isArray(json)) {
-          rawLeadsData = json.map((item, idx) => normalizeLead(item, idx));
+          // Old Apps Script format: returns raw array directly
+          rows = json;
+        } else if (json && json.success === true && Array.isArray(json.data)) {
+          // New improved Apps Script format: { success: true, data: [...], meta: {...} }
+          rows = json.data;
+          if (json.meta) {
+            console.log('[MPC API]', json.meta);
+          }
+        } else if (json && json.success === false) {
+          throw new Error('API Error: ' + (json.error || 'Unknown server error'));
+        }
+
+        if (rows !== null) {
+          rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
           populateFilterOptions(rawLeadsData);
           applyFilters();
 
@@ -1112,6 +1127,7 @@
           if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Total Leads Across All Sheets)`;
           document.getElementById('last-sync-time').textContent = `• Updated ${new Date().toLocaleTimeString()}`;
         }
+
       } catch (err) {
         console.error('Error fetching live leads:', err);
         if (dot) dot.classList.remove('syncing');
