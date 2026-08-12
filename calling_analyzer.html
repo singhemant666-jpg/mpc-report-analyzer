@@ -526,39 +526,30 @@
         </div>
       </div>
 
-      <!-- GROQ AI CALLING OPERATIONS INTELLIGENCE -->
+      <!-- GROQ AI CALLING OPERATIONS & LEAD AUDITOR -->
       <div class="ai-card" id="groq-ai-ops-card" style="margin-bottom:24px;">
         <div class="ai-header">
           <div class="ai-title">
             <span>⚡</span>
-            <span>Groq AI 360° Calling Operations &amp; Lead Quality Intelligence</span>
-            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Real-Time AI</span>
+            <span>Groq AI Live Lead &amp; Patient Booking Auditor</span>
+            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">🟢 Autonomous Background Monitor • Llama 3.3 70B</span>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <button class="btn btn-purple btn-sm" id="ai-ops-run-btn" onclick="runGroqAIOpsAnalysis()">
-              <span>✨</span> Run 360° Operations Audit
+              <span>🔄</span> Refresh Audit
             </button>
-            <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOpsOutput()" title="Copy Operations Report">📋</button>
+            <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOpsOutput()" title="Copy Audit Report">📋</button>
           </div>
         </div>
 
         <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
-          Autonomous real-time operations intelligence. Mathematically audits lead counts, booking show-up rates, caller conversion benchmarks, attempt persistence, lead quality grades, and provides closing scripts.
-        </div>
-
-        <!-- Quick 1-Click Operations Audit Tabs -->
-        <div class="ai-chips-group">
-          <div class="ai-chip" style="background:rgba(124,58,237,0.1); border-color:var(--accent-purple); color:var(--accent-purple);" onclick="runGroqAIOpsAnalysis()">📊 360° Comprehensive Full Audit</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit each calling agent (Ishankita, Reetika, Yogita, Anika). Benchmark their conversion rates, highlight top performers, and identify coaching needs.')">🏆 Agent Performance &amp; Coaching</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Evaluate overall lead quality, rejection reasons, and compare quality of leads across ad sources and locations.')">🎯 Lead Quality &amp; Reject Analysis</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Analyze 1st vs 2nd vs 3rd attempt intensity. Are callers abandoning ringing leads too soon? How many dials are needed to close?')">📞 Dial Intensity &amp; Attempt Persistence</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Action plan for Spoken / Follow-up pending leads: What exact objection handling and WhatsApp follow-up scripts will convert them?')">💬 Pipeline Closing Scripts</div>
+          Autonomous continuous background audit. Evaluates all incoming leads, caller dials, Meta Ads campaigns, and confirmed patient bookings in real time.
         </div>
 
         <!-- AI Output Box -->
         <div class="ai-output-box" id="ai-ops-output-box">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--card-border); padding-bottom:8px; margin-bottom:12px;">
-            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI 360° Operations &amp; Lead Quality Intelligence Report</span>
+            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Real-Time Lead &amp; Ad Booking Audit Report</span>
             <button class="btn btn-sm" style="font-size:0.7rem; padding:3px 10px;" onclick="copyAIOpsOutput()">📋 Copy Report</button>
           </div>
           <div class="ai-output-content" id="ai-ops-output-content"></div>
@@ -681,34 +672,25 @@
         <div class="ai-header">
           <div class="ai-title">
             <span>⚡</span>
-            <span>Groq AI Meta Ads &amp; Booking Quality Intelligence</span>
-            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Real-Time AI</span>
+            <span>Groq AI Meta Ads &amp; Booking Quality Auditor</span>
+            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">🟢 Autonomous Background Monitor • Llama 3.3 70B</span>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <button class="btn btn-purple btn-sm" id="ai-run-btn" onclick="runGroqAIAnalysis()">
-              <span>✨</span> Run AI Quality Audit
+              <span>🔄</span> Refresh Audit
             </button>
-            <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOutput()" title="Copy AI Analysis">📋</button>
+            <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOutput()" title="Copy Audit Report">📋</button>
           </div>
         </div>
 
         <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
-          Autonomous AI strategic audit powered by Groq Llama-3.3-70B. Analyzes real-time campaign booking velocity, budget scale recommendations (+30%), geographic travel friction around Bandra West, and high-converting ad copy.
-        </div>
-
-        <!-- Quick 1-Click Action Chips -->
-        <div class="ai-chips-group">
-          <div class="ai-chip" style="background:rgba(124,58,237,0.1); border-color:var(--accent-purple); color:var(--accent-purple);" onclick="runGroqAIAnalysis()">📊 360° Full Ad Quality &amp; ROI Audit</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Which exact Meta Ad Creatives should I scale budget on (+30%) and which should I pause immediately to stop burning money?')">🚀 Scale vs Pause Ads</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Analyze Mumbai geographic travel friction around Bandra West clinic. Which areas convert to clinic visits and which suburbs are wasting ad spend?')">📍 Geo Radius &amp; Wastage</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Write 3 high-converting Meta Ad headlines, pain hooks, and creative angles based on our top-converting health conditions for Bandra clinic.')">✍️ Generate Ad Hooks</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Provide a Comprehensive Executive Summary: Top strengths, immediate budget scale actions, and calling pipeline fixes.')">💡 Actionable Spend Strategy</div>
+          Autonomous continuous background audit. Evaluates real-time Meta Ads campaign ROI, patient booking velocity, and geographic travel friction around Bandra West clinic.
         </div>
 
         <!-- AI Output Box -->
         <div class="ai-output-box" id="ai-output-box">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--card-border); padding-bottom:8px; margin-bottom:12px;">
-            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Strategic Analysis &amp; Action Plan</span>
+            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Meta Ads &amp; Booking Quality Audit Report</span>
             <button class="btn btn-sm" style="font-size:0.7rem; padding:3px 10px;" onclick="copyAIOutput()">📋 Copy Report</button>
           </div>
           <div class="ai-output-content" id="ai-output-content"></div>
@@ -2624,52 +2606,47 @@
       });
       const topLocs = Object.values(locMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
 
-      const prompt = `You are the Chief Clinical Operations & Patient Acquisition Director for MPC Clinic, a premier non-surgical spine, knee & orthopedic clinic located in Bandra West, Mumbai.
+      const prompt = `You are the Senior Clinical Operations & Meta Ads Quality Auditor for MPC Clinic, Bandra West, Mumbai.
 
-Perform a 360-Degree Comprehensive Mathematical & Operational Audit of the live dataset:
+Perform a continuous, rigorous mathematical audit of all leads, caller dials, and patient bookings:
 
-=== 1. EXACT MATHEMATICAL COUNT RECONCILIATION ===
-• Total Leads Analyzed: ${total}
+=== 1. MATHEMATICAL COUNT & RECONCILIATION AUDIT ===
+• Total Leads: ${total}
 • Total Booked Patients: ${totalBooked} patients (across ${totalBookedLeads} leads — booking rate: ${((totalBooked/total)*100).toFixed(1)}%)
 • In-Person Clinic Visits Completed (Consulted): ${totalConsulted} (${((totalConsulted/total)*100).toFixed(1)}% show-up)
 • Booked (Pending Visit): ${totalBookedNoVisit}
 • Spoken / Follow-up Pipeline: ${totalPending} (${((totalPending/total)*100).toFixed(1)}%)
 • Unreachable (Ringing/Busy/Disconnected): ${totalUnreachable} (${((totalUnreachable/total)*100).toFixed(1)}%)
-• Fresh Uncalled Leads (Call Not Done Yet): ${totalUnattempted} (${((totalUnattempted/total)*100).toFixed(1)}%)
+• Fresh Uncalled Leads Backlog: ${totalUnattempted} (${((totalUnattempted/total)*100).toFixed(1)}%)
 • Rejected / Not Interested / Out of City: ${totalNotInt} (${((totalNotInt/total)*100).toFixed(1)}%)
 • Lead Quality Score: ${qualityScore}/100 [Grade: ${qualityGrade}]
 
-=== 2. DIAL INTENSITY & RE-ATTEMPT METRICS ===
+=== 2. DIAL INTENSITY AUDIT ===
 • 1st Dials Made: ${totalAtt1} / ${total} leads
 • 2nd Dials Made: ${totalAtt2}
 • 3rd Dials Made: ${totalAtt3}
 • Total Dials Made: ${totalAtt1 + totalAtt2 + totalAtt3}
 
-=== 3. CALLING AGENTS PERFORMANCE BREAKDOWN ===
+=== 3. CALLING AGENT PERFORMANCE AUDIT ===
 ${agents.map(ag => `• Caller: ${ag.name}
-   - Leads Assigned: ${ag.leads}
-   - Total Dials: ${ag.att1 + ag.att2 + ag.att3} (1st:${ag.att1}, 2nd:${ag.att2}, 3rd:${ag.att3})
-   - Booked Patients: ${ag.booked} (${((ag.booked/ag.leads)*100).toFixed(1)}% conversion)
-   - In-Clinic Consulted: ${ag.consulted}
-   - Spoken / Follow-up: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}
-   - Sample Notes: ${ag.recentNotes.join(' | ') || 'None'}`).join('\n\n')}
+   - Assigned: ${ag.leads} leads | Total Dials: ${ag.att1 + ag.att2 + ag.att3} (1st:${ag.att1}, 2nd:${ag.att2}, 3rd:${ag.att3})
+   - Booked Patients: ${ag.booked} (${((ag.booked/ag.leads)*100).toFixed(1)}% conversion) | Consulted Visits: ${ag.consulted}
+   - Follow-up Pending: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}
+   - Recent Attempt Notes: ${ag.recentNotes.join(' | ') || 'None'}`).join('\n\n')}
 
-=== 4. TOP AD CREATIVES QUALITY ===
-${topAds.map(a => `• ${a.name}: ${a.leads} leads | ${a.booked} booked (${((a.booked/a.leads)*100).toFixed(1)}%) | ${a.consulted} consulted | ${a.notInt} rejected (${((a.notInt/a.leads)*100).toFixed(1)}%)`).join('\n')}
+=== 4. META ADS CREATIVES BOOKING AUDIT ===
+${topAds.map(a => `• Ad: ${a.name} -> ${a.leads} leads | ${a.booked} booked (${((a.booked/a.leads)*100).toFixed(1)}%) | ${a.consulted} consulted | ${a.notInt} rejected (${((a.notInt/a.leads)*100).toFixed(1)}%)`).join('\n')}
 
-=== 5. TOP LOCATIONS & TRAVEL FRICTION ===
-${topLocs.map(l => `• ${l.name}: ${l.leads} leads | ${l.booked} booked (${((l.booked/l.leads)*100).toFixed(1)}%) | ${l.consulted} consulted | ${l.notInt} rejected (${((l.notInt/l.leads)*100).toFixed(1)}%)`).join('\n')}
+=== 5. MUMBAI LOCATION CATCHMENT AUDIT ===
+${topLocs.map(l => `• Area: ${l.name} -> ${l.leads} leads | ${l.booked} booked (${((l.booked/l.leads)*100).toFixed(1)}%) | ${l.consulted} consulted | ${l.notInt} rejected (${((l.notInt/l.leads)*100).toFixed(1)}%)`).join('\n')}
 
-${customQuery ? `FOCUS AREA: "${customQuery}"` : `Please provide a complete 360-degree audit with exact numbers and clear action steps:`}
+Structure your audit report strictly into these 4 factual, data-driven audit sections:
+1. 📊 **Lead Counts & Booking Reconciliation**: Reconcile total leads, booked patient volume, show-up rates, lead quality score & grade, and top drop-off bottleneck.
+2. 🎯 **Meta Ads Campaign & Patient Booking Audit**: Factual evaluation of top-performing ad creatives vs poor-performing ads that generate rejections or unreachable numbers.
+3. 📍 **Mumbai Catchment & Geographic Friction Audit**: Analysis of conversion by location distance from Bandra West clinic (e.g. Bandra/Khar vs Dadar vs Mira Road).
+4. 📞 **Calling Operations & Dial Intensity Audit**: Full audit of Ishankita, Reetika, Yogita, Anika on dial counts, conversion efficiency, unreachable persistence, and speed-to-call backlog.
 
-Provide a structured, executive-level report with these 5 sections:
-1. 📊 **Executive Mathematical Summary & Lead Quality Grade**: Full count breakdown, patient volume vs lead volume, lead quality score & grade, and top drop-off reason.
-2. 🏆 **Calling Agent Benchmarks & Coaching**: In-depth review of Ishankita, Reetika, Yogita, Anika. Highlight closing strengths, identify conversion bottlenecks, and set daily booking targets.
-3. 📞 **Dial Intensity & Persistence Protocol**: Strict operational rule on how many dials to make on ringing/unreachable leads to prevent wasted leads.
-4. 🎯 **Lead Quality & Ad Source Evaluation**: Which ads bring serious booked patients vs which ads bring high rejections or unreachable numbers.
-5. 💬 **Actionable Closing Scripts & Today's SLA**: Word-for-word calling & WhatsApp scripts to close the ${totalPending} pending leads and clear the ${totalUnattempted} uncalled leads today.
-
-Format with bold numbers, clear bullet points, clean section headers, and emojis.`;
+Use bold numbers, clean bullet points, and emojis.`;
 
       return prompt;
     }
