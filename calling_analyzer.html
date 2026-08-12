@@ -387,12 +387,13 @@
         <label class="filter-label">Lead Status</label>
         <select class="filter-select" id="filter-status" onchange="applyFilters()">
           <option value="">All Statuses</option>
-          <option value="consulted">✅ Consulted & Visited (Dark Green)</option>
+          <option value="consulted">✅ Consulted &amp; Visited (Dark Green)</option>
           <option value="booked_no_visit">📅 Booked - Pending Visit (Cyan/Blue)</option>
           <option value="booked">🎯 Booked (Green)</option>
           <option value="pending">⏳ Spoken / Follow-up (Yellow)</option>
           <option value="not_interested">❌ Not Interested / Bad Lead (Red)</option>
-          <option value="unreachable">📞 Unreachable / Blank (White)</option>
+          <option value="unreachable">📞 Unreachable (Ringing / Disconnected / Busy)</option>
+          <option value="unattempted">⏳ Call Not Done Yet (Fresh / Blank)</option>
         </select>
       </div>
       <div class="filter-item search-item">
@@ -416,7 +417,7 @@
           <div class="metric-sub" id="kpi-total-booked-sub">0% booking rate</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">✅ Consulted & Visited</div>
+          <div class="metric-label">✅ Consulted &amp; Visited</div>
           <div class="metric-value" style="color:#047857;" id="kpi-consulted">0</div>
           <div class="metric-sub">Dark Green • Came for clinic consultation</div>
         </div>
@@ -436,9 +437,14 @@
           <div class="metric-sub">Red • Out of city / No requirement</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">📞 Unreachable / Blank</div>
-          <div class="metric-value" style="color:var(--text-muted);" id="kpi-unreachable">0</div>
-          <div class="metric-sub" id="kpi-attempted-sub">White • Ringing / Switch off / Blank</div>
+          <div class="metric-label">📞 Unreachable (Attempted)</div>
+          <div class="metric-value" style="color:var(--cyan);" id="kpi-unreachable">0</div>
+          <div class="metric-sub" id="kpi-attempted-sub">Ringing / Busy / Disconnected</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">⏳ Call Not Done Yet</div>
+          <div class="metric-value" style="color:var(--text-muted);" id="kpi-unattempted">0</div>
+          <div class="metric-sub">Fresh leads • No comments yet</div>
         </div>
       </div>
 
@@ -1270,7 +1276,11 @@
         convertedDateVal !== '' ||
         (/\b\d{1,2}\/\d{1,2}\b/.test(allNotes) && /\b(am|pm)\b/i.test(allNotes) && !isSpokenPendingText);
 
-      // Determine Lead Status based on Color Rules
+      const hasAnyComment = (att1.trim() !== '' && att1.trim() !== '-') ||
+                            (att2.trim() !== '' && att2.trim() !== '-') ||
+                            (att3.trim() !== '' && att3.trim() !== '-');
+
+      // Determine Lead Status based on Color Rules & Call Attempt Comments
       if (colorType === 'consulted') {
         status = 'consulted';
         statusText = '✅ Consulted & Visited';
@@ -1295,22 +1305,20 @@
         status = 'booked';
         statusText = '🎯 Booked';
         badgeClass = 'badge-emerald';
-      } else if (att1.trim() !== '') {
-        status = 'attempted';
-        statusText = '🤙 Contacted';
+      } else if (hasAnyComment) {
+        // Any comment entered in Attempt 1/2/3 (e.g. disconnecting, ringing, busy, switched off)
+        // that is not spoken/booked means the caller DID attempt and the patient was unreachable.
+        status = 'unreachable';
+        statusText = '📞 Unreachable / Ringing';
         badgeClass = 'badge-cyan';
       } else {
-        status = 'unreachable';
-        statusText = '📞 Unreachable / Blank';
+        // Pure whitespace / empty attempt cells -> Call is not done yet!
+        status = 'unattempted';
+        statusText = '⏳ Call Not Done Yet';
         badgeClass = 'badge-muted';
       }
 
-      const isUntouched = (
-        (!att1 || att1.trim() === '' || att1.trim() === '-') &&
-        (!att2 || att2.trim() === '') &&
-        (!att3 || att3.trim() === '') &&
-        (status === 'unreachable' || status === 'unattempted')
-      );
+      const isUntouched = (!hasAnyComment && status === 'unattempted');
 
       const adName = (item.ad_name && String(item.ad_name).trim() !== '') ? String(item.ad_name).trim() : 'Organic / Direct';
       const campaignName = (item.campaign_name && String(item.campaign_name).trim() !== '') ? String(item.campaign_name).trim() : 'General Campaign';
@@ -2052,6 +2060,7 @@
       const pending = leads.filter(l => l.status === 'pending').length;
       const notInterested = leads.filter(l => l.status === 'not_interested').length;
       const unreachable = leads.filter(l => l.status === 'unreachable').length;
+      const unattempted = leads.filter(l => l.status === 'unattempted').length;
 
       let att1Total = 0, att2Total = 0, att3Total = 0;
       leads.forEach(l => {
@@ -2079,8 +2088,9 @@
       if (document.getElementById('kpi-pending')) document.getElementById('kpi-pending').textContent = pending;
       if (document.getElementById('kpi-not-interested')) document.getElementById('kpi-not-interested').textContent = notInterested;
       if (document.getElementById('kpi-unreachable')) document.getElementById('kpi-unreachable').textContent = unreachable;
+      if (document.getElementById('kpi-unattempted')) document.getElementById('kpi-unattempted').textContent = unattempted;
 
-      if (document.getElementById('kpi-attempted-sub')) document.getElementById('kpi-attempted-sub').textContent = `Dials: ${totalDials} (1st:${att1Total} | 2nd:${att2Total} | 3rd:${att3Total})`;
+      if (document.getElementById('kpi-attempted-sub')) document.getElementById('kpi-attempted-sub').textContent = `Dials made: ${totalDials} (1st:${att1Total} | 2nd:${att2Total} | 3rd:${att3Total})`;
     }
 
     // Render Agent Performance Leaderboard
@@ -2170,14 +2180,15 @@
         '🎯 Booked': leads.filter(l => l.status === 'booked').reduce((s, l) => s + (l.bookingCount || 1), 0),
         '⏳ Spoken / Follow-up': leads.filter(l => l.status === 'pending').length,
         '❌ Not Interested': leads.filter(l => l.status === 'not_interested').length,
-        '📞 Unreachable / Blank': leads.filter(l => l.status === 'unreachable').length
+        '📞 Unreachable (Attempted)': leads.filter(l => l.status === 'unreachable').length,
+        '⏳ Call Not Done Yet': leads.filter(l => l.status === 'unattempted').length
       };
       renderChart(
         'chart-disposition',
         'doughnut',
         Object.keys(statusCounts),
         Object.values(statusCounts),
-        ['#047857', '#0284c7', '#059669', '#d97706', '#e11d48', '#64748b']
+        ['#047857', '#0284c7', '#059669', '#d97706', '#e11d48', '#0ea5e9', '#94a3b8']
       );
 
       // 2. Call Attempt Intensity Chart (1st, 2nd, 3rd Attempts by Caller)
