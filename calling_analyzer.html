@@ -1510,10 +1510,14 @@
       if (el) el.textContent = autoRefreshPaused ? 'Auto-refresh Paused' : `Auto-refresh in ${countdownSec}s`;
     }
 
+    let isFetchingLeads = false;
+
     // Fetch Live Leads Data from Google Script URL
     async function fetchLiveLeads(manual = false) {
       if (autoRefreshPaused && !manual) return;
+      if (isFetchingLeads && !manual) return;
       
+      isFetchingLeads = true;
       const dot = document.getElementById('sync-dot');
       const statusText = document.getElementById('sync-status-text');
       if (dot) dot.classList.add('syncing');
@@ -1554,13 +1558,15 @@
         console.error('Error fetching live leads:', err);
         if (dot) dot.classList.remove('syncing');
         if (statusText) statusText.textContent = 'Sync Warning (Check Script URL)';
+      } finally {
+        isFetchingLeads = false;
       }
 
       resetTimer();
     }
 
     function resetTimer() {
-      countdownSec = 15;
+      countdownSec = 45;
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         if (autoRefreshPaused) return;
@@ -1568,11 +1574,9 @@
         const el = document.getElementById('countdown-text');
         if (el) el.textContent = autoRefreshPaused ? 'Auto-refresh Paused' : `Auto-refresh in ${countdownSec}s`;
         if (countdownSec <= 0) {
-          // Stop the interval FIRST to prevent multiple simultaneous fetches
-          // while the previous fetch is still in-flight.
           clearInterval(timerInterval);
           timerInterval = null;
-          fetchLiveLeads(); // resetTimer() is called again inside fetchLiveLeads when done
+          fetchLiveLeads();
         }
       }, 1000);
     }
