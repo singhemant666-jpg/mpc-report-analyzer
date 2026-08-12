@@ -688,14 +688,19 @@
     // This URL is hardcoded as the factory default.
     // Once the user saves a URL via the modal it is ALSO written to localStorage
     // so it survives every browser refresh, tab close, and reopen — permanently.
-    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew/exec';
+    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzCpAcGqyc6eLSB5lE2i6uoVnZOLwGiiHeuNqG6RACnil3lU0bNl_qsS0VTKa6kcC5vXA/exec';
 
     // On startup: if user has ever saved a URL before, it is read from
     // localStorage immediately. Otherwise the hardcoded default is used.
     // Either way, activeApiUrl never changes without an explicit Save.
     let activeApiUrl = (function() {
       const saved = localStorage.getItem('mpc_leads_api_url');
-      return (saved && saved.trim() !== '') ? saved.trim() : DEFAULT_API_URL;
+      // If user had old test copy URL or empty, auto-migrate to the new original live URL
+      if (!saved || saved.includes('AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew')) {
+        localStorage.setItem('mpc_leads_api_url', DEFAULT_API_URL);
+        return DEFAULT_API_URL;
+      }
+      return saved.trim();
     })();
 
     let rawLeadsData = [];
