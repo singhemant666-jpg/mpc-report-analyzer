@@ -883,6 +883,13 @@
         badgeClass = 'badge-muted';
       }
 
+      const isUntouched = (
+        (!att1 || att1.trim() === '' || att1.trim() === '-') &&
+        (!att2 || att2.trim() === '') &&
+        (!att3 || att3.trim() === '') &&
+        (status === 'unreachable' || status === 'unattempted')
+      );
+
       return {
         id: index + 1,
         name,
@@ -894,6 +901,7 @@
         area,
         leadDate,
         leadDateStr,
+        isUntouched,
         att1,
         att2,
         att3,
@@ -1009,6 +1017,7 @@
     }
 
     // Apply Filter Logic
+    // Apply Filter Logic
     function applyFilters() {
       const startDateVal = document.getElementById('filter-start-date').value; // "YYYY-MM-DD"
       const endDateVal = document.getElementById('filter-end-date').value;     // "YYYY-MM-DD"
@@ -1020,6 +1029,16 @@
       const status = document.getElementById('filter-status').value;
       const query = document.getElementById('search-input').value.toLowerCase();
 
+      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : '';
+      const now = new Date();
+      const todayStr = toLocalInputDateStr(now);
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = toLocalInputDateStr(yest);
+
+      // Detect if user is viewing Today (via Today preset or start/end date equal to today)
+      const isTodayFilter = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
+
       filteredLeads = rawLeadsData.filter(l => {
         if (startDateVal || endDateVal) {
           if (!l.leadDate) return false;
@@ -1028,8 +1047,15 @@
           const dd = String(l.leadDate.getUTCDate()).padStart(2, '0');
           const leadYmd = `${yyyy}-${mm}-${dd}`;
 
-          if (startDateVal && leadYmd < startDateVal) return false;
-          if (endDateVal && leadYmd > endDateVal) return false;
+          if (isTodayFilter) {
+            // Match leads received Today OR untouched leads from Yesterday (e.g. leads received after 9 PM clinic closing)
+            const isTodayLead = (leadYmd === todayStr);
+            const isYesterdayUntouched = (leadYmd === yestStr && l.isUntouched);
+            if (!isTodayLead && !isYesterdayUntouched) return false;
+          } else {
+            if (startDateVal && leadYmd < startDateVal) return false;
+            if (endDateVal && leadYmd > endDateVal) return false;
+          }
         }
 
         if (sheet && l.sheetName !== sheet) return false;
@@ -1291,10 +1317,22 @@
         return;
       }
 
-      tbody.innerHTML = leads.map((l, idx) => `
+      const now = new Date();
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = toLocalInputDateStr(yest);
+
+      tbody.innerHTML = leads.map((l, idx) => {
+        const leadYmd = l.leadDate ? `${l.leadDate.getUTCFullYear()}-${String(l.leadDate.getUTCMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getUTCDate()).padStart(2, '0')}` : '';
+        const isCarriedOver = (leadYmd === yestStr && l.isUntouched);
+
+        return `
         <tr>
           <td><strong>${idx + 1}</strong></td>
-          <td style="font-weight:600; color:var(--text-muted);">${l.leadDateStr}</td>
+          <td style="font-weight:600; color:var(--text-muted); white-space:nowrap;">
+            ${l.leadDateStr}
+            ${isCarriedOver ? `<span class="badge badge-amber" style="font-size:0.6rem; margin-left:4px; padding:2px 5px;" title="Untouched from yesterday after 9 PM">🌙 Carried Over</span>` : ''}
+          </td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
           <td style="font-weight:600; color:var(--cyan);">${l.phone || '-'}</td>
@@ -1306,7 +1344,8 @@
           <td style="font-size:0.75rem; color:var(--text-secondary); max-width:180px;">${l.att2 || '-'}</td>
           <td style="font-size:0.75rem; color:var(--text-secondary); max-width:180px;">${l.att3 || '-'}</td>
           <td><span class="badge ${l.badgeClass}">${l.statusText}</span></td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
     }
 
     // Export Leads to Excel
