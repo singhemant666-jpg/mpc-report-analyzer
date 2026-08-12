@@ -596,6 +596,14 @@
 
   </div>
 
+  <!-- Toast Notification -->
+  <div id="save-toast" style="
+    display:none; position:fixed; bottom:28px; right:28px; z-index:9999;
+    background:#059669; color:#fff; font-size:0.82rem; font-weight:700;
+    padding:10px 18px; border-radius:10px; box-shadow:0 4px 20px rgba(0,0,0,0.2);
+    transition:opacity 0.4s ease; pointer-events:none;
+  "></div>
+
   <!-- GOOGLE SCRIPT API CONFIG MODAL -->
   <div class="modal-overlay hidden" id="config-modal">
     <div class="modal">
@@ -607,7 +615,10 @@
         Paste your deployed Google Apps Script Web App URL below to sync your Google Sheet live in real-time.
       </p>
       <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
-        <label style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">GOOGLE APPS SCRIPT WEB APP URL</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">GOOGLE APPS SCRIPT WEB APP URL</label>
+          <span id="url-saved-badge" style="display:none; font-size:0.68rem; font-weight:700; background:rgba(5,150,105,0.12); color:#059669; border:1px solid rgba(5,150,105,0.3); padding:2px 7px; border-radius:5px;">🔒 Saved</span>
+        </div>
         <input type="text" id="api-url-input" class="filter-input" style="width:100%; font-size:0.8rem; padding:8px 12px;" placeholder="https://script.google.com/macros/s/.../exec">
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
@@ -622,7 +633,19 @@
 
   <!-- ==================== JAVASCRIPT ENGINE ==================== -->
   <script>
+    // ── PERMANENT API URL SETUP ────────────────────────────────────────────────
+    // This URL is hardcoded as the factory default.
+    // Once the user saves a URL via the modal it is ALSO written to localStorage
+    // so it survives every browser refresh, tab close, and reopen — permanently.
     const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew/exec';
+
+    // On startup: if user has ever saved a URL before, it is read from
+    // localStorage immediately. Otherwise the hardcoded default is used.
+    // Either way, activeApiUrl never changes without an explicit Save.
+    let activeApiUrl = (function() {
+      const saved = localStorage.getItem('mpc_leads_api_url');
+      return (saved && saved.trim() !== '') ? saved.trim() : DEFAULT_API_URL;
+    })();
 
     let rawLeadsData = [];
     let filteredLeads = [];
@@ -630,18 +653,34 @@
     let countdownSec = 15;
     let timerInterval = null;
 
-    // Load API URL from localStorage or fallback to default
+    // Always returns the current active URL — no pop-up, no config needed.
     function getApiUrl() {
-      const url = localStorage.getItem('mpc_leads_api_url');
-      return (url && url.trim() !== '') ? url.trim() : DEFAULT_API_URL;
+      return activeApiUrl;
     }
 
     function resetApiUrl() {
       localStorage.removeItem('mpc_leads_api_url');
+      activeApiUrl = DEFAULT_API_URL;
       if (document.getElementById('api-url-input')) {
         document.getElementById('api-url-input').value = DEFAULT_API_URL;
       }
-      saveApiUrl();
+      showToast('🔄 Reset to default URL', '#d97706');
+      closeConfigModal();
+      fetchLiveLeads(true);
+    }
+
+    function showToast(msg, color) {
+      const t = document.getElementById('save-toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.style.background = color || '#059669';
+      t.style.display = 'block';
+      t.style.opacity = '1';
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.display = 'none'; }, 400);
+      }, 3000);
     }
 
     // Initialize Theme
@@ -663,7 +702,11 @@
 
     // Modal Handlers
     function openConfigModal() {
-      document.getElementById('api-url-input').value = getApiUrl();
+      const input = document.getElementById('api-url-input');
+      const badge = document.getElementById('url-saved-badge');
+      const isCustom = localStorage.getItem('mpc_leads_api_url');
+      input.value = activeApiUrl;
+      if (badge) badge.style.display = isCustom ? 'inline-flex' : 'none';
       document.getElementById('config-modal').classList.remove('hidden');
     }
     function closeConfigModal() {
@@ -671,11 +714,13 @@
     }
     function saveApiUrl() {
       const input = document.getElementById('api-url-input').value.trim();
-      if (input) {
-        localStorage.setItem('mpc_leads_api_url', input);
-        closeConfigModal();
-        fetchLiveLeads(true);
-      }
+      if (!input) return;
+      // Save permanently to localStorage AND update the live runtime variable
+      localStorage.setItem('mpc_leads_api_url', input);
+      activeApiUrl = input;
+      closeConfigModal();
+      showToast('✅ URL saved permanently in browser!', '#059669');
+      fetchLiveLeads(true);
     }
     // Helper: parse a single raw date string into a UTC noon Date
     function parseSingleDateStr(raw) {
