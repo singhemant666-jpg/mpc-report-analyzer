@@ -171,14 +171,42 @@
 
     /* ── FILTERS BAR ── */
     .filters-bar {
-      display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: var(--card-bg);
-      border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 16px; margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+      align-items: end;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
     }
-    .filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
-    .filter-label { font-size: 0.68rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+    .filter-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .filter-item.search-item { min-width: 140px; }
+    .filter-label {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
     .filter-select, .filter-input {
-      padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--card-border);
-      background: var(--header-bg); color: var(--text-primary); font-family: var(--font-family); outline: none;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: var(--header-bg);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      transition: var(--transition);
+    }
+    .filter-select:focus, .filter-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
     }
 
     /* ── CHARTS GRID ── */
@@ -359,9 +387,9 @@
           <option value="unreachable">📞 Unreachable / Blank (White)</option>
         </select>
       </div>
-      <div class="filter-item" style="flex:1; min-width:200px;">
+      <div class="filter-item search-item">
         <label class="filter-label">Search Lead</label>
-        <input type="text" class="filter-input" id="search-input" placeholder="🔍 Search name, phone, area, sheet..." oninput="applyFilters()">
+        <input type="text" class="filter-input" id="search-input" placeholder="🔍 Search name, phone..." oninput="applyFilters()">
       </div>
     </div>
 
