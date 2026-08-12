@@ -531,19 +531,19 @@
       <!-- AD QUALITY CHARTS GRID -->
       <div class="charts-grid">
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">🎯 Ad Creatives: Booking Rate vs Volume</div>
+          <div class="section-title" style="margin-bottom:8px;">🎯 Top Ad Creatives: Inquiries vs Bookings</div>
           <div class="chart-container"><canvas id="chart-ad-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">📍 Location Booking vs Rejection Ratio</div>
+          <div class="section-title" style="margin-bottom:8px;">📍 Location Breakdown: Bookings vs Rejections</div>
           <div class="chart-container"><canvas id="chart-loc-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">📱 Platform ROI (Instagram vs Facebook)</div>
+          <div class="section-title" style="margin-bottom:8px;">📱 Platform Conversion: Instagram vs Facebook</div>
           <div class="chart-container"><canvas id="chart-platform-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">🏥 Health Issue Conversion by Treatment</div>
+          <div class="section-title" style="margin-bottom:8px;">🏥 Health Conditions: Inquiries vs Bookings</div>
           <div class="chart-container"><canvas id="chart-issue-conversion"></canvas></div>
         </div>
       </div>
@@ -1462,42 +1462,213 @@
         }).join('');
       }
 
-      // Quality Charts
-      const topAdsForChart = Object.values(adMap).sort((a,b) => b.leads - a.leads).slice(0, 7);
-      renderChart(
-        'chart-ad-performance',
-        'bar',
-        topAdsForChart.map(a => a.name.length > 18 ? a.name.slice(0, 16) + '...' : a.name),
-        topAdsForChart.map(a => ((a.booked / (a.leads || 1)) * 100).toFixed(1)),
-        '#059669'
-      );
+      // Quality Charts Overhaul (Professional Comparative & Stacked Charts)
+      const sortedAdsList = Object.values(adMap).sort((a,b) => b.leads - a.leads);
+      renderAdPerformanceChart('chart-ad-performance', sortedAdsList);
 
-      const topLocsForChart = Object.values(locMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
-      renderStackedChart(
-        'chart-loc-performance',
-        topLocsForChart.map(l => l.name.length > 18 ? l.name.slice(0, 16) + '...' : l.name),
-        topLocsForChart.map(l => l.booked),
-        topLocsForChart.map(l => l.notInt),
-        topLocsForChart.map(l => Math.max(0, l.leads - l.booked - l.notInt))
-      );
+      const sortedLocsList = Object.values(locMap).sort((a,b) => b.leads - a.leads);
+      renderLocationQualityChart('chart-loc-performance', sortedLocsList);
 
       const platList = Object.values(platformMap);
-      renderChart(
-        'chart-platform-performance',
-        'doughnut',
-        platList.map(p => p.name === 'IG' ? '📸 Instagram' : p.name === 'FB' ? '📘 Facebook' : p.name),
-        platList.map(p => p.leads),
-        ['#e11d48', '#2563eb', '#7c3aed']
-      );
+      renderPlatformQualityChart('chart-platform-performance', platList);
 
-      const topIssuesForChart = Object.values(issueMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
-      renderChart(
-        'chart-issue-conversion',
-        'bar',
-        topIssuesForChart.map(i => i.name.length > 16 ? i.name.slice(0, 14) + '...' : i.name),
-        topIssuesForChart.map(i => ((i.booked / (i.leads || 1)) * 100).toFixed(1)),
-        '#7c3aed'
-      );
+      const sortedIssuesList = Object.values(issueMap).sort((a,b) => b.leads - a.leads);
+      renderIssueQualityChart('chart-issue-conversion', sortedIssuesList);
+    }
+
+    // ── Dedicated Professional Quality Chart Builders ──
+    function renderAdPerformanceChart(id, ads) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+
+      const topAds = ads.slice(0, 6);
+      const labels = topAds.map(a => a.name.length > 22 ? a.name.slice(0, 20) + '...' : a.name);
+      const leadsData = topAds.map(a => a.leads);
+      const bookedData = topAds.map(a => a.booked);
+
+      chartInstances[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Total Leads',
+              data: leadsData,
+              backgroundColor: 'rgba(100, 116, 139, 0.4)',
+              borderColor: '#64748b',
+              borderWidth: 1,
+              borderRadius: 4
+            },
+            {
+              label: 'Booked Appointments',
+              data: bookedData,
+              backgroundColor: '#059669',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 11, family: 'Inter' } } },
+            tooltip: {
+              callbacks: {
+                afterBody: function(context) {
+                  const idx = context[0].dataIndex;
+                  const item = topAds[idx];
+                  const rate = item && item.leads > 0 ? ((item.booked / item.leads) * 100).toFixed(1) : 0;
+                  return `Booking Rate: ${rate}% | Consulted: ${item ? item.consulted : 0}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(0,0,0,0.05)' } },
+            y: { grid: { display: false }, ticks: { font: { size: 10, family: 'Inter' } } }
+          }
+        }
+      });
+    }
+
+    function renderLocationQualityChart(id, locs) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+
+      const topLocs = locs.slice(0, 5);
+      const labels = topLocs.map(l => l.name.replace(/_/g, ' ').replace(/\//g, '/').trim());
+      const booked = topLocs.map(l => l.booked);
+      const pending = topLocs.map(l => Math.max(0, l.leads - l.booked - l.notInt));
+      const rejected = topLocs.map(l => l.notInt);
+
+      chartInstances[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: '🎯 Booked', data: booked, backgroundColor: '#059669', borderRadius: 4 },
+            { label: '⏳ Spoken / Follow-up', data: pending, backgroundColor: '#d97706', borderRadius: 4 },
+            { label: '❌ Distance / Rejected', data: rejected, backgroundColor: '#e11d48', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          scales: {
+            x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9, family: 'Inter' }, maxRotation: 25 } },
+            y: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+          },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 10, family: 'Inter' } } },
+            tooltip: {
+              callbacks: {
+                afterBody: function(context) {
+                  const idx = context[0].dataIndex;
+                  const item = topLocs[idx];
+                  const bRate = item && item.leads > 0 ? ((item.booked / item.leads) * 100).toFixed(1) : 0;
+                  const rRate = item && item.leads > 0 ? ((item.notInt / item.leads) * 100).toFixed(1) : 0;
+                  return `Booking Rate: ${bRate}% | Rejection Rate: ${rRate}%`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderPlatformQualityChart(id, platforms) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+
+      const list = platforms.filter(p => p.leads > 0);
+      const labels = list.map(p => p.name === 'IG' ? '📸 Instagram' : p.name === 'FB' ? '📘 Facebook' : p.name);
+      const leadsData = list.map(p => p.leads);
+      const bookedData = list.map(p => p.booked);
+
+      chartInstances[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Total Inquiries', data: leadsData, backgroundColor: 'rgba(99, 102, 241, 0.5)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 4 },
+            { label: 'Booked Appointments', data: bookedData, backgroundColor: '#059669', borderRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 11, family: 'Inter' } } },
+            tooltip: {
+              callbacks: {
+                afterBody: function(context) {
+                  const idx = context[0].dataIndex;
+                  const item = list[idx];
+                  const rate = item && item.leads > 0 ? ((item.booked / item.leads) * 100).toFixed(1) : 0;
+                  return `Conversion: ${rate}% booking rate`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+          }
+        }
+      });
+    }
+
+    function renderIssueQualityChart(id, issues) {
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      if (chartInstances[id]) chartInstances[id].destroy();
+
+      // Filter out unspecified or empty and take top 5
+      const validIssues = issues.filter(i => i.name && i.name.toLowerCase() !== 'not specified' && i.name.toLowerCase() !== 'other').slice(0, 5);
+      const labels = validIssues.map(i => i.name);
+      const leadsData = validIssues.map(i => i.leads);
+      const bookedData = validIssues.map(i => i.booked);
+
+      chartInstances[id] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Total Inquiries', data: leadsData, backgroundColor: 'rgba(124, 58, 237, 0.4)', borderColor: '#7c3aed', borderWidth: 1, borderRadius: 4 },
+            { label: 'Booked Appointments', data: bookedData, backgroundColor: '#059669', borderRadius: 4 }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 10, family: 'Inter' } } },
+            tooltip: {
+              callbacks: {
+                afterBody: function(context) {
+                  const idx = context[0].dataIndex;
+                  const item = validIssues[idx];
+                  const rate = item && item.leads > 0 ? ((item.booked / item.leads) * 100).toFixed(1) : 0;
+                  return `Booking Rate: ${rate}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(0,0,0,0.05)' } },
+            y: { grid: { display: false }, ticks: { font: { size: 10, family: 'Inter' } } }
+          }
+        }
+      });
     }
 
     // Render Key Metrics Cards
