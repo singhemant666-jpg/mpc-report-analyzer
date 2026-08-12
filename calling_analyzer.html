@@ -499,71 +499,110 @@
 
     <!-- ==================== VIEW 2: AD CAMPAIGN & LOCATION QUALITY ANALYZER ==================== -->
     <div id="view-quality-container" style="display:none;">
-      
-      <!-- QUALITY SCORECARD OVERVIEW -->
-      <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-label">🌟 Overall Lead Quality</div>
-          <div class="metric-value" id="kpi-quality-score" style="color:var(--accent-blue);">0/100</div>
+
+      <!-- TOP-LINE KPI SCORECARD STRIP -->
+      <div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));">
+        <div class="metric-card" style="border-top:3px solid var(--accent-blue);">
+          <div class="metric-label">🌟 Lead Quality Score</div>
+          <div class="metric-value" id="kpi-quality-score" style="color:var(--accent-blue);">0<span style="font-size:1rem;color:var(--text-muted);">/100</span></div>
           <div class="metric-sub" id="kpi-quality-grade">Grade: Evaluating...</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="border-top:3px solid var(--emerald);">
+          <div class="metric-label">🎯 Overall Booking Rate</div>
+          <div class="metric-value" id="kpi-overall-booking-rate" style="color:var(--emerald);">0%</div>
+          <div class="metric-sub" id="kpi-overall-booking-sub">Leads → Booked</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid #047857;">
+          <div class="metric-label">✅ Consulted & Visited</div>
+          <div class="metric-value" id="kpi-q-consulted" style="color:#047857;">0%</div>
+          <div class="metric-sub" id="kpi-q-consulted-sub">Came to clinic</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid var(--rose);">
+          <div class="metric-label">❌ Rejection Rate</div>
+          <div class="metric-value" id="kpi-q-rejection" style="color:var(--rose);">0%</div>
+          <div class="metric-sub" id="kpi-q-rejection-sub">Not Interested / Bad leads</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid var(--amber);">
+          <div class="metric-label">⏳ Follow-up Pending</div>
+          <div class="metric-value" id="kpi-q-pending" style="color:var(--amber);">0%</div>
+          <div class="metric-sub" id="kpi-q-pending-sub">Spoken, need callback</div>
+        </div>
+        <div class="metric-card" style="border-top:3px solid var(--text-muted);">
+          <div class="metric-label">📞 Unreachable</div>
+          <div class="metric-value" id="kpi-q-unreachable" style="color:var(--text-muted);">0%</div>
+          <div class="metric-sub" id="kpi-q-unreachable-sub">No contact made</div>
+        </div>
+      </div>
+
+      <!-- TOP-3 HIGHLIGHT STRIP -->
+      <div class="metrics-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); margin-bottom:8px;">
+        <div class="metric-card" style="border-left:4px solid var(--emerald); background:rgba(5,150,105,0.04);">
           <div class="metric-label">🏆 Top Converting Ad</div>
-          <div class="metric-value" id="kpi-top-ad" style="font-size:1.15rem; color:var(--emerald); word-break:break-word;">-</div>
+          <div class="metric-value" id="kpi-top-ad" style="font-size:1.05rem; color:var(--emerald); word-break:break-word;">-</div>
           <div class="metric-sub" id="kpi-top-ad-sub">Highest booking conversion</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="border-left:4px solid var(--accent-blue); background:rgba(37,99,235,0.04);">
           <div class="metric-label">📍 Best ROI Location</div>
-          <div class="metric-value" id="kpi-top-loc" style="font-size:1.15rem; color:var(--purple); word-break:break-word;">-</div>
+          <div class="metric-value" id="kpi-top-loc" style="font-size:1.05rem; color:var(--accent-blue); word-break:break-word;">-</div>
           <div class="metric-sub" id="kpi-top-loc-sub">Highest in-person visit rate</div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">⚠️ Location Wastage Alert</div>
-          <div class="metric-value" id="kpi-waste-loc" style="font-size:1.15rem; color:var(--rose); word-break:break-word;">-</div>
+        <div class="metric-card" style="border-left:4px solid var(--rose); background:rgba(225,29,72,0.04);">
+          <div class="metric-label">⚠️ Wastage Alert Location</div>
+          <div class="metric-value" id="kpi-waste-loc" style="font-size:1.05rem; color:var(--rose); word-break:break-word;">-</div>
           <div class="metric-sub" id="kpi-waste-loc-sub">Highest travel friction rejections</div>
         </div>
       </div>
 
       <!-- ACTIONABLE AD OPTIMIZATION RECOMMENDATIONS -->
-      <div class="section-title"><span class="icon">💡</span> Actionable Meta Ads Optimization & Spend Strategy</div>
+      <div class="section-title" style="margin-top:8px;"><span class="icon">💡</span> Actionable Meta Ads Optimization &amp; Spend Strategy</div>
       <div class="quality-rec-grid" id="quality-recommendations-grid"></div>
 
-      <!-- AD QUALITY CHARTS GRID -->
+      <!-- AD QUALITY CHARTS GRID (taller for more data) -->
       <div class="charts-grid">
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">🎯 Top Ad Creatives: Inquiries vs Bookings</div>
-          <div class="chart-container"><canvas id="chart-ad-performance"></canvas></div>
+          <div class="section-title" style="margin-bottom:4px;">🎯 Ad Creative Performance: Leads vs Booked</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">Horizontal bars — longer green = better ad</div>
+          <div class="chart-container" style="height:300px;"><canvas id="chart-ad-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">📍 Location Breakdown: Bookings vs Rejections</div>
-          <div class="chart-container"><canvas id="chart-loc-performance"></canvas></div>
+          <div class="section-title" style="margin-bottom:4px;">📍 Location Breakdown: Booked / Pending / Rejected</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">Stacked bars — ideal = tall green, minimal red</div>
+          <div class="chart-container" style="height:300px;"><canvas id="chart-loc-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">📱 Platform Conversion: Instagram vs Facebook</div>
-          <div class="chart-container"><canvas id="chart-platform-performance"></canvas></div>
+          <div class="section-title" style="margin-bottom:4px;">📱 Platform Conversion: Instagram vs Facebook</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">Total Inquiries vs Booked Appointments</div>
+          <div class="chart-container" style="height:300px;"><canvas id="chart-platform-performance"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="section-title" style="margin-bottom:8px;">🏥 Health Conditions: Inquiries vs Bookings</div>
-          <div class="chart-container"><canvas id="chart-issue-conversion"></canvas></div>
+          <div class="section-title" style="margin-bottom:4px;">🏥 Health Condition Conversion</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:8px;">Which pain conditions convert best to bookings</div>
+          <div class="chart-container" style="height:300px;"><canvas id="chart-issue-conversion"></canvas></div>
         </div>
       </div>
 
       <!-- AD CREATIVES PERFORMANCE MATRIX TABLE -->
       <div class="card" style="margin-bottom:24px;">
-        <div class="section-title" style="margin-bottom:12px;"><span class="icon">📊</span> Ad Creatives Quality & Conversion Matrix</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div class="section-title" style="margin-bottom:0;"><span class="icon">📊</span> Ad Creatives Full Performance Matrix</div>
+          <span style="font-size:0.72rem;color:var(--text-muted);font-weight:600;">Sorted by Booking Rate (highest first) • Min 3 leads shown</span>
+        </div>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Rank</th>
-                <th>Ad Creative Name</th>
-                <th>Total Leads</th>
-                <th>Booked</th>
+                <th>Ad Creative</th>
+                <th>Leads</th>
+                <th>Booked 🎯</th>
                 <th>Booking Rate</th>
-                <th>Consulted & Visited</th>
-                <th>Rejected (Not Interested)</th>
+                <th>Booking Rate Bar</th>
+                <th>Consulted ✅</th>
+                <th>Follow-up ⏳</th>
+                <th>Unreachable 📞</th>
+                <th>Rejected ❌</th>
                 <th>Quality Score</th>
-                <th>Campaign Recommendation</th>
+                <th>Decision</th>
               </tr>
             </thead>
             <tbody id="ad-matrix-tbody"></tbody>
@@ -573,17 +612,22 @@
 
       <!-- LOCATION QUALITY & GEOGRAPHIC ROI TABLE -->
       <div class="card">
-        <div class="section-title" style="margin-bottom:12px;"><span class="icon">📍</span> Location Performance & Geographic Budget Matrix</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div class="section-title" style="margin-bottom:0;"><span class="icon">📍</span> Location Performance &amp; Geographic Budget Matrix</div>
+          <span style="font-size:0.72rem;color:var(--text-muted);font-weight:600;">Sorted by total leads • Booking Rate shown as progress bar</span>
+        </div>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Mumbai Area / Location</th>
+                <th>Mumbai Area</th>
                 <th>Total Leads</th>
-                <th>Booked Appointments</th>
-                <th>Booking Rate</th>
-                <th>Distance Rejections</th>
-                <th>Travel Friction %</th>
+                <th>Booked 🎯</th>
+                <th>Consulted ✅</th>
+                <th>Booking Rate Bar</th>
+                <th>Pending ⏳</th>
+                <th>Rejected ❌</th>
+                <th>Rejection %</th>
                 <th>Targeting Strategy</th>
               </tr>
             </thead>
@@ -1348,22 +1392,27 @@
         const plat = l.platform || 'META';
         const issue = l.issue || 'Not Specified';
 
-        const isConsulted = (l.status === 'consulted');
-        const isBooked = (l.status === 'booked' || l.status === 'booked_no_visit' || isConsulted);
-        const isNotInterested = (l.status === 'not_interested');
+        const isConsulted    = (l.status === 'consulted');
+        const isBooked       = (l.status === 'booked' || l.status === 'booked_no_visit' || isConsulted);
+        const isPending      = (l.status === 'pending');
+        const isNotInterested= (l.status === 'not_interested');
+        const isUnreachable  = (l.status === 'unreachable' || l.status === 'unattempted' || l.status === 'attempted');
 
         // Ad stats
-        if (!adMap[ad]) adMap[ad] = { name: ad, leads: 0, booked: 0, consulted: 0, notInt: 0 };
+        if (!adMap[ad]) adMap[ad] = { name: ad, leads: 0, booked: 0, consulted: 0, pending: 0, unreachable: 0, notInt: 0 };
         adMap[ad].leads++;
-        if (isBooked) adMap[ad].booked++;
-        if (isConsulted) adMap[ad].consulted++;
+        if (isBooked)        adMap[ad].booked++;
+        if (isConsulted)     adMap[ad].consulted++;
+        if (isPending)       adMap[ad].pending++;
+        if (isUnreachable)   adMap[ad].unreachable++;
         if (isNotInterested) adMap[ad].notInt++;
 
         // Loc stats
-        if (!locMap[loc]) locMap[loc] = { name: loc, leads: 0, booked: 0, consulted: 0, notInt: 0 };
+        if (!locMap[loc]) locMap[loc] = { name: loc, leads: 0, booked: 0, consulted: 0, pending: 0, notInt: 0 };
         locMap[loc].leads++;
-        if (isBooked) locMap[loc].booked++;
-        if (isConsulted) locMap[loc].consulted++;
+        if (isBooked)        locMap[loc].booked++;
+        if (isConsulted)     locMap[loc].consulted++;
+        if (isPending)       locMap[loc].pending++;
         if (isNotInterested) locMap[loc].notInt++;
 
         // Platform stats
@@ -1377,167 +1426,220 @@
         if (isBooked) issueMap[issue].booked++;
       });
 
-      // Overall Score Calculation
-      const totalBooked = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
-      const totalConsulted = leads.filter(l => l.status === 'consulted').length;
-      const totalNotInt = leads.filter(l => l.status === 'not_interested').length;
+      // ── Overall Metrics ──────────────────────────────────────────────────────
+      const totalBooked     = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
+      const totalConsulted  = leads.filter(l => l.status === 'consulted').length;
+      const totalPending    = leads.filter(l => l.status === 'pending').length;
+      const totalNotInt     = leads.filter(l => l.status === 'not_interested').length;
+      const totalUnreachable= leads.filter(l => ['unreachable','unattempted','attempted'].includes(l.status)).length;
 
+      const pct = (n) => total > 0 ? ((n / total) * 100).toFixed(1) + '%' : '0%';
+
+      // Quality Score
       let score = 50;
       if (total > 0) {
         const bookingRate = (totalBooked / total) * 100;
-        const rejectRate = (totalNotInt / total) * 100;
+        const rejectRate  = (totalNotInt / total) * 100;
         score = Math.min(100, Math.max(0, Math.round(bookingRate * 4.5 + (totalConsulted / total) * 300 - rejectRate * 1.2 + 30)));
       }
+      let grade = 'B', gradeClass = 'grade-B';
+      if (score >= 85)      { grade = 'A+'; gradeClass = 'grade-A'; }
+      else if (score >= 70) { grade = 'A';  gradeClass = 'grade-A'; }
+      else if (score >= 55) { grade = 'B';  gradeClass = 'grade-B'; }
+      else if (score >= 40) { grade = 'C';  gradeClass = 'grade-C'; }
+      else                  { grade = 'D';  gradeClass = 'grade-D'; }
 
-      let grade = 'B';
-      let gradeClass = 'grade-B';
-      if (score >= 85) { grade = 'A+'; gradeClass = 'grade-A'; }
-      else if (score >= 70) { grade = 'A'; gradeClass = 'grade-A'; }
-      else if (score >= 55) { grade = 'B'; gradeClass = 'grade-B'; }
-      else if (score >= 40) { grade = 'C'; gradeClass = 'grade-C'; }
-      else { grade = 'D'; gradeClass = 'grade-D'; }
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
 
-      if (document.getElementById('kpi-quality-score')) {
-        document.getElementById('kpi-quality-score').innerHTML = `${score}<span style="font-size:1rem; color:var(--text-muted);">/100</span>`;
-      }
-      if (document.getElementById('kpi-quality-grade')) {
-        document.getElementById('kpi-quality-grade').innerHTML = `Quality Rating: <span class="score-grade ${gradeClass}">${grade}</span>`;
-      }
+      setEl('kpi-quality-score',         `${score}<span style="font-size:1rem;color:var(--text-muted);">/100</span>`);
+      setEl('kpi-quality-grade',         `Quality Rating: <span class="score-grade ${gradeClass}">${grade}</span>`);
+      setEl('kpi-overall-booking-rate',  pct(totalBooked));
+      setEl('kpi-overall-booking-sub',   `${totalBooked} of ${total} leads booked`);
+      setEl('kpi-q-consulted',           pct(totalConsulted));
+      setEl('kpi-q-consulted-sub',       `${totalConsulted} patients visited clinic`);
+      setEl('kpi-q-rejection',           pct(totalNotInt));
+      setEl('kpi-q-rejection-sub',       `${totalNotInt} bad / out-of-city leads`);
+      setEl('kpi-q-pending',             pct(totalPending));
+      setEl('kpi-q-pending-sub',         `${totalPending} need follow-up call`);
+      setEl('kpi-q-unreachable',         pct(totalUnreachable));
+      setEl('kpi-q-unreachable-sub',     `${totalUnreachable} not reached yet`);
 
-      // Top Ad & Top Loc
-      const adList = Object.values(adMap).sort((a,b) => (b.booked/b.leads || 0) - (a.booked/a.leads || 0));
+      // ── Top Ad & Top Loc ─────────────────────────────────────────────────────
+      const adList       = Object.values(adMap).sort((a, b) => (b.booked / b.leads || 0) - (a.booked / a.leads || 0));
       const qualifiedAds = adList.filter(a => a.leads >= 5);
-      const topAd = qualifiedAds.length > 0 ? qualifiedAds[0] : (adList[0] || { name: 'Organic', booked: 0, leads: 1 });
-      const topAdRate = ((topAd.booked / topAd.leads) * 100).toFixed(1);
+      const topAd        = qualifiedAds[0] || adList[0] || { name: 'Organic', booked: 0, leads: 1 };
+      const topAdRate    = ((topAd.booked / topAd.leads) * 100).toFixed(1);
 
-      if (document.getElementById('kpi-top-ad')) document.getElementById('kpi-top-ad').textContent = topAd.name;
-      if (document.getElementById('kpi-top-ad-sub')) document.getElementById('kpi-top-ad-sub').textContent = `${topAd.booked} Booked (${topAdRate}% rate)`;
+      setEl('kpi-top-ad',     topAd.name);
+      setEl('kpi-top-ad-sub', `${topAd.booked} Booked • ${topAdRate}% booking rate • ${topAd.leads} total leads`);
 
-      const locList = Object.values(locMap).sort((a,b) => (b.booked/b.leads || 0) - (a.booked/a.leads || 0));
-      const qualifiedLocs = locList.filter(l => l.leads >= 5 && l.name !== 'Unknown' && l.name !== 'other_area');
-      const topLoc = qualifiedLocs.length > 0 ? qualifiedLocs[0] : (locList[0] || { name: 'Bandra', booked: 0, leads: 1 });
-      const topLocRate = ((topLoc.booked / topLoc.leads) * 100).toFixed(1);
+      const locList       = Object.values(locMap).sort((a, b) => (b.booked / b.leads || 0) - (a.booked / a.leads || 0));
+      const qualifiedLocs = locList.filter(l => l.leads >= 3 && l.name !== 'Unknown');
+      const topLoc        = qualifiedLocs[0] || locList[0] || { name: 'Bandra', booked: 0, leads: 1 };
+      const topLocRate    = ((topLoc.booked / topLoc.leads) * 100).toFixed(1);
 
-      if (document.getElementById('kpi-top-loc')) document.getElementById('kpi-top-loc').textContent = topLoc.name;
-      if (document.getElementById('kpi-top-loc-sub')) document.getElementById('kpi-top-loc-sub').textContent = `${topLoc.booked} Booked (${topLocRate}% conversion)`;
+      setEl('kpi-top-loc',     topLoc.name);
+      setEl('kpi-top-loc-sub', `${topLoc.booked} Booked • ${topLocRate}% conversion • ${topLoc.leads} total leads`);
 
-      const wasteLocList = Object.values(locMap).sort((a,b) => b.notInt - a.notInt);
-      const wasteLoc = wasteLocList[0] || { name: 'other_area', notInt: 0, leads: 1 };
-      const wasteRate = ((wasteLoc.notInt / wasteLoc.leads) * 100).toFixed(1);
+      const wasteLocList = Object.values(locMap).sort((a, b) => b.notInt - a.notInt);
+      const wasteLoc     = wasteLocList[0] || { name: 'other_area', notInt: 0, leads: 1 };
+      const wasteRate    = ((wasteLoc.notInt / wasteLoc.leads) * 100).toFixed(1);
 
-      if (document.getElementById('kpi-waste-loc')) document.getElementById('kpi-waste-loc').textContent = wasteLoc.name;
-      if (document.getElementById('kpi-waste-loc-sub')) document.getElementById('kpi-waste-loc-sub').textContent = `${wasteLoc.notInt} Drop-offs (${wasteRate}% rejection)`;
+      setEl('kpi-waste-loc',     wasteLoc.name);
+      setEl('kpi-waste-loc-sub', `${wasteLoc.notInt} rejections • ${wasteRate}% friction rate`);
 
-      // Dynamic Actionable Recommendations
+      // ── Dynamic Actionable Recommendations ────────────────────────────────
       const recGrid = document.getElementById('quality-recommendations-grid');
       if (recGrid) {
+        const worstAd = [...adList].sort((a, b) => (b.notInt / b.leads || 0) - (a.notInt / a.leads || 0))[0];
+        const worstAdRate = worstAd ? ((worstAd.notInt / worstAd.leads) * 100).toFixed(1) : 0;
         recGrid.innerHTML = `
           <div class="quality-rec-card rec-scale">
-            <div class="quality-rec-title" style="color:var(--emerald);">
-              <span>🚀</span> Scale Top Creative: ${topAd.name}
-            </div>
+            <div class="quality-rec-title" style="color:var(--emerald);"><span>🚀</span> Scale Top Creative: ${topAd.name}</div>
             <div class="quality-rec-desc">
-              This ad is delivering your strongest conversion efficiency (<strong>${topAdRate}% booking rate</strong>). Increase daily ad budget by +25% to +35% on this creative in Meta Ads Manager to capture more high-intent patients.
+              This ad delivers the strongest conversion efficiency at <strong>${topAdRate}% booking rate</strong> from ${topAd.leads} leads, generating ${topAd.booked} appointments and ${topAd.consulted} clinic visits.
+              <strong>Action:</strong> Increase daily Meta Ads budget by +25–35% on this creative. Duplicate the ad set to A/B test variations.
             </div>
           </div>
           <div class="quality-rec-card rec-geo">
-            <div class="quality-rec-title" style="color:var(--accent-blue);">
-              <span>📍</span> Geographic Focus: ${topLoc.name}
-            </div>
+            <div class="quality-rec-title" style="color:var(--accent-blue);"><span>📍</span> Geographic Focus: ${topLoc.name}</div>
             <div class="quality-rec-desc">
-              Leads from <strong>${topLoc.name}</strong> convert at <strong>${topLocRate}%</strong> into clinic visits. Increase geographic targeting bids within a 10-12 km radius of Bandra West to maximize in-person consultations.
+              Leads from <strong>${topLoc.name}</strong> convert at <strong>${topLocRate}%</strong> into clinic visits.
+              <strong>Action:</strong> Increase geographic targeting bids within a 10-12 km radius of Bandra West to maximize in-person consultations.
             </div>
           </div>
           <div class="quality-rec-card rec-alert">
-            <div class="quality-rec-title" style="color:var(--rose);">
-              <span>⚠️</span> Reduce Ad Wastage: ${wasteLoc.name}
-            </div>
+            <div class="quality-rec-title" style="color:var(--rose);"><span>⚠️</span> Reduce Ad Wastage: ${wasteLoc.name} + ${worstAd ? worstAd.name : ''}</div>
             <div class="quality-rec-desc">
-              <strong>${wasteLoc.name}</strong> accounts for <strong>${wasteLoc.notInt} rejected leads (${wasteRate}%)</strong>, primarily due to distance/travel friction. Exclude distant suburbs or state 'Bandra West Clinic' prominently on your creatives to stop paying for out-of-reach clicks.
+              <strong>${wasteLoc.name}</strong> has ${wasteLoc.notInt} rejected leads (${wasteRate}% rejection). ${worstAd ? `Creative <strong>${worstAd.name}</strong> also wastes budget with ${worstAdRate}% rejection rate.` : ''}
+              <strong>Action:</strong> Exclude distant suburbs. State 'Bandra West Clinic' prominently in ad copy to filter out-of-reach clicks.
             </div>
           </div>
         `;
       }
 
-      // Ad Matrix Table
+      // ── Ad Matrix Table (sorted by Booking Rate desc, min 3 leads) ────────
+      const MEDALS = ['🥇', '🥈', '🥉'];
       const adTbody = document.getElementById('ad-matrix-tbody');
       if (adTbody) {
-        const sortedAds = Object.values(adMap).sort((a,b) => b.leads - a.leads);
+        const sortedAds = Object.values(adMap)
+          .filter(a => a.leads >= 1)
+          .sort((a, b) => (b.booked / b.leads) - (a.booked / a.leads));
+
         adTbody.innerHTML = sortedAds.map((a, idx) => {
-          const bRate = a.leads > 0 ? ((a.booked / a.leads) * 100).toFixed(1) : '0';
-          const cRate = a.leads > 0 ? ((a.consulted / a.leads) * 100).toFixed(1) : '0';
-          const nRate = a.leads > 0 ? ((a.notInt / a.leads) * 100).toFixed(1) : '0';
-          
-          let qScore = Math.min(100, Math.max(0, Math.round(parseFloat(bRate) * 4 + parseFloat(cRate) * 3 - parseFloat(nRate) * 0.8 + 40)));
-          let qBadge = `<span class="badge badge-emerald">🔥 Scale Budget</span>`;
-          if (parseFloat(nRate) > 28) {
-            qBadge = `<span class="badge badge-rose">⚠️ Review / Fix Copy</span>`;
-          } else if (parseFloat(bRate) < 8) {
-            qBadge = `<span class="badge badge-amber">🟡 Test New Creative</span>`;
-          } else if (parseFloat(bRate) >= 12) {
-            qBadge = `<span class="badge badge-emerald">🔥 High Performer</span>`;
+          const bRate   = a.leads > 0 ? ((a.booked      / a.leads) * 100) : 0;
+          const cRate   = a.leads > 0 ? ((a.consulted   / a.leads) * 100) : 0;
+          const nRate   = a.leads > 0 ? ((a.notInt      / a.leads) * 100) : 0;
+          const pRate   = a.leads > 0 ? ((a.pending     / a.leads) * 100) : 0;
+          const uRate   = a.leads > 0 ? ((a.unreachable / a.leads) * 100) : 0;
+
+          let qScore = Math.min(100, Math.max(0,
+            Math.round(bRate * 4 + cRate * 3 - nRate * 0.8 + 40)
+          ));
+
+          // 5-tier decision badge
+          let qBadge;
+          if (bRate >= 15 && nRate < 20) {
+            qBadge = `<span class="badge badge-emerald">🔥 Scale Budget NOW</span>`;
+          } else if (bRate >= 8 && nRate < 25) {
+            qBadge = `<span class="badge badge-purple">⚡ Maintain & Monitor</span>`;
+          } else if (nRate >= 30) {
+            qBadge = `<span class="badge badge-rose">🛑 Pause / Fix Copy</span>`;
+          } else if (a.leads < 5) {
+            qBadge = `<span class="badge badge-amber">🔬 Needs More Data</span>`;
           } else {
-            qBadge = `<span class="badge badge-purple">⚡ Maintain Budget</span>`;
+            qBadge = `<span class="badge badge-cyan">🧪 Test New Creative</span>`;
           }
 
+          const rankMedal = MEDALS[idx] ? `${MEDALS[idx]} #${idx+1}` : `#${idx+1}`;
+          const scoreColor = qScore >= 70 ? 'grade-A' : qScore >= 50 ? 'grade-B' : 'grade-C';
+
+          // Mini progress bar for booking rate (max scale 25%)
+          const barW = Math.min(100, (bRate / 25) * 100).toFixed(0);
+          const barColor = bRate >= 15 ? '#059669' : bRate >= 8 ? '#d97706' : '#e11d48';
+          const barHtml = `
+            <div style="display:flex;align-items:center;gap:6px;min-width:90px;">
+              <div style="flex:1;height:6px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden;">
+                <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
+              </div>
+              <span style="font-size:0.72rem;font-weight:700;color:${barColor};white-space:nowrap;">${bRate.toFixed(1)}%</span>
+            </div>`;
+
           return `
-            <tr>
-              <td><strong>#${idx + 1}</strong></td>
-              <td style="font-weight:700; color:var(--text-primary);">${a.name}</td>
+            <tr style="${idx === 0 ? 'background:rgba(5,150,105,0.04);' : ''}">
+              <td><strong style="font-size:0.9rem;">${rankMedal}</strong></td>
+              <td style="font-weight:700;color:var(--text-primary);max-width:160px;word-break:break-word;">${a.name}</td>
               <td><strong>${a.leads}</strong></td>
-              <td style="font-weight:700; color:var(--emerald);">${a.booked}</td>
-              <td><strong style="color:var(--emerald);">${bRate}%</strong></td>
-              <td style="font-weight:700; color:#047857;">${a.consulted} (${cRate}%)</td>
-              <td style="color:var(--rose); font-weight:600;">${a.notInt} (${nRate}%)</td>
-              <td><span class="score-grade ${qScore >= 70 ? 'grade-A' : qScore >= 50 ? 'grade-B' : 'grade-C'}" style="width:24px; height:24px; font-size:0.75rem;">${qScore}</span></td>
+              <td style="font-weight:800;color:var(--emerald);font-size:1rem;">${a.booked}</td>
+              <td><strong style="color:${barColor};">${bRate.toFixed(1)}%</strong></td>
+              <td>${barHtml}</td>
+              <td style="color:#047857;font-weight:600;">${a.consulted} <span style="color:var(--text-muted);font-weight:400;">(${cRate.toFixed(1)}%)</span></td>
+              <td style="color:var(--amber);font-weight:600;">${a.pending} <span style="color:var(--text-muted);font-weight:400;">(${pRate.toFixed(1)}%)</span></td>
+              <td style="color:var(--text-muted);font-weight:600;">${a.unreachable} <span style="color:var(--text-muted);font-weight:400;">(${uRate.toFixed(1)}%)</span></td>
+              <td style="color:var(--rose);font-weight:600;">${a.notInt} <span style="color:var(--text-muted);font-weight:400;">(${nRate.toFixed(1)}%)</span></td>
+              <td><span class="score-grade ${scoreColor}" style="width:28px;height:28px;font-size:0.78rem;">${qScore}</span></td>
               <td>${qBadge}</td>
-            </tr>
-          `;
+            </tr>`;
         }).join('');
       }
 
-      // Location Matrix Table
+      // ── Location Matrix Table ─────────────────────────────────────────────
       const locTbody = document.getElementById('loc-matrix-tbody');
       if (locTbody) {
-        const sortedLocs = Object.values(locMap).sort((a,b) => b.leads - a.leads);
+        const sortedLocs = Object.values(locMap).sort((a, b) => b.leads - a.leads);
         locTbody.innerHTML = sortedLocs.map((l, idx) => {
-          const bRate = l.leads > 0 ? ((l.booked / l.leads) * 100).toFixed(1) : '0';
-          const nRate = l.leads > 0 ? ((l.notInt / l.leads) * 100).toFixed(1) : '0';
-          
-          let strat = `<span class="badge badge-emerald">🟢 High Priority Area</span>`;
-          if (l.name.toLowerCase().includes('other') || parseFloat(nRate) > 20) {
+          const bRate = l.leads > 0 ? ((l.booked   / l.leads) * 100) : 0;
+          const nRate = l.leads > 0 ? ((l.notInt   / l.leads) * 100) : 0;
+          const cRate = l.leads > 0 ? ((l.consulted/ l.leads) * 100) : 0;
+          const pCount = Math.max(0, l.leads - l.booked - l.notInt);
+
+          let strat;
+          if (l.name.toLowerCase().includes('other') || nRate > 25) {
             strat = `<span class="badge badge-rose">🔴 Exclude / Restrict Radius</span>`;
-          } else if (parseFloat(bRate) >= 12) {
-            strat = `<span class="badge badge-emerald">🟢 Top Geo Target</span>`;
+          } else if (bRate >= 15) {
+            strat = `<span class="badge badge-emerald">🟢 Top Geo — Increase Bids</span>`;
+          } else if (bRate >= 8) {
+            strat = `<span class="badge badge-purple">🟡 Secondary — Maintain</span>`;
           } else {
-            strat = `<span class="badge badge-cyan">🟡 Secondary Area</span>`;
+            strat = `<span class="badge badge-cyan">⚪ Monitor — Low Priority</span>`;
           }
+
+          const barW = Math.min(100, (bRate / 25) * 100).toFixed(0);
+          const barColor = bRate >= 15 ? '#059669' : bRate >= 8 ? '#d97706' : '#e11d48';
+          const barHtml = `
+            <div style="display:flex;align-items:center;gap:6px;min-width:90px;">
+              <div style="flex:1;height:6px;background:rgba(0,0,0,0.08);border-radius:3px;overflow:hidden;">
+                <div style="width:${barW}%;height:100%;background:${barColor};border-radius:3px;"></div>
+              </div>
+              <span style="font-size:0.72rem;font-weight:700;color:${barColor};white-space:nowrap;">${bRate.toFixed(1)}%</span>
+            </div>`;
 
           return `
             <tr>
-              <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
+              <td style="font-weight:700;color:var(--text-primary);">${l.name}</td>
               <td><strong>${l.leads}</strong></td>
-              <td style="font-weight:700; color:var(--emerald);">${l.booked}</td>
-              <td><strong style="color:var(--emerald);">${bRate}%</strong></td>
-              <td style="color:var(--rose); font-weight:600;">${l.notInt}</td>
-              <td><strong style="color:var(--rose);">${nRate}%</strong></td>
+              <td style="font-weight:800;color:var(--emerald);font-size:1rem;">${l.booked}</td>
+              <td style="color:#047857;font-weight:600;">${l.consulted} <span style="color:var(--text-muted);font-weight:400;">(${cRate.toFixed(1)}%)</span></td>
+              <td>${barHtml}</td>
+              <td style="color:var(--amber);font-weight:600;">${pCount}</td>
+              <td style="color:var(--rose);font-weight:600;">${l.notInt}</td>
+              <td><strong style="color:var(--rose);">${nRate.toFixed(1)}%</strong></td>
               <td>${strat}</td>
-            </tr>
-          `;
+            </tr>`;
         }).join('');
       }
 
-      // Quality Charts Overhaul (Professional Comparative & Stacked Charts)
-      const sortedAdsList = Object.values(adMap).sort((a,b) => b.leads - a.leads);
+      // Quality Charts
+      const sortedAdsList = Object.values(adMap).sort((a, b) => b.leads - a.leads);
       renderAdPerformanceChart('chart-ad-performance', sortedAdsList);
 
-      const sortedLocsList = Object.values(locMap).sort((a,b) => b.leads - a.leads);
+      const sortedLocsList = Object.values(locMap).sort((a, b) => b.leads - a.leads);
       renderLocationQualityChart('chart-loc-performance', sortedLocsList);
 
       const platList = Object.values(platformMap);
       renderPlatformQualityChart('chart-platform-performance', platList);
 
-      const sortedIssuesList = Object.values(issueMap).sort((a,b) => b.leads - a.leads);
+      const sortedIssuesList = Object.values(issueMap).sort((a, b) => b.leads - a.leads);
       renderIssueQualityChart('chart-issue-conversion', sortedIssuesList);
     }
 
