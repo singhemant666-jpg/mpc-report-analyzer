@@ -526,6 +526,51 @@
         </div>
       </div>
 
+      <!-- GROQ AI CALLING OPERATIONS INTELLIGENCE -->
+      <div class="ai-card" id="groq-ai-ops-card" style="margin-bottom:24px;">
+        <div class="ai-header">
+          <div class="ai-title">
+            <span>⚡</span>
+            <span>Groq AI Calling Operations &amp; Agent Coach</span>
+            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Ops Intelligence</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-purple btn-sm" id="ai-ops-run-btn" onclick="runGroqAIOpsAnalysis()">
+              <span>✨</span> Run Operations Audit
+            </button>
+            <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOpsOutput()" title="Copy Operations Report">📋</button>
+          </div>
+        </div>
+
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
+          Real-time calling operations intelligence. Audits agent conversion rates, dial attempt persistence, callback pipeline health, and gives actionable scripts to turn pending leads into confirmed clinic bookings.
+        </div>
+
+        <!-- Quick Action Chips for Operations -->
+        <div class="ai-chips-group">
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit each calling agent (Ishankita, Reetika, Yogita, Anika). Benchmark their conversion rates, highlight top performers, and identify coaching needs.')">🏆 Agent Benchmarks &amp; Coaching</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Analyze 1st vs 2nd vs 3rd attempt intensity. Are callers abandoning ringing leads too soon? How many dials are needed to close?')">📞 Call Attempt Intensity &amp; Persistence</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Action plan for Spoken / Follow-up pending leads: What exact objection handling and WhatsApp follow-up scripts will convert them?')">⏳ Follow-up Pipeline Closing Scripts</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit fresh untouched leads (Call Not Done Yet). What is our current calling SLA and speed-to-call recommendation for today?')">🚨 Speed-to-Call &amp; Fresh Leads SLA</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Comprehensive Calling Operations Review: Daily booking forecast, caller workload balance, and key process bottlenecks.')">🔍 Full Operations Audit</div>
+        </div>
+
+        <!-- Interactive Question Bar -->
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <input type="text" id="ai-ops-custom-prompt-input" class="filter-input" style="flex:1; font-size:0.82rem; padding:8px 14px;" placeholder="Ask Groq AI anything about callers, attempt notes, objection handling, or daily targets..." onkeydown="if(event.key==='Enter') runGroqAIOpsCustomQuery()">
+          <button class="btn btn-primary btn-sm" onclick="runGroqAIOpsCustomQuery()">Ask AI ➔</button>
+        </div>
+
+        <!-- AI Output Box -->
+        <div class="ai-output-box" id="ai-ops-output-box">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--card-border); padding-bottom:8px; margin-bottom:12px;">
+            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Calling Operations Strategy &amp; Scripting</span>
+            <button class="btn btn-sm" style="font-size:0.7rem; padding:3px 10px;" onclick="copyAIOpsOutput()">📋 Copy Report</button>
+          </div>
+          <div class="ai-output-content" id="ai-ops-output-content"></div>
+        </div>
+      </div>
+
       <!-- CALLING AGENT LEADERBOARD -->
       <div class="section-title"><span class="icon">🏆</span> Calling Agent Performance Leaderboard</div>
       <div class="agent-grid" id="agent-leaderboard-grid"></div>
@@ -2477,12 +2522,221 @@
     // ── GROQ AI REAL-TIME AD & BOOKING ANALYST ENGINE ─────────────────────────
 
     function triggerGroqAIFromHeader() {
-      switchView('quality');
-      const card = document.getElementById('groq-ai-card');
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (currentView === 'ops') {
+        const card = document.getElementById('groq-ai-ops-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        runGroqAIOpsAnalysis();
+      } else {
+        const card = document.getElementById('groq-ai-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        runGroqAIAnalysis();
       }
-      runGroqAIAnalysis();
+    }
+
+    // Operations View AI Prompt Generator
+    function generateGroqAIOpsPrompt(leads, customQuery) {
+      const total = leads.length;
+      if (total === 0) return null;
+
+      const totalBooked = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0);
+      const totalBookedLeads = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
+      const totalConsulted = leads.filter(l => l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0);
+      const totalPending = leads.filter(l => l.status === 'pending').length;
+      const totalNotInt = leads.filter(l => l.status === 'not_interested').length;
+      const totalUnreachable = leads.filter(l => l.status === 'unreachable').length;
+      const totalUnattempted = leads.filter(l => l.status === 'unattempted').length;
+
+      // Agent detailed breakdown
+      const agentMap = {};
+      leads.forEach(l => {
+        const ag = l.caller || 'Unassigned';
+        if (!agentMap[ag]) {
+          agentMap[ag] = {
+            name: ag,
+            leads: 0,
+            att1: 0,
+            att2: 0,
+            att3: 0,
+            booked: 0,
+            consulted: 0,
+            pending: 0,
+            notInt: 0,
+            unreachable: 0,
+            unattempted: 0,
+            recentNotes: []
+          };
+        }
+        agentMap[ag].leads++;
+        if (l.att1 && l.att1.trim() !== '') {
+          agentMap[ag].att1++;
+          if (agentMap[ag].recentNotes.length < 4 && l.att1.trim() !== '-') {
+            agentMap[ag].recentNotes.push(l.att1.trim());
+          }
+        }
+        if (l.att2 && l.att2.trim() !== '') agentMap[ag].att2++;
+        if (l.att3 && l.att3.trim() !== '') agentMap[ag].att3++;
+
+        const bc = (l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted') ? (l.bookingCount || 1) : 0;
+        agentMap[ag].booked += bc;
+        if (l.status === 'consulted') agentMap[ag].consulted += (l.bookingCount || 1);
+        if (l.status === 'pending') agentMap[ag].pending++;
+        if (l.status === 'not_interested') agentMap[ag].notInt++;
+        if (l.status === 'unreachable') agentMap[ag].unreachable++;
+        if (l.status === 'unattempted') agentMap[ag].unattempted++;
+      });
+      const agents = Object.values(agentMap);
+
+      let totalAtt1 = 0, totalAtt2 = 0, totalAtt3 = 0;
+      leads.forEach(l => {
+        if (l.att1 && l.att1.trim() !== '') totalAtt1++;
+        if (l.att2 && l.att2.trim() !== '') totalAtt2++;
+        if (l.att3 && l.att3.trim() !== '') totalAtt3++;
+      });
+
+      const prompt = `You are an elite Clinic Calling Operations Director & Patient Conversion Coach for MPC Clinic, a premier non-surgical spine & orthopedic clinic in Bandra West, Mumbai.
+
+Analyze the live Calling Operations and Agent Performance dataset:
+
+=== CALLING OPERATIONS SUMMARY ===
+• Total Leads Assigned: ${total}
+• Total Booked Patients: ${totalBooked} across ${totalBookedLeads} leads (${((totalBooked/total)*100).toFixed(1)}% booking rate)
+• In-Person Clinic Visits Completed (Consulted): ${totalConsulted} (${((totalConsulted/total)*100).toFixed(1)}%)
+• Spoken / Follow-up Pending: ${totalPending} (${((totalPending/total)*100).toFixed(1)}%)
+• Unreachable (Ringing/Busy/Disconnected): ${totalUnreachable} (${((totalUnreachable/total)*100).toFixed(1)}%)
+• Fresh Leads Waiting for Call (Call Not Done Yet): ${totalUnattempted} (${((totalUnattempted/total)*100).toFixed(1)}%)
+• Rejected / Not Interested: ${totalNotInt} (${((totalNotInt/total)*100).toFixed(1)}%)
+
+=== CALL ATTEMPT INTENSITY & DIALS ===
+• 1st Attempts Made: ${totalAtt1} / ${total} leads
+• 2nd Attempts Made: ${totalAtt2}
+• 3rd Attempts Made: ${totalAtt3}
+• Total Dials Made: ${totalAtt1 + totalAtt2 + totalAtt3}
+
+=== INDIVIDUAL AGENT BREAKDOWN ===
+${agents.map(ag => `• Agent: ${ag.name}
+   - Leads Assigned: ${ag.leads}
+   - Dials: 1st=${ag.att1}, 2nd=${ag.att2}, 3rd=${ag.att3} (Total Dials: ${ag.att1 + ag.att2 + ag.att3})
+   - Booked Patients: ${ag.booked} (${((ag.booked/ag.leads)*100).toFixed(1)}% conversion)
+   - Consulted Visits: ${ag.consulted}
+   - Spoken / Follow-up: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}
+   - Sample Notes: ${ag.recentNotes.join(' | ') || 'None'}`).join('\n\n')}
+
+${customQuery ? `SPECIFIC CALLING OPERATIONS INQUIRY: "${customQuery}"` : `Please provide a high-impact, professional executive Calling Operations Audit & Coaching Plan:`}
+
+Structure your response with these clear sections:
+1. 🏆 **Agent Performance Benchmark & Coaching**: Review each agent (Ishankita, Reetika, Yogita, Anika). Highlight conversion strengths, identify specific bottlenecks (e.g. follow-up delays, low re-dial persistence), and set daily booking targets.
+2. 📞 **Dial Intensity & Lead Persistence Rule**: Audit 1st vs 2nd vs 3rd attempts. Give a strict operational protocol on how many times and when to re-dial unreachable/ringing leads to prevent lead wastage.
+3. 💬 **Closing Scripts for Spoken / Pending Leads**: Provide 2 word-for-word calling & WhatsApp scripts to convert leads with objections like "busy, call tomorrow", "let us know", "need to ask family", or "share MRI first".
+4. 🚨 **Fresh Lead SLA & Action Plan for Today**: Concrete speed-to-call action plan to clear the ${totalUnattempted} uncalled leads and follow up on the ${totalPending} pending pipeline today.
+
+Use bold headers, clear bullet points, actionable advice, and emojis.`;
+
+      return prompt;
+    }
+
+    async function runGroqAIOpsAnalysis(customQuery = null) {
+      if (!filteredLeads || filteredLeads.length === 0) {
+        showToast('⚠️ No leads data available to analyze', '#d97706');
+        return;
+      }
+
+      const prompt = generateGroqAIOpsPrompt(filteredLeads, customQuery);
+      if (!prompt) return;
+
+      const outputBox = document.getElementById('ai-ops-output-box');
+      const contentEl = document.getElementById('ai-ops-output-content');
+      const btn = document.getElementById('ai-ops-run-btn');
+
+      if (outputBox) outputBox.classList.add('visible');
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px; padding:14px 0; color:var(--accent-purple); font-weight:700;">
+            <div class="ai-loading-spinner"></div>
+            <span>Groq AI (Llama 3.3 70B) is auditing calling operations, agent benchmarks &amp; attempt intensity...</span>
+          </div>
+        `;
+      }
+
+      if (btn) btn.disabled = true;
+
+      try {
+        let resultText = '';
+        const apiKey = activeGroqApiKey || DEFAULT_GROQ_API_KEY;
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: 'You are an elite Clinic Calling Operations Director and Patient Conversion Specialist.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.4,
+            max_tokens: 1800
+          })
+        });
+
+        const json = await response.json();
+        if (json.error) throw new Error(json.error.message || 'Groq API Error');
+        resultText = json.choices[0].message.content;
+
+        window._lastAIOpsReport = resultText;
+        if (contentEl) {
+          contentEl.innerHTML = formatAIMarkdown(resultText);
+        }
+        showToast('⚡ Groq AI Operations Audit Ready!', '#7c3aed');
+
+      } catch (err) {
+        console.error('Groq AI Operations Error:', err);
+        try {
+          const fallbackRes = await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+          const fallbackJson = await fallbackRes.json();
+          if (fallbackJson.error) throw new Error(fallbackJson.error);
+          window._lastAIOpsReport = fallbackJson.result;
+          if (contentEl) {
+            contentEl.innerHTML = formatAIMarkdown(fallbackJson.result);
+          }
+          showToast('⚡ Groq AI Operations Audit Ready!', '#7c3aed');
+        } catch (fallbackErr) {
+          if (contentEl) {
+            contentEl.innerHTML = `
+              <div style="color:var(--rose); padding:14px; border:1px solid rgba(225,29,72,0.3); border-radius:10px; background:rgba(225,29,72,0.05);">
+                <strong>⚠️ Groq AI Notice:</strong> ${err.message || fallbackErr.message}
+              </div>
+            `;
+          }
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function runGroqAIOpsCustomQuery() {
+      const input = document.getElementById('ai-ops-custom-prompt-input');
+      if (!input || !input.value.trim()) return;
+      const query = input.value.trim();
+      runGroqAIOpsAnalysis(query);
+    }
+
+    function copyAIOpsOutput() {
+      const text = window._lastAIOpsReport || (document.getElementById('ai-ops-output-content') ? document.getElementById('ai-ops-output-content').innerText : '');
+      if (!text) {
+        showToast('⚠️ No operations report to copy yet', '#d97706');
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 Operations Report copied to clipboard!', '#059669');
+      }).catch(() => {
+        showToast('📋 Copied to clipboard', '#059669');
+      });
     }
 
     function generateGroqAIPrompt(leads, customQuery) {
