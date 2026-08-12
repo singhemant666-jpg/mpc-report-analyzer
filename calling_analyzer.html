@@ -531,40 +531,34 @@
         <div class="ai-header">
           <div class="ai-title">
             <span>⚡</span>
-            <span>Groq AI Calling Operations &amp; Agent Coach</span>
-            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Ops Intelligence</span>
+            <span>Groq AI 360° Calling Operations &amp; Lead Quality Intelligence</span>
+            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Real-Time AI</span>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <button class="btn btn-purple btn-sm" id="ai-ops-run-btn" onclick="runGroqAIOpsAnalysis()">
-              <span>✨</span> Run Operations Audit
+              <span>✨</span> Run 360° Operations Audit
             </button>
             <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOpsOutput()" title="Copy Operations Report">📋</button>
           </div>
         </div>
 
         <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
-          Real-time calling operations intelligence. Audits agent conversion rates, dial attempt persistence, callback pipeline health, and gives actionable scripts to turn pending leads into confirmed clinic bookings.
+          Autonomous real-time operations intelligence. Mathematically audits lead counts, booking show-up rates, caller conversion benchmarks, attempt persistence, lead quality grades, and provides closing scripts.
         </div>
 
-        <!-- Quick Action Chips for Operations -->
+        <!-- Quick 1-Click Operations Audit Tabs -->
         <div class="ai-chips-group">
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit each calling agent (Ishankita, Reetika, Yogita, Anika). Benchmark their conversion rates, highlight top performers, and identify coaching needs.')">🏆 Agent Benchmarks &amp; Coaching</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Analyze 1st vs 2nd vs 3rd attempt intensity. Are callers abandoning ringing leads too soon? How many dials are needed to close?')">📞 Call Attempt Intensity &amp; Persistence</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Action plan for Spoken / Follow-up pending leads: What exact objection handling and WhatsApp follow-up scripts will convert them?')">⏳ Follow-up Pipeline Closing Scripts</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit fresh untouched leads (Call Not Done Yet). What is our current calling SLA and speed-to-call recommendation for today?')">🚨 Speed-to-Call &amp; Fresh Leads SLA</div>
-          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Comprehensive Calling Operations Review: Daily booking forecast, caller workload balance, and key process bottlenecks.')">🔍 Full Operations Audit</div>
-        </div>
-
-        <!-- Interactive Question Bar -->
-        <div style="display:flex; gap:8px; margin-bottom:12px;">
-          <input type="text" id="ai-ops-custom-prompt-input" class="filter-input" style="flex:1; font-size:0.82rem; padding:8px 14px;" placeholder="Ask Groq AI anything about callers, attempt notes, objection handling, or daily targets..." onkeydown="if(event.key==='Enter') runGroqAIOpsCustomQuery()">
-          <button class="btn btn-primary btn-sm" onclick="runGroqAIOpsCustomQuery()">Ask AI ➔</button>
+          <div class="ai-chip" style="background:rgba(124,58,237,0.1); border-color:var(--accent-purple); color:var(--accent-purple);" onclick="runGroqAIOpsAnalysis()">📊 360° Comprehensive Full Audit</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Audit each calling agent (Ishankita, Reetika, Yogita, Anika). Benchmark their conversion rates, highlight top performers, and identify coaching needs.')">🏆 Agent Performance &amp; Coaching</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Evaluate overall lead quality, rejection reasons, and compare quality of leads across ad sources and locations.')">🎯 Lead Quality &amp; Reject Analysis</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Analyze 1st vs 2nd vs 3rd attempt intensity. Are callers abandoning ringing leads too soon? How many dials are needed to close?')">📞 Dial Intensity &amp; Attempt Persistence</div>
+          <div class="ai-chip" onclick="runGroqAIOpsAnalysis('Action plan for Spoken / Follow-up pending leads: What exact objection handling and WhatsApp follow-up scripts will convert them?')">💬 Pipeline Closing Scripts</div>
         </div>
 
         <!-- AI Output Box -->
         <div class="ai-output-box" id="ai-ops-output-box">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--card-border); padding-bottom:8px; margin-bottom:12px;">
-            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Calling Operations Strategy &amp; Scripting</span>
+            <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI 360° Operations &amp; Lead Quality Intelligence Report</span>
             <button class="btn btn-sm" style="font-size:0.7rem; padding:3px 10px;" onclick="copyAIOpsOutput()">📋 Copy Report</button>
           </div>
           <div class="ai-output-content" id="ai-ops-output-content"></div>
@@ -687,34 +681,28 @@
         <div class="ai-header">
           <div class="ai-title">
             <span>⚡</span>
-            <span>Groq AI Meta Ads &amp; Booking Intelligence Analyst</span>
-            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Sub-Second AI</span>
+            <span>Groq AI Meta Ads &amp; Booking Quality Intelligence</span>
+            <span class="badge badge-purple" style="font-size:0.68rem; font-weight:700;">Llama 3.3 70B • Real-Time AI</span>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
             <button class="btn btn-purple btn-sm" id="ai-run-btn" onclick="runGroqAIAnalysis()">
-              <span>✨</span> Run AI Strategic Audit
+              <span>✨</span> Run AI Quality Audit
             </button>
             <button class="btn btn-icon" style="font-size:0.8rem;" onclick="copyAIOutput()" title="Copy AI Analysis">📋</button>
           </div>
         </div>
 
         <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
-          One-click AI strategic audit powered by Groq Llama-3.3-70B. Analyzes real-time campaign booking velocity, budget scale recommendations, geographic travel friction, and calling conversion bottlenecks.
+          Autonomous AI strategic audit powered by Groq Llama-3.3-70B. Analyzes real-time campaign booking velocity, budget scale recommendations (+30%), geographic travel friction around Bandra West, and high-converting ad copy.
         </div>
 
-        <!-- Quick Action Chips -->
+        <!-- Quick 1-Click Action Chips -->
         <div class="ai-chips-group">
+          <div class="ai-chip" style="background:rgba(124,58,237,0.1); border-color:var(--accent-purple); color:var(--accent-purple);" onclick="runGroqAIAnalysis()">📊 360° Full Ad Quality &amp; ROI Audit</div>
           <div class="ai-chip" onclick="runGroqAIAnalysis('Which exact Meta Ad Creatives should I scale budget on (+30%) and which should I pause immediately to stop burning money?')">🚀 Scale vs Pause Ads</div>
           <div class="ai-chip" onclick="runGroqAIAnalysis('Analyze Mumbai geographic travel friction around Bandra West clinic. Which areas convert to clinic visits and which suburbs are wasting ad spend?')">📍 Geo Radius &amp; Wastage</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Audit calling agent performance (Ishankita, Reetika, Yogita, Anika). What are the lead conversion bottlenecks and how to fix follow-ups?')">📞 Caller Performance Audit</div>
           <div class="ai-chip" onclick="runGroqAIAnalysis('Write 3 high-converting Meta Ad headlines, pain hooks, and creative angles based on our top-converting health conditions for Bandra clinic.')">✍️ Generate Ad Hooks</div>
-          <div class="ai-chip" onclick="runGroqAIAnalysis('Provide a Comprehensive Executive Summary: Top strengths, immediate budget scale actions, and calling pipeline fixes.')">🔍 Full Executive Audit</div>
-        </div>
-
-        <!-- Interactive Question Bar -->
-        <div style="display:flex; gap:8px; margin-bottom:12px;">
-          <input type="text" id="ai-custom-prompt-input" class="filter-input" style="flex:1; font-size:0.82rem; padding:8px 14px;" placeholder="Ask Groq AI anything about your ads, locations, bookings, or calling team..." onkeydown="if(event.key==='Enter') runGroqAICustomQuery()">
-          <button class="btn btn-primary btn-sm" onclick="runGroqAICustomQuery()">Ask AI ➔</button>
+          <div class="ai-chip" onclick="runGroqAIAnalysis('Provide a Comprehensive Executive Summary: Top strengths, immediate budget scale actions, and calling pipeline fixes.')">💡 Actionable Spend Strategy</div>
         </div>
 
         <!-- AI Output Box -->
@@ -1736,6 +1724,9 @@
       renderCharts(filteredLeads);
       renderTable(filteredLeads);
       renderQualityIntelligence(filteredLeads);
+
+      // Continuous Background AI Monitoring Sentinel
+      scheduleBackgroundGroqAIMonitoring();
     }
 
     let currentView = 'ops';
@@ -1753,12 +1744,14 @@
         if (opsContainer) opsContainer.style.display = 'block';
         if (qualityContainer) qualityContainer.style.display = 'none';
         renderCharts(filteredLeads);
+        if (!window._lastAIOpsReport) scheduleBackgroundGroqAIMonitoring();
       } else {
         if (opsBtn) opsBtn.classList.remove('active');
         if (qualityBtn) qualityBtn.classList.add('active');
         if (opsContainer) opsContainer.style.display = 'none';
         if (qualityContainer) qualityContainer.style.display = 'block';
         renderQualityIntelligence(filteredLeads);
+        if (!window._lastAIReport) scheduleBackgroundGroqAIMonitoring();
       }
     }
 
@@ -2533,7 +2526,7 @@
       }
     }
 
-    // Operations View AI Prompt Generator
+    // Operations View AI Prompt Generator - 360 Degree Comprehensive Audit
     function generateGroqAIOpsPrompt(leads, customQuery) {
       const total = leads.length;
       if (total === 0) return null;
@@ -2541,10 +2534,22 @@
       const totalBooked = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0);
       const totalBookedLeads = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
       const totalConsulted = leads.filter(l => l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0);
+      const totalBookedNoVisit = leads.filter(l => l.status === 'booked_no_visit').reduce((s, l) => s + (l.bookingCount || 1), 0);
       const totalPending = leads.filter(l => l.status === 'pending').length;
       const totalNotInt = leads.filter(l => l.status === 'not_interested').length;
       const totalUnreachable = leads.filter(l => l.status === 'unreachable').length;
       const totalUnattempted = leads.filter(l => l.status === 'unattempted').length;
+
+      // Quality Score & Grade
+      const bookingRate = total > 0 ? (totalBooked / total) * 100 : 0;
+      const rejectRate = total > 0 ? (totalNotInt / total) * 100 : 0;
+      const qualityScore = Math.min(100, Math.max(0, Math.round(bookingRate * 4.5 + (totalConsulted / total) * 300 - rejectRate * 1.2 + 30)));
+      let qualityGrade = 'C';
+      if (qualityScore >= 80) qualityGrade = 'A+ (Excellent Quality)';
+      else if (qualityScore >= 65) qualityGrade = 'A (Good Quality)';
+      else if (qualityScore >= 50) qualityGrade = 'B (Moderate Quality)';
+      else if (qualityScore >= 35) qualityGrade = 'C (Needs Improvement)';
+      else qualityGrade = 'D (High Rejection / Friction)';
 
       // Agent detailed breakdown
       const agentMap = {};
@@ -2593,43 +2598,78 @@
         if (l.att3 && l.att3.trim() !== '') totalAtt3++;
       });
 
-      const prompt = `You are an elite Clinic Calling Operations Director & Patient Conversion Coach for MPC Clinic, a premier non-surgical spine & orthopedic clinic in Bandra West, Mumbai.
+      // Top Ads breakdown
+      const adMap = {};
+      leads.forEach(l => {
+        const ad = l.adName || 'Organic / Direct';
+        if (!adMap[ad]) adMap[ad] = { name: ad, leads: 0, booked: 0, consulted: 0, notInt: 0 };
+        adMap[ad].leads++;
+        const bc = (l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted') ? (l.bookingCount || 1) : 0;
+        adMap[ad].booked += bc;
+        if (l.status === 'consulted') adMap[ad].consulted += (l.bookingCount || 1);
+        if (l.status === 'not_interested') adMap[ad].notInt++;
+      });
+      const topAds = Object.values(adMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
 
-Analyze the live Calling Operations and Agent Performance dataset:
+      // Top Locations breakdown
+      const locMap = {};
+      leads.forEach(l => {
+        const loc = l.area || 'Unknown';
+        if (!locMap[loc]) locMap[loc] = { name: loc, leads: 0, booked: 0, consulted: 0, notInt: 0 };
+        locMap[loc].leads++;
+        const bc = (l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted') ? (l.bookingCount || 1) : 0;
+        locMap[loc].booked += bc;
+        if (l.status === 'consulted') locMap[loc].consulted += (l.bookingCount || 1);
+        if (l.status === 'not_interested') locMap[loc].notInt++;
+      });
+      const topLocs = Object.values(locMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
 
-=== CALLING OPERATIONS SUMMARY ===
-• Total Leads Assigned: ${total}
-• Total Booked Patients: ${totalBooked} across ${totalBookedLeads} leads (${((totalBooked/total)*100).toFixed(1)}% booking rate)
-• In-Person Clinic Visits Completed (Consulted): ${totalConsulted} (${((totalConsulted/total)*100).toFixed(1)}%)
-• Spoken / Follow-up Pending: ${totalPending} (${((totalPending/total)*100).toFixed(1)}%)
+      const prompt = `You are the Chief Clinical Operations & Patient Acquisition Director for MPC Clinic, a premier non-surgical spine, knee & orthopedic clinic located in Bandra West, Mumbai.
+
+Perform a 360-Degree Comprehensive Mathematical & Operational Audit of the live dataset:
+
+=== 1. EXACT MATHEMATICAL COUNT RECONCILIATION ===
+• Total Leads Analyzed: ${total}
+• Total Booked Patients: ${totalBooked} patients (across ${totalBookedLeads} leads — booking rate: ${((totalBooked/total)*100).toFixed(1)}%)
+• In-Person Clinic Visits Completed (Consulted): ${totalConsulted} (${((totalConsulted/total)*100).toFixed(1)}% show-up)
+• Booked (Pending Visit): ${totalBookedNoVisit}
+• Spoken / Follow-up Pipeline: ${totalPending} (${((totalPending/total)*100).toFixed(1)}%)
 • Unreachable (Ringing/Busy/Disconnected): ${totalUnreachable} (${((totalUnreachable/total)*100).toFixed(1)}%)
-• Fresh Leads Waiting for Call (Call Not Done Yet): ${totalUnattempted} (${((totalUnattempted/total)*100).toFixed(1)}%)
-• Rejected / Not Interested: ${totalNotInt} (${((totalNotInt/total)*100).toFixed(1)}%)
+• Fresh Uncalled Leads (Call Not Done Yet): ${totalUnattempted} (${((totalUnattempted/total)*100).toFixed(1)}%)
+• Rejected / Not Interested / Out of City: ${totalNotInt} (${((totalNotInt/total)*100).toFixed(1)}%)
+• Lead Quality Score: ${qualityScore}/100 [Grade: ${qualityGrade}]
 
-=== CALL ATTEMPT INTENSITY & DIALS ===
-• 1st Attempts Made: ${totalAtt1} / ${total} leads
-• 2nd Attempts Made: ${totalAtt2}
-• 3rd Attempts Made: ${totalAtt3}
+=== 2. DIAL INTENSITY & RE-ATTEMPT METRICS ===
+• 1st Dials Made: ${totalAtt1} / ${total} leads
+• 2nd Dials Made: ${totalAtt2}
+• 3rd Dials Made: ${totalAtt3}
 • Total Dials Made: ${totalAtt1 + totalAtt2 + totalAtt3}
 
-=== INDIVIDUAL AGENT BREAKDOWN ===
-${agents.map(ag => `• Agent: ${ag.name}
+=== 3. CALLING AGENTS PERFORMANCE BREAKDOWN ===
+${agents.map(ag => `• Caller: ${ag.name}
    - Leads Assigned: ${ag.leads}
-   - Dials: 1st=${ag.att1}, 2nd=${ag.att2}, 3rd=${ag.att3} (Total Dials: ${ag.att1 + ag.att2 + ag.att3})
+   - Total Dials: ${ag.att1 + ag.att2 + ag.att3} (1st:${ag.att1}, 2nd:${ag.att2}, 3rd:${ag.att3})
    - Booked Patients: ${ag.booked} (${((ag.booked/ag.leads)*100).toFixed(1)}% conversion)
-   - Consulted Visits: ${ag.consulted}
+   - In-Clinic Consulted: ${ag.consulted}
    - Spoken / Follow-up: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}
    - Sample Notes: ${ag.recentNotes.join(' | ') || 'None'}`).join('\n\n')}
 
-${customQuery ? `SPECIFIC CALLING OPERATIONS INQUIRY: "${customQuery}"` : `Please provide a high-impact, professional executive Calling Operations Audit & Coaching Plan:`}
+=== 4. TOP AD CREATIVES QUALITY ===
+${topAds.map(a => `• ${a.name}: ${a.leads} leads | ${a.booked} booked (${((a.booked/a.leads)*100).toFixed(1)}%) | ${a.consulted} consulted | ${a.notInt} rejected (${((a.notInt/a.leads)*100).toFixed(1)}%)`).join('\n')}
 
-Structure your response with these clear sections:
-1. 🏆 **Agent Performance Benchmark & Coaching**: Review each agent (Ishankita, Reetika, Yogita, Anika). Highlight conversion strengths, identify specific bottlenecks (e.g. follow-up delays, low re-dial persistence), and set daily booking targets.
-2. 📞 **Dial Intensity & Lead Persistence Rule**: Audit 1st vs 2nd vs 3rd attempts. Give a strict operational protocol on how many times and when to re-dial unreachable/ringing leads to prevent lead wastage.
-3. 💬 **Closing Scripts for Spoken / Pending Leads**: Provide 2 word-for-word calling & WhatsApp scripts to convert leads with objections like "busy, call tomorrow", "let us know", "need to ask family", or "share MRI first".
-4. 🚨 **Fresh Lead SLA & Action Plan for Today**: Concrete speed-to-call action plan to clear the ${totalUnattempted} uncalled leads and follow up on the ${totalPending} pending pipeline today.
+=== 5. TOP LOCATIONS & TRAVEL FRICTION ===
+${topLocs.map(l => `• ${l.name}: ${l.leads} leads | ${l.booked} booked (${((l.booked/l.leads)*100).toFixed(1)}%) | ${l.consulted} consulted | ${l.notInt} rejected (${((l.notInt/l.leads)*100).toFixed(1)}%)`).join('\n')}
 
-Use bold headers, clear bullet points, actionable advice, and emojis.`;
+${customQuery ? `FOCUS AREA: "${customQuery}"` : `Please provide a complete 360-degree audit with exact numbers and clear action steps:`}
+
+Provide a structured, executive-level report with these 5 sections:
+1. 📊 **Executive Mathematical Summary & Lead Quality Grade**: Full count breakdown, patient volume vs lead volume, lead quality score & grade, and top drop-off reason.
+2. 🏆 **Calling Agent Benchmarks & Coaching**: In-depth review of Ishankita, Reetika, Yogita, Anika. Highlight closing strengths, identify conversion bottlenecks, and set daily booking targets.
+3. 📞 **Dial Intensity & Persistence Protocol**: Strict operational rule on how many dials to make on ringing/unreachable leads to prevent wasted leads.
+4. 🎯 **Lead Quality & Ad Source Evaluation**: Which ads bring serious booked patients vs which ads bring high rejections or unreachable numbers.
+5. 💬 **Actionable Closing Scripts & Today's SLA**: Word-for-word calling & WhatsApp scripts to close the ${totalPending} pending leads and clear the ${totalUnattempted} uncalled leads today.
+
+Format with bold numbers, clear bullet points, clean section headers, and emojis.`;
 
       return prompt;
     }
@@ -2719,11 +2759,25 @@ Use bold headers, clear bullet points, actionable advice, and emojis.`;
       }
     }
 
-    function runGroqAIOpsCustomQuery() {
-      const input = document.getElementById('ai-ops-custom-prompt-input');
-      if (!input || !input.value.trim()) return;
-      const query = input.value.trim();
-      runGroqAIOpsAnalysis(query);
+    let _backgroundAITimer = null;
+    let _lastMonitoredDataHash = '';
+
+    // Continuous Background AI Monitoring Sentinel
+    function scheduleBackgroundGroqAIMonitoring() {
+      if (!filteredLeads || filteredLeads.length === 0) return;
+      
+      const hash = `${filteredLeads.length}_${filteredLeads.filter(l => l.status === 'booked' || l.status === 'consulted').length}_${filteredLeads.filter(l => l.status === 'pending').length}`;
+      if (hash === _lastMonitoredDataHash) return;
+
+      clearTimeout(_backgroundAITimer);
+      _backgroundAITimer = setTimeout(() => {
+        _lastMonitoredDataHash = hash;
+        if (currentView === 'ops') {
+          runGroqAIOpsAnalysis();
+        } else {
+          runGroqAIAnalysis();
+        }
+      }, 1200);
     }
 
     function copyAIOpsOutput() {
