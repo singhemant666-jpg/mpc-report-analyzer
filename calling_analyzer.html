@@ -614,21 +614,22 @@
       <div class="card">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
           <div class="section-title" style="margin-bottom:0;"><span class="icon">📍</span> Location Performance &amp; Geographic Budget Matrix</div>
-          <span style="font-size:0.72rem;color:var(--text-muted);font-weight:600;">Sorted by total leads • Booking Rate shown as progress bar</span>
+          <span style="font-size:0.72rem;color:var(--text-muted);font-weight:600;">Sorted by total leads • Catchment Zones measured from MPC Bandra Clinic</span>
         </div>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th>Mumbai Area</th>
+                <th>Mumbai Area / Catchment</th>
+                <th>Catchment Zone &amp; Distance</th>
                 <th>Total Leads</th>
                 <th>Booked 🎯</th>
                 <th>Consulted ✅</th>
                 <th>Booking Rate Bar</th>
                 <th>Pending ⏳</th>
                 <th>Rejected ❌</th>
-                <th>Rejection %</th>
-                <th>Targeting Strategy</th>
+                <th>Travel Friction %</th>
+                <th>Targeting Strategy (Meta Ads)</th>
               </tr>
             </thead>
             <tbody id="loc-matrix-tbody"></tbody>
@@ -930,30 +931,158 @@
       applyFilters();
     }
 
-    function cleanLocation(val) {
-      if (!val) return 'Unknown';
-      // Strip non-breaking spaces and collapse inner multiple spaces
-      let str = String(val).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!str || str === '-' || str.toLowerCase() === 'na' || str.toLowerCase() === 'null') return 'Unknown';
+    // ── MUMBAI LOCATIONS & PROPERTIES KNOWLEDGE ENGINE ───────────────────────
+    // MPC Clinic is located in Bandra West, Mumbai.
+    // Maps raw inputs (from Meta form fields, caller notes, sheet LOCATION column)
+    // to canonical names, distance/catchment zones, and Meta Ads targeting properties.
+    const LOCATION_PROPERTIES_MAP = {
+      'Bandra / Khar / Santacruz': {
+        name: 'Bandra / Khar / Santacruz',
+        zone: '🎯 Core Clinic Zone',
+        distance: '0–5 km',
+        zoneTier: 'core',
+        badge: '🟢 Top ROI — Maximize Bids',
+        badgeClass: 'badge-emerald',
+        keywords: ['bandra', 'khar', 'santacruz', 'pali hill', 'carter road', 'linking road', 'turner road', 'bandra west', 'bandra east', 'khar west', 'santacruz west']
+      },
+      'Juhu / Vile Parle / Andheri': {
+        name: 'Juhu / Vile Parle / Andheri',
+        zone: '🚗 Primary Metro Catchment',
+        distance: '5–10 km',
+        zoneTier: 'primary',
+        badge: '🟢 Core Target — Strong Booking',
+        badgeClass: 'badge-emerald',
+        keywords: ['juhu', 'vile parle', 'andheri', 'versova', 'lokhandwala', 'jvpd', 'marol', 'sakinaka', 'sakhi naka', 'dn nagar', 'four bungalows', 'seven bungalows', 'andheri west', 'andheri east', 'vile parle west', 'vile parle east']
+      },
+      'Worli / Lower Parel / Dadar': {
+        name: 'Worli / Lower Parel / Dadar',
+        zone: '🚗 Central Metro Catchment',
+        distance: '6–12 km',
+        zoneTier: 'primary',
+        badge: '🟢 High Priority — In-Person Visits',
+        badgeClass: 'badge-emerald',
+        keywords: ['worli', 'lower parel', 'dadar', 'prabhadevi', 'mahim', 'matunga', 'sion', 'elphinstone', 'currey road', 'chinchpokli', 'wadala', 'sewri', 'antop hill', 'dadar west', 'dadar east', 'parel']
+      },
+      'Borivali / Kandivali / Malad': {
+        name: 'Borivali / Kandivali / Malad',
+        zone: '🛣️ Extended Western Suburbs',
+        distance: '12–20 km',
+        zoneTier: 'extended',
+        badge: '🟡 Extended Reach — Moderate Intent',
+        badgeClass: 'badge-cyan',
+        keywords: ['borivali', 'kandivali', 'malad', 'goregaon', 'charkop', 'dahisar', 'ic colony', 'evershine', 'shimpoli', 'ram mandir', 'mindspace', 'malad west', 'borivali west', 'kandivali west', 'goregaon west', 'goregaon east']
+      },
+      'Ghatkopar / Mulund / Chembur': {
+        name: 'Ghatkopar / Mulund / Chembur',
+        zone: '🛣️ Central Suburbs Catchment',
+        distance: '10–18 km',
+        zoneTier: 'extended',
+        badge: '🟡 Central Reach — SCLR Commute',
+        badgeClass: 'badge-cyan',
+        keywords: ['ghatkopar', 'mulund', 'chembur', 'kurla', 'bhandup', 'powai', 'vidyavihar', 'kanjurmarg', 'tilak nagar', 'chunabhatti', 'govandi', 'mankhurd', 'hiranandani', 'chembur east', 'chembur west']
+      },
+      'South Mumbai (Colaba / Churchgate)': {
+        name: 'South Mumbai (Colaba / Churchgate)',
+        zone: '🏛️ South Mumbai Catchment',
+        distance: '15–20 km',
+        zoneTier: 'south_mumbai',
+        badge: '⚡ High Ticket Area — Sea Link Access',
+        badgeClass: 'badge-purple',
+        keywords: ['colaba', 'churchgate', 'marine lines', 'cst', 'fort', 'nariman point', 'byculla', 'girgaon', 'tardeo', 'malabar hill', 'cuffe parade', 'peddar road', 'kemps corner', 'grant road', 'mumbai central', 'walkeshwar', 'breach candy', 'marine drive', 'ballard estate']
+      },
+      'Mira Road / Bhayander': {
+        name: 'Mira Road / Bhayander',
+        zone: '⚠️ Outer Suburb Friction',
+        distance: '25+ km',
+        zoneTier: 'friction',
+        badge: '🔴 Distance Drop-off — Tele-consult',
+        badgeClass: 'badge-rose',
+        keywords: ['mira road', 'bhayander', 'mira-bhayander', 'miraroad', 'bhayandar', 'kashimira', 'mira rd']
+      },
+      'Extended MMR (Thane / Navi Mumbai / Beyond)': {
+        name: 'Extended MMR (Thane / Navi Mumbai / Beyond)',
+        zone: '⚠️ High Travel Friction',
+        distance: '25–45 km',
+        zoneTier: 'friction',
+        badge: '🛑 Budget Wastage — Restrict Radius',
+        badgeClass: 'badge-rose',
+        keywords: ['thane', 'navi mumbai', 'vashi', 'kalyan', 'dombivli', 'panvel', 'kharghar', 'nerul', 'belapur', 'airoli', 'virar', 'vasai', 'ulhasnagar', 'ambarnath', 'badlapur', 'sanpada', 'kopar khairane', 'seawoods', 'ghansoli', 'kalwa', 'mumbra', 'bhiwandi', 'pune', 'nashik', 'gujarat', 'delhi', 'out of station', 'out of mumbai', 'out of maharashtra']
+      },
+      'Other / Distant Area': {
+        name: 'Other / Distant Area',
+        zone: '⚠️ Out of Catchment',
+        distance: '20+ km',
+        zoneTier: 'other',
+        badge: '🛑 Wastage Alert — Clarify Bandra',
+        badgeClass: 'badge-rose',
+        keywords: ['other_area', 'other', 'others', 'unknown area']
+      }
+    };
 
-      const lower = str.toLowerCase();
-      // Filter out dates or call attempt notes accidentally typed into Location column (e.g. "07.08 Not Reach", "08.08 Ringing")
-      if (
-        /\d{1,2}[\.\/]\d{1,2}/.test(str) ||
-        lower.includes('not reach') ||
-        lower.includes('ringing') ||
-        lower.includes('busy') ||
-        lower.includes('disconnect') ||
-        lower.includes('switch') ||
-        lower.includes('call') ||
-        lower.includes('invalid') ||
-        lower.includes('asked') ||
-        lower.includes('let us know')
-      ) {
-        return 'Unknown';
+    function getLocationProperties(locName) {
+      if (!locName) return {
+        name: 'Unknown',
+        zone: '❓ Unspecified',
+        distance: '-',
+        zoneTier: 'unknown',
+        badge: '⚪ Needs Info',
+        badgeClass: 'badge-muted'
+      };
+
+      if (LOCATION_PROPERTIES_MAP[locName]) {
+        return LOCATION_PROPERTIES_MAP[locName];
       }
 
-      // Title case string cleanly
+      // Check case-insensitively or partial match
+      const lower = locName.toLowerCase();
+      for (const [key, props] of Object.entries(LOCATION_PROPERTIES_MAP)) {
+        if (key.toLowerCase() === lower || props.keywords.some(kw => lower.includes(kw))) {
+          return props;
+        }
+      }
+
+      return {
+        name: locName,
+        zone: '📍 Mumbai Region',
+        distance: '10–15 km',
+        zoneTier: 'custom',
+        badge: '🟡 Secondary Geo Target',
+        badgeClass: 'badge-cyan'
+      };
+    }
+
+    function cleanLocation(val, notes = '') {
+      let str = '';
+      if (val !== undefined && val !== null) {
+        str = String(val).replace(/\u00a0/g, ' ').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+
+      const lower = str.toLowerCase();
+      const notesLower = String(notes || '').toLowerCase();
+
+      // Filter out invalid texts mistakenly entered into location
+      const isInvalid = !str || str === '-' || lower === 'na' || lower === 'null' ||
+        /\d{1,2}[\.\/]\d{1,2}/.test(str) ||
+        lower.includes('not reach') || lower.includes('ringing') || lower.includes('busy') ||
+        lower.includes('disconnect') || lower.includes('switch') || lower.includes('call') ||
+        lower.includes('invalid') || lower.includes('asked') || lower.includes('let us know');
+
+      const textToSearch = isInvalid ? notesLower : `${lower} ${notesLower}`;
+
+      // Check keywords against LOCATION_PROPERTIES_MAP
+      for (const [canonicalName, props] of Object.entries(LOCATION_PROPERTIES_MAP)) {
+        for (const kw of props.keywords) {
+          // Exact word boundary or substring match
+          const regex = new RegExp(`\\b${kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+          if (regex.test(textToSearch) || textToSearch.includes(kw)) {
+            return canonicalName;
+          }
+        }
+      }
+
+      if (isInvalid) return 'Unknown';
+
+      // Title case fallback
       return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
     }
 
@@ -1035,16 +1164,18 @@
       const caller = extractAgentFromSheetName(sheetName, rawCaller);
       const issue = formatLabel(item['what_issue_are_you_facing?'] || 'Not Specified');
       const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
-      const area = cleanLocation(item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION);
       
-      const leadDate = parseLeadDate(item);
-      const leadDateStr = formatDateDisplay(leadDate);
-
       const att1 = item['ATTEMPT 1'] || item['ATT 1'] || '';
       const att2 = item['ATT 2'] || '';
       const att3 = item['ATT 3'] || '';
-
       const allNotes = `${att1} ${att2} ${att3}`.toLowerCase();
+
+      // Extract raw location from form fields or manual sheet column
+      const rawLoc = item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || item.Location || item.location || item.Area || item.area || item.City || item.city || item['which_city_are_you_from?'];
+      const area = cleanLocation(rawLoc, allNotes);
+      
+      const leadDate = parseLeadDate(item);
+      const leadDateStr = formatDateDisplay(leadDate);
 
       // ── Multi-person booking count ───────────────────────────────────────────
       // Detect when one cell mentions 2 or more patients booking together.
@@ -1624,16 +1755,7 @@
           const cRate = l.leads > 0 ? ((l.consulted/ l.leads) * 100) : 0;
           const pCount = Math.max(0, l.leads - l.booked - l.notInt);
 
-          let strat;
-          if (l.name.toLowerCase().includes('other') || nRate > 25) {
-            strat = `<span class="badge badge-rose">🔴 Exclude / Restrict Radius</span>`;
-          } else if (bRate >= 15) {
-            strat = `<span class="badge badge-emerald">🟢 Top Geo — Increase Bids</span>`;
-          } else if (bRate >= 8) {
-            strat = `<span class="badge badge-purple">🟡 Secondary — Maintain</span>`;
-          } else {
-            strat = `<span class="badge badge-cyan">⚪ Monitor — Low Priority</span>`;
-          }
+          const props = getLocationProperties(l.name);
 
           const barW = Math.min(100, (bRate / 25) * 100).toFixed(0);
           const barColor = bRate >= 15 ? '#059669' : bRate >= 8 ? '#d97706' : '#e11d48';
@@ -1647,7 +1769,8 @@
 
           return `
             <tr>
-              <td style="font-weight:700;color:var(--text-primary);">${l.name}</td>
+              <td style="font-weight:700;color:var(--text-primary);">${props.name}</td>
+              <td><span style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);">${props.zone} <span style="font-size:0.7rem;color:var(--text-muted);font-weight:500;">(${props.distance})</span></span></td>
               <td><strong>${l.leads}</strong></td>
               <td style="font-weight:800;color:var(--emerald);font-size:1rem;">${l.booked}</td>
               <td style="color:#047857;font-weight:600;">${l.consulted} <span style="color:var(--text-muted);font-weight:400;">(${cRate.toFixed(1)}%)</span></td>
@@ -1655,7 +1778,7 @@
               <td style="color:var(--amber);font-weight:600;">${pCount}</td>
               <td style="color:var(--rose);font-weight:600;">${l.notInt}</td>
               <td><strong style="color:var(--rose);">${nRate.toFixed(1)}%</strong></td>
-              <td>${strat}</td>
+              <td><span class="badge ${props.badgeClass}">${props.badge}</span></td>
             </tr>`;
         }).join('');
       }
