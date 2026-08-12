@@ -1170,8 +1170,16 @@
       const att3 = item['ATT 3'] || '';
       const allNotes = `${att1} ${att2} ${att3}`.toLowerCase();
 
-      // Extract raw location from form fields or manual sheet column
-      const rawLoc = item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.LOCATION || item.Location || item.location || item.Area || item.area || item.City || item.city || item['which_city_are_you_from?'];
+      // ── PRIORITY 1: Agent-entered LOCATION column in sheet (verified via call) ──
+      // When agent enters "colaba", "mira Road", "dadar" in sheet Column W,
+      // it MUST override the automated Facebook form dropdown value!
+      const agentEnteredLoc = item.LOCATION || item.Location || item.location || item.Area || item.area;
+      const metaFormLoc = item['which_area_of_mumbai_are_you_from?'] || item['which_area_of_mumbai_is_closest?'] || item.City || item.city || item['which_city_are_you_from?'];
+      
+      const rawLoc = (agentEnteredLoc && String(agentEnteredLoc).trim() !== '' && String(agentEnteredLoc).trim() !== '-')
+        ? agentEnteredLoc
+        : metaFormLoc;
+
       const area = cleanLocation(rawLoc, allNotes);
       
       const leadDate = parseLeadDate(item);
@@ -1199,7 +1207,27 @@
         return 1; // Default: 1 patient per lead
       }
 
+      function extractSecondaryPatientName(notes) {
+        if (!notes) return null;
+        // Match "for himself + shanya tamboli 2p 13/8 booked" or "himself + rahul gupta" or "self + priya"
+        const plusMatch = notes.match(/(?:for\s+)?(?:himself|herself|self|him|her)\s*[+&]\s*([a-zA-Z\s]{2,30}?)(?:\s+\d+p|\s+\d{1,2}[\/\.]\d{1,2}|\s+booked|\s*$)/i);
+        if (plusMatch && plusMatch[1]) {
+          const rawSec = plusMatch[1].trim();
+          if (rawSec && !['his', 'her', 'the', '2p', '3p', 'booked', 'for'].includes(rawSec.toLowerCase())) {
+            return rawSec.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          }
+        }
+        // Match relations: "his mom", "her husband", "his wife", "his dad", "his father", "his son", "his daughter", "his friend"
+        const relMatch = notes.match(/\b(?:and|&|\+)\s+(his\s+mom|her\s+mom|his\s+wife|her\s+husband|his\s+father|his\s+dad|his\s+son|her\s+son|his\s+daughter|her\s+daughter|mom|mother|father|dad|wife|husband|brother|sister|friend|son|daughter)\b/i);
+        if (relMatch && relMatch[1]) {
+          return relMatch[1].trim().replace(/\b\w/g, l => l.toUpperCase());
+        }
+        return null;
+      }
+
       const bookingCount = extractBookingCount(allNotes);
+      const secondaryName = extractSecondaryPatientName(allNotes);
+      const displayName = (bookingCount > 1 && secondaryName) ? `${name} + ${secondaryName}` : name;
 
       let status = 'unattempted';
       let statusText = 'Unattempted';
@@ -1292,6 +1320,8 @@
       return {
         id: index + 1,
         name,
+        displayName,
+        secondaryName,
         phone,
         caller,
         sheetName,
@@ -1489,11 +1519,16 @@
         if (status && l.status !== status) return false;
         if (query) {
           const match = (l.name || '').toLowerCase().includes(query) ||
+                        (l.displayName || '').toLowerCase().includes(query) ||
+                        (l.secondaryName || '').toLowerCase().includes(query) ||
                         (l.phone || '').toLowerCase().includes(query) ||
                         (l.area || '').toLowerCase().includes(query) ||
                         (l.sheetName || '').toLowerCase().includes(query) ||
                         (l.caller || '').toLowerCase().includes(query) ||
-                        (l.leadDateStr || '').toLowerCase().includes(query);
+                        (l.leadDateStr || '').toLowerCase().includes(query) ||
+                        (l.att1 || '').toLowerCase().includes(query) ||
+                        (l.att2 || '').toLowerCase().includes(query) ||
+                        (l.att3 || '').toLowerCase().includes(query);
           if (!match) return false;
         }
         return true;
@@ -2245,7 +2280,10 @@
             ${isCarriedOver ? `<span class="badge badge-amber" style="font-size:0.6rem; margin-left:4px; padding:2px 5px;" title="Untouched from yesterday after 9 PM">🌙 Carried Over</span>` : ''}
           </td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
-          <td style="font-weight:700; color:var(--text-primary);">${l.name}</td>
+          <td style="font-weight:700; color:var(--text-primary);">
+            ${l.displayName || l.name}
+            ${l.bookingCount > 1 ? `<span class="badge badge-emerald" style="font-size:0.62rem; margin-left:5px; padding:1px 6px;" title="Double Booking: ${l.bookingCount} patients in this lead">👥 ${l.bookingCount} Patients Booked</span>` : ''}
+          </td>
           <td style="font-weight:600; color:var(--cyan);">${l.phone || '-'}</td>
           <td><strong style="color:var(--purple);">${l.caller}</strong></td>
           <td>${l.issue}</td>
