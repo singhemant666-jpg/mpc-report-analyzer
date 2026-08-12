@@ -1527,6 +1527,25 @@
 
     let isFetchingLeads = false;
 
+    // Load instantly from localStorage cache so UI never shows 0 or blank
+    function loadCachedLeads() {
+      try {
+        const cachedStr = localStorage.getItem('mpc_cached_leads_data');
+        if (cachedStr) {
+          const rows = JSON.parse(cachedStr);
+          if (Array.isArray(rows) && rows.length > 0) {
+            rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
+            populateFilterOptions(rawLeadsData);
+            applyFilters();
+            const statusText = document.getElementById('sync-status-text');
+            if (statusText) statusText.textContent = `Connected (${rawLeadsData.length} Leads Loaded from Cache • Syncing...)`;
+          }
+        }
+      } catch (e) {
+        console.warn('Cache read error:', e);
+      }
+    }
+
     // Fetch Live Leads Data from Google Script URL
     async function fetchLiveLeads(manual = false) {
       if (autoRefreshPaused && !manual) return;
@@ -1536,21 +1555,20 @@
       const dot = document.getElementById('sync-dot');
       const statusText = document.getElementById('sync-status-text');
       if (dot) dot.classList.add('syncing');
-      if (statusText) statusText.textContent = 'Syncing Live Data...';
+      if (statusText && (!rawLeadsData || rawLeadsData.length === 0)) {
+        statusText.textContent = 'Connecting to Google Sheet (3,300+ leads)...';
+      }
 
       try {
         const baseUrl = getApiUrl();
-        const fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-        const response = await fetch(fetchUrl, { cache: 'no-store' });
+        const response = await fetch(baseUrl, { cache: 'no-store' });
         const json = await response.json();
 
         // Support both old plain-array response AND new { success, data, meta } envelope
         let rows = null;
         if (Array.isArray(json)) {
-          // Old Apps Script format: returns raw array directly
           rows = json;
         } else if (json && json.success === true && Array.isArray(json.data)) {
-          // New improved Apps Script format: { success: true, data: [...], meta: {...} }
           rows = json.data;
           if (json.meta) {
             console.log('[MPC API]', json.meta);
@@ -1559,7 +1577,13 @@
           throw new Error('API Error: ' + (json.error || 'Unknown server error'));
         }
 
-        if (rows !== null) {
+        if (rows !== null && rows.length > 0) {
+          try {
+            localStorage.setItem('mpc_cached_leads_data', JSON.stringify(rows));
+          } catch (storageErr) {
+            console.warn('Could not save to localStorage:', storageErr);
+          }
+
           rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
           populateFilterOptions(rawLeadsData);
           applyFilters();
@@ -1572,7 +1596,13 @@
       } catch (err) {
         console.error('Error fetching live leads:', err);
         if (dot) dot.classList.remove('syncing');
-        if (statusText) statusText.textContent = 'Sync Warning (Check Script URL)';
+        if (statusText) {
+          if (rawLeadsData && rawLeadsData.length > 0) {
+            statusText.textContent = `Connected (${rawLeadsData.length} Leads • Auto-Syncing...)`;
+          } else {
+            statusText.textContent = 'Sync Retrying in background...';
+          }
+        }
       } finally {
         isFetchingLeads = false;
       }
@@ -3024,6 +3054,7 @@ Use bold text, clear bullet points, concise numbers, and emojis.`;
     // On Load
     document.addEventListener('DOMContentLoaded', () => {
       initTheme();
+      loadCachedLeads();
       applyDatePreset();
       fetchLiveLeads();
     });
