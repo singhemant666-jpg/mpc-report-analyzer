@@ -648,18 +648,6 @@
       return `${yyyy}-${mm}-${dd}`;
     }
 
-    function getLatestDatasetDateStr() {
-      if (!rawLeadsData || rawLeadsData.length === 0) return toLocalInputDateStr(new Date());
-      const dates = rawLeadsData.map(l => l.leadDate).filter(d => d instanceof Date && !isNaN(d.getTime()));
-      if (dates.length === 0) return toLocalInputDateStr(new Date());
-      dates.sort((a, b) => b.getTime() - a.getTime());
-      const maxDate = dates[0];
-      const yyyy = maxDate.getUTCFullYear();
-      const mm = String(maxDate.getUTCMonth() + 1).padStart(2, '0');
-      const dd = String(maxDate.getUTCDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-
     function applyDatePreset() {
       const preset = document.getElementById('filter-date-preset').value;
       const startInput = document.getElementById('filter-start-date');
@@ -678,19 +666,8 @@
 
       if (preset === 'today') {
         const sysTodayStr = toLocalInputDateStr(now);
-        // Check if rawLeadsData has leads matching system date (sysTodayStr)
-        const sysMatches = rawLeadsData.filter(l => {
-          if (!l.leadDate) return false;
-          const y = l.leadDate.getUTCFullYear();
-          const m = String(l.leadDate.getUTCMonth() + 1).padStart(2, '0');
-          const d = String(l.leadDate.getUTCDate()).padStart(2, '0');
-          return `${y}-${m}-${d}` === sysTodayStr;
-        });
-
-        // If system date has 10 or more calling leads, use system date; otherwise use latest active calling date (2026-08-11)
-        const targetDate = (sysMatches && sysMatches.length >= 10) ? sysTodayStr : getLatestDatasetDateStr();
-        startYmd = targetDate;
-        endYmd = targetDate;
+        startYmd = sysTodayStr;
+        endYmd = sysTodayStr;
       } else if (preset === 'yesterday') {
         const y = new Date(now);
         y.setDate(y.getDate() - 1);
