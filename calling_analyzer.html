@@ -2030,11 +2030,25 @@
     // Render Key Metrics Cards
     function renderKPIs(leads) {
       const total = leads.length;
-      const consulted = leads.filter(l => l.status === 'consulted').length;
-      const bookedNoVisit = leads.filter(l => l.status === 'booked_no_visit').length;
-      const lightBooked = leads.filter(l => l.status === 'booked').length;
       
-      const totalBooked = consulted + bookedNoVisit + lightBooked;
+      // Sum bookingCount for booked leads (counts double bookings like "2p" as 2 patients!)
+      const totalBookedPatients = leads
+        .filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted')
+        .reduce((sum, l) => sum + (l.bookingCount || 1), 0);
+      const totalBookedLeads = leads
+        .filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted')
+        .length;
+
+      const consulted = leads
+        .filter(l => l.status === 'consulted')
+        .reduce((sum, l) => sum + (l.bookingCount || 1), 0);
+      const bookedNoVisit = leads
+        .filter(l => l.status === 'booked_no_visit')
+        .reduce((sum, l) => sum + (l.bookingCount || 1), 0);
+      const lightBooked = leads
+        .filter(l => l.status === 'booked')
+        .reduce((sum, l) => sum + (l.bookingCount || 1), 0);
+
       const pending = leads.filter(l => l.status === 'pending').length;
       const notInterested = leads.filter(l => l.status === 'not_interested').length;
       const unreachable = leads.filter(l => l.status === 'unreachable').length;
@@ -2047,11 +2061,17 @@
       });
       const totalDials = att1Total + att2Total + att3Total;
 
-      const bookPct = total > 0 ? ((totalBooked / total) * 100).toFixed(1) : '0';
+      const bookPct = total > 0 ? ((totalBookedPatients / total) * 100).toFixed(1) : '0';
 
       if (document.getElementById('kpi-total-leads')) document.getElementById('kpi-total-leads').textContent = total;
-      if (document.getElementById('kpi-total-booked')) document.getElementById('kpi-total-booked').textContent = totalBooked;
-      if (document.getElementById('kpi-total-booked-sub')) document.getElementById('kpi-total-booked-sub').textContent = `${bookPct}% booking rate`;
+      if (document.getElementById('kpi-total-booked')) document.getElementById('kpi-total-booked').textContent = totalBookedPatients;
+      if (document.getElementById('kpi-total-booked-sub')) {
+        if (totalBookedPatients > totalBookedLeads) {
+          document.getElementById('kpi-total-booked-sub').textContent = `${totalBookedPatients} patients (${totalBookedLeads} lead${totalBookedLeads > 1 ? 's' : ''} • ${bookPct}%)`;
+        } else {
+          document.getElementById('kpi-total-booked-sub').textContent = `${bookPct}% booking rate`;
+        }
+      }
 
       if (document.getElementById('kpi-consulted')) document.getElementById('kpi-consulted').textContent = consulted;
       if (document.getElementById('kpi-booked-no-visit')) document.getElementById('kpi-booked-no-visit').textContent = bookedNoVisit;
@@ -2084,11 +2104,13 @@
                       (l.att3 && l.att3.trim() !== '' ? 1 : 0);
         agentMap[caller].totalDials += dials;
 
+        const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+
         if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
-          agentMap[caller].booked++;
+          agentMap[caller].booked += bc;
         }
         if (l.status === 'consulted') {
-          agentMap[caller].consulted++;
+          agentMap[caller].consulted += bc;
         }
       });
 
@@ -2143,9 +2165,9 @@
     function renderCharts(leads) {
       // 1. Disposition Chart
       const statusCounts = {
-        '✅ Consulted & Visited': leads.filter(l => l.status === 'consulted').length,
-        '📅 Booked (No Visit)': leads.filter(l => l.status === 'booked_no_visit').length,
-        '🎯 Booked': leads.filter(l => l.status === 'booked').length,
+        '✅ Consulted & Visited': leads.filter(l => l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0),
+        '📅 Booked (No Visit)': leads.filter(l => l.status === 'booked_no_visit').reduce((s, l) => s + (l.bookingCount || 1), 0),
+        '🎯 Booked': leads.filter(l => l.status === 'booked').reduce((s, l) => s + (l.bookingCount || 1), 0),
         '⏳ Spoken / Follow-up': leads.filter(l => l.status === 'pending').length,
         '❌ Not Interested': leads.filter(l => l.status === 'not_interested').length,
         '📞 Unreachable / Blank': leads.filter(l => l.status === 'unreachable').length
