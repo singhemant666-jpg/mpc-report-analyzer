@@ -1046,7 +1046,30 @@
 
       const allNotes = `${att1} ${att2} ${att3}`.toLowerCase();
 
-      // Determine Lead Status & Disposition
+      // ── Multi-person booking count ───────────────────────────────────────────
+      // Detect when one cell mentions 2 or more patients booking together.
+      // Examples: "2p", "3p", "for himself + shanya tamboli 2p",
+      //           "for 2", "himself and wife", "him + mom", "2 people", "couple".
+      function extractBookingCount(notes) {
+        // Explicit numeric patterns: "2p", "3 p", "2 people", "for 2", "booking 3"
+        const numericMatch = notes.match(/\b([2-9]|10)\s*p(?:eople|erson|atients?)?\b|\bfor\s+([2-9]|10)\b|\bbooking\s+([2-9]|10)\b/i);
+        if (numericMatch) {
+          const n = parseInt(numericMatch[1] || numericMatch[2] || numericMatch[3], 10);
+          if (!isNaN(n) && n > 1 && n <= 10) return n;
+        }
+        // Pair / couple / duo keywords
+        if (/\b(couple|duo|pair|both of them|both)\b/i.test(notes)) return 2;
+        // "himself + X", "him + X", "herself + X", "for self + X"
+        if (/\b(himself|herself|him|her|self|himself)\s*[+&]\s*\w/i.test(notes)) return 2;
+        // "X and his wife", "X and her husband", "and mom", "and wife", "and husband", "and brother"
+        if (/\band\s+(wife|husband|mom|mother|father|dad|brother|sister|friend|son|daughter|parent)\b/i.test(notes)) return 2;
+        // "him + mom", "her + friend" style
+        if (/\b(him|her)\s*[+&]\s*(mom|mother|father|dad|wife|husband|friend|brother|sister|son|daughter)\b/i.test(notes)) return 2;
+        return 1; // Default: 1 patient per lead
+      }
+
+      const bookingCount = extractBookingCount(allNotes);
+
       let status = 'unattempted';
       let statusText = 'Unattempted';
       let badgeClass = 'badge-muted';
@@ -1156,7 +1179,8 @@
         att3,
         status,
         statusText,
-        badgeClass
+        badgeClass,
+        bookingCount   // 1 normally, 2+ when note says "2p" / "himself + wife" etc.
       };
     }
 
@@ -1398,11 +1422,14 @@
         const isNotInterested= (l.status === 'not_interested');
         const isUnreachable  = (l.status === 'unreachable' || l.status === 'unattempted' || l.status === 'attempted');
 
+        // bookingCount = 1 normally, 2+ when note says "2p" / "himself + wife" etc.
+        const bc = (isBooked && l.bookingCount > 1) ? l.bookingCount : 1;
+
         // Ad stats
         if (!adMap[ad]) adMap[ad] = { name: ad, leads: 0, booked: 0, consulted: 0, pending: 0, unreachable: 0, notInt: 0 };
         adMap[ad].leads++;
-        if (isBooked)        adMap[ad].booked++;
-        if (isConsulted)     adMap[ad].consulted++;
+        if (isBooked)        adMap[ad].booked += bc;  // count multi-person bookings
+        if (isConsulted)     adMap[ad].consulted += bc;
         if (isPending)       adMap[ad].pending++;
         if (isUnreachable)   adMap[ad].unreachable++;
         if (isNotInterested) adMap[ad].notInt++;
@@ -1410,25 +1437,29 @@
         // Loc stats
         if (!locMap[loc]) locMap[loc] = { name: loc, leads: 0, booked: 0, consulted: 0, pending: 0, notInt: 0 };
         locMap[loc].leads++;
-        if (isBooked)        locMap[loc].booked++;
-        if (isConsulted)     locMap[loc].consulted++;
+        if (isBooked)        locMap[loc].booked += bc;  // count multi-person bookings
+        if (isConsulted)     locMap[loc].consulted += bc;
         if (isPending)       locMap[loc].pending++;
         if (isNotInterested) locMap[loc].notInt++;
 
         // Platform stats
         if (!platformMap[plat]) platformMap[plat] = { name: plat, leads: 0, booked: 0 };
         platformMap[plat].leads++;
-        if (isBooked) platformMap[plat].booked++;
+        if (isBooked) platformMap[plat].booked += bc;
 
         // Issue stats
         if (!issueMap[issue]) issueMap[issue] = { name: issue, leads: 0, booked: 0 };
         issueMap[issue].leads++;
-        if (isBooked) issueMap[issue].booked++;
+        if (isBooked) issueMap[issue].booked += bc;
       });
 
       // ── Overall Metrics ──────────────────────────────────────────────────────
-      const totalBooked     = leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
-      const totalConsulted  = leads.filter(l => l.status === 'consulted').length;
+      // totalBooked = SUM of bookingCount for all booked leads (counts 2p as 2!)
+      const totalBooked     = leads
+        .filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted')
+        .reduce((sum, l) => sum + (l.bookingCount || 1), 0);
+      const totalBookedLeads= leads.filter(l => l.status === 'booked' || l.status === 'booked_no_visit' || l.status === 'consulted').length;
+      const totalConsulted  = leads.filter(l => l.status === 'consulted').reduce((sum, l) => sum + (l.bookingCount || 1), 0);
       const totalPending    = leads.filter(l => l.status === 'pending').length;
       const totalNotInt     = leads.filter(l => l.status === 'not_interested').length;
       const totalUnreachable= leads.filter(l => ['unreachable','unattempted','attempted'].includes(l.status)).length;
@@ -1454,7 +1485,7 @@
       setEl('kpi-quality-score',         `${score}<span style="font-size:1rem;color:var(--text-muted);">/100</span>`);
       setEl('kpi-quality-grade',         `Quality Rating: <span class="score-grade ${gradeClass}">${grade}</span>`);
       setEl('kpi-overall-booking-rate',  pct(totalBooked));
-      setEl('kpi-overall-booking-sub',   `${totalBooked} of ${total} leads booked`);
+      setEl('kpi-overall-booking-sub',   `${totalBooked} patients booked from ${totalBookedLeads} leads`);
       setEl('kpi-q-consulted',           pct(totalConsulted));
       setEl('kpi-q-consulted-sub',       `${totalConsulted} patients visited clinic`);
       setEl('kpi-q-rejection',           pct(totalNotInt));
