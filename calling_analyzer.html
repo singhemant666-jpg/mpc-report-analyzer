@@ -1527,26 +1527,7 @@
 
     let isFetchingLeads = false;
 
-    // Load instantly from localStorage cache so UI never shows 0 or blank
-    function loadCachedLeads() {
-      try {
-        const cachedStr = localStorage.getItem('mpc_cached_leads_data');
-        if (cachedStr) {
-          const rows = JSON.parse(cachedStr);
-          if (Array.isArray(rows) && rows.length > 0) {
-            rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
-            populateFilterOptions(rawLeadsData);
-            applyFilters();
-            const statusText = document.getElementById('sync-status-text');
-            if (statusText) statusText.textContent = `Connected (${rawLeadsData.length} Leads Loaded from Cache • Syncing...)`;
-          }
-        }
-      } catch (e) {
-        console.warn('Cache read error:', e);
-      }
-    }
-
-    // Fetch Live Leads Data from Google Script URL
+    // Fetch Live Leads Data directly from Google Script URL
     async function fetchLiveLeads(manual = false) {
       if (autoRefreshPaused && !manual) return;
       if (isFetchingLeads && !manual) return;
@@ -1555,9 +1536,7 @@
       const dot = document.getElementById('sync-dot');
       const statusText = document.getElementById('sync-status-text');
       if (dot) dot.classList.add('syncing');
-      if (statusText && (!rawLeadsData || rawLeadsData.length === 0)) {
-        statusText.textContent = 'Connecting to Google Sheet (3,300+ leads)...';
-      }
+      if (statusText) statusText.textContent = 'Syncing Live Data from Google Sheet...';
 
       try {
         const baseUrl = getApiUrl();
@@ -1578,12 +1557,6 @@
         }
 
         if (rows !== null && rows.length > 0) {
-          try {
-            localStorage.setItem('mpc_cached_leads_data', JSON.stringify(rows));
-          } catch (storageErr) {
-            console.warn('Could not save to localStorage:', storageErr);
-          }
-
           rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
           populateFilterOptions(rawLeadsData);
           applyFilters();
@@ -1596,13 +1569,7 @@
       } catch (err) {
         console.error('Error fetching live leads:', err);
         if (dot) dot.classList.remove('syncing');
-        if (statusText) {
-          if (rawLeadsData && rawLeadsData.length > 0) {
-            statusText.textContent = `Connected (${rawLeadsData.length} Leads • Auto-Syncing...)`;
-          } else {
-            statusText.textContent = 'Sync Retrying in background...';
-          }
-        }
+        if (statusText) statusText.textContent = 'Sync Warning (Check Script URL)';
       } finally {
         isFetchingLeads = false;
       }
@@ -3051,10 +3018,10 @@ Use bold text, clear bullet points, concise numbers, and emojis.`;
       XLSX.writeFile(wb, `MPC_Calling_Leads_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // On Load
+    // On Load - Always fetch live from Google Sheet
     document.addEventListener('DOMContentLoaded', () => {
+      try { localStorage.removeItem('mpc_cached_leads_data'); } catch(e) {}
       initTheme();
-      loadCachedLeads();
       applyDatePreset();
       fetchLiveLeads();
     });
