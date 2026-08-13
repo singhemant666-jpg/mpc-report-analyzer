@@ -692,14 +692,8 @@
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--card-border); padding-bottom:8px; margin-bottom:12px;">
             <span style="font-size:0.74rem; font-weight:800; color:var(--accent-purple); text-transform:uppercase; letter-spacing:0.5px;">🤖 Groq AI Meta Ads &amp; Booking Quality Audit Report</span>
             <button class="btn btn-sm" style="font-size:0.7rem; padding:3px 10px;" onclick="copyAIOutput()">📋 Copy Report</button>
-          </div>
-          <div class="ai-output-content" id="ai-output-content"></div>
         </div>
       </div>
-
-      <!-- ACTIONABLE AD OPTIMIZATION RECOMMENDATIONS -->
-      <div class="section-title" style="margin-top:8px;"><span class="icon">💡</span> Actionable Meta Ads Optimization &amp; Spend Strategy</div>
-      <div class="quality-rec-grid" id="quality-recommendations-grid"></div>
 
       <!-- AD QUALITY CHARTS GRID (taller for more data) -->
       <div class="charts-grid">
@@ -1854,36 +1848,6 @@
       setEl('kpi-waste-loc',     wasteLoc.name);
       setEl('kpi-waste-loc-sub', `${wasteLoc.notInt} rejections • ${wasteRate}% friction rate`);
 
-      // ── Dynamic Actionable Recommendations ────────────────────────────────
-      const recGrid = document.getElementById('quality-recommendations-grid');
-      if (recGrid) {
-        const worstAd = [...adList].sort((a, b) => (b.notInt / b.leads || 0) - (a.notInt / a.leads || 0))[0];
-        const worstAdRate = worstAd ? ((worstAd.notInt / worstAd.leads) * 100).toFixed(1) : 0;
-        recGrid.innerHTML = `
-          <div class="quality-rec-card rec-scale">
-            <div class="quality-rec-title" style="color:var(--emerald);"><span>🚀</span> Scale Top Creative: ${topAd.name}</div>
-            <div class="quality-rec-desc">
-              This ad delivers the strongest conversion efficiency at <strong>${topAdRate}% booking rate</strong> from ${topAd.leads} leads, generating ${topAd.booked} appointments and ${topAd.consulted} clinic visits.
-              <strong>Action:</strong> Increase daily Meta Ads budget by +25–35% on this creative. Duplicate the ad set to A/B test variations.
-            </div>
-          </div>
-          <div class="quality-rec-card rec-geo">
-            <div class="quality-rec-title" style="color:var(--accent-blue);"><span>📍</span> Geographic Focus: ${topLoc.name}</div>
-            <div class="quality-rec-desc">
-              Leads from <strong>${topLoc.name}</strong> convert at <strong>${topLocRate}%</strong> into clinic visits.
-              <strong>Action:</strong> Increase geographic targeting bids within a 10-12 km radius of Bandra West to maximize in-person consultations.
-            </div>
-          </div>
-          <div class="quality-rec-card rec-alert">
-            <div class="quality-rec-title" style="color:var(--rose);"><span>⚠️</span> Reduce Ad Wastage: ${wasteLoc.name} + ${worstAd ? worstAd.name : ''}</div>
-            <div class="quality-rec-desc">
-              <strong>${wasteLoc.name}</strong> has ${wasteLoc.notInt} rejected leads (${wasteRate}% rejection). ${worstAd ? `Creative <strong>${worstAd.name}</strong> also wastes budget with ${worstAdRate}% rejection rate.` : ''}
-              <strong>Action:</strong> Exclude distant suburbs. State 'Bandra West Clinic' prominently in ad copy to filter out-of-reach clicks.
-            </div>
-          </div>
-        `;
-      }
-
       // ── Ad Matrix Table (sorted by Booking Rate desc, min 3 leads) ────────
       const MEDALS = ['🥇', '🥈', '🥉'];
       const adTbody = document.getElementById('ad-matrix-tbody');
@@ -2603,9 +2567,14 @@
       });
       const topLocs = Object.values(locMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
 
-      const prompt = `You are the Senior Clinical Operations & Meta Ads Quality Auditor for MPC Clinic, Bandra West, Mumbai.
+      const prompt = `You are a strict, objective Clinical Operations & Meta Ads Data Auditor for MPC Clinic, Bandra West, Mumbai.
 
-Perform a continuous, rigorous mathematical audit of all leads, caller dials, and patient bookings:
+Perform a pure mathematical and data audit of all leads, caller dials, ad conversions, and bookings:
+
+CRITICAL AUDIT RULES:
+- Present ONLY factual mathematical audit counts, percentages, and data breakdowns.
+- DO NOT give any suggestions, recommendations, advice, strategies, or coaching tips.
+- DO NOT write ad copy, hooks, or calling scripts.
 
 === 1. MATHEMATICAL COUNT & RECONCILIATION AUDIT ===
 • Total Leads: ${total}
@@ -2628,8 +2597,7 @@ Perform a continuous, rigorous mathematical audit of all leads, caller dials, an
 ${agents.map(ag => `• Caller: ${ag.name}
    - Assigned: ${ag.leads} leads | Total Dials: ${ag.att1 + ag.att2 + ag.att3} (1st:${ag.att1}, 2nd:${ag.att2}, 3rd:${ag.att3})
    - Booked Patients: ${ag.booked} (${((ag.booked/ag.leads)*100).toFixed(1)}% conversion) | Consulted Visits: ${ag.consulted}
-   - Follow-up Pending: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}
-   - Recent Attempt Notes: ${ag.recentNotes.join(' | ') || 'None'}`).join('\n\n')}
+   - Follow-up Pending: ${ag.pending} | Unreachable: ${ag.unreachable} | Fresh Uncalled: ${ag.unattempted} | Rejected: ${ag.notInt}`).join('\n\n')}
 
 === 4. META ADS CREATIVES BOOKING AUDIT ===
 ${topAds.map(a => `• Ad: ${a.name} -> ${a.leads} leads | ${a.booked} booked (${((a.booked/a.leads)*100).toFixed(1)}%) | ${a.consulted} consulted | ${a.notInt} rejected (${((a.notInt/a.leads)*100).toFixed(1)}%)`).join('\n')}
@@ -2637,13 +2605,13 @@ ${topAds.map(a => `• Ad: ${a.name} -> ${a.leads} leads | ${a.booked} booked ($
 === 5. MUMBAI LOCATION CATCHMENT AUDIT ===
 ${topLocs.map(l => `• Area: ${l.name} -> ${l.leads} leads | ${l.booked} booked (${((l.booked/l.leads)*100).toFixed(1)}%) | ${l.consulted} consulted | ${l.notInt} rejected (${((l.notInt/l.leads)*100).toFixed(1)}%)`).join('\n')}
 
-Structure your audit report strictly into these 4 factual, data-driven audit sections:
-1. 📊 **Lead Counts & Booking Reconciliation**: Reconcile total leads, booked patient volume, show-up rates, lead quality score & grade, and top drop-off bottleneck.
-2. 🎯 **Meta Ads Campaign & Patient Booking Audit**: Factual evaluation of top-performing ad creatives vs poor-performing ads that generate rejections or unreachable numbers.
-3. 📍 **Mumbai Catchment & Geographic Friction Audit**: Analysis of conversion by location distance from Bandra West clinic (e.g. Bandra/Khar vs Dadar vs Mira Road).
-4. 📞 **Calling Operations & Dial Intensity Audit**: Full audit of Ishankita, Reetika, Yogita, Anika on dial counts, conversion efficiency, unreachable persistence, and speed-to-call backlog.
+Structure your audit report strictly into these 4 pure data audit sections:
+1. 📊 **Lead Counts & Booking Reconciliation**: Reconcile exact numbers of total leads, booked patient volume, show-up rates, lead quality score & grade, and top drop-off bottleneck.
+2. 🎯 **Meta Ads Campaign & Patient Booking Audit**: Factual audit of ad creatives performance (leads, bookings, conversion rate %, and rejection %).
+3. 📍 **Mumbai Catchment & Geographic Conversion Audit**: Factual audit of conversion by location distance from Bandra West clinic.
+4. 📞 **Calling Operations & Dial Intensity Audit**: Exact dial and conversion numbers for Ishankita, Reetika, Yogita, Anika, and uncalled backlog.
 
-Use bold numbers, clean bullet points, and emojis.`;
+Strictly present mathematical audit facts only. Zero suggestions, zero advice. Use bold numbers and clean bullet points.`;
 
       return prompt;
     }
@@ -2830,11 +2798,16 @@ Use bold numbers, clean bullet points, and emojis.`;
       });
       const topIssues = Object.values(issueMap).sort((a,b) => b.leads - a.leads).slice(0, 6);
 
-      const prompt = `You are an elite Meta Ads Performance Marketing Director & Clinic Operations Consultant for MPC Clinic, a premier non-surgical orthopedic & spine physiotherapy clinic in Bandra West, Mumbai.
+      const prompt = `You are a strict, objective Meta Ads & Patient Acquisition Data Auditor for MPC Clinic, Bandra West, Mumbai.
 
-Analyze the current live calling leads dataset and provide sharp, data-backed strategic recommendations:
+Perform a pure mathematical and conversion audit of all live calling leads:
 
-=== EXECUTIVE DATASET SUMMARY ===
+CRITICAL AUDIT RULES:
+- Present ONLY factual mathematical audit counts, percentages, and data breakdowns.
+- DO NOT give any suggestions, recommendations, advice, strategies, or marketing hooks.
+- DO NOT write subjective guidance.
+
+=== EXECUTIVE DATASET AUDIT ===
 • Total Leads: ${total}
 • Booked Patients: ${totalBooked} (${((totalBooked/total)*100).toFixed(1)}% booking rate)
 • Clinic Visits Completed (Consulted): ${totalConsulted} (${((totalConsulted/total)*100).toFixed(1)}%)
@@ -2843,27 +2816,25 @@ Analyze the current live calling leads dataset and provide sharp, data-backed st
 • Unreachable (Ringing/Busy/Disconnected): ${totalUnreachable}
 • Call Not Done Yet (Fresh/Blank): ${totalUnattempted}
 
-=== TOP META AD CREATIVES BREAKDOWN ===
+=== META AD CREATIVES CONVERSION AUDIT ===
 ${topAds.map(a => `• ${a.name}: ${a.leads} leads | ${a.booked} booked (${((a.booked/a.leads)*100).toFixed(1)}%) | ${a.consulted} visited | ${a.notInt} rejected (${((a.notInt/a.leads)*100).toFixed(1)}%) | ${a.pending} pending | ${a.unreachable} unreachable`).join('\n')}
 
-=== MUMBAI LOCATIONS & CATCHMENT ZONES ===
+=== MUMBAI LOCATIONS AUDIT ===
 ${topLocs.map(l => `• ${l.name}: ${l.leads} leads | ${l.booked} booked (${((l.booked/l.leads)*100).toFixed(1)}%) | ${l.consulted} visited | ${l.notInt} rejected`).join('\n')}
 
-=== CALLING AGENT PERFORMANCE ===
+=== CALLING AGENT PERFORMANCE AUDIT ===
 ${agents.map(ag => `• ${ag.name}: ${ag.leads} leads | ${ag.booked} booked (${((ag.booked/ag.leads)*100).toFixed(1)}% booking rate)`).join('\n')}
 
-=== HEALTH CONDITIONS CONVERSION ===
+=== HEALTH CONDITIONS CONVERSION AUDIT ===
 ${topIssues.map(i => `• ${i.name}: ${i.leads} leads | ${i.booked} booked (${((i.booked/i.leads)*100).toFixed(1)}%)`).join('\n')}
 
-${customQuery ? `SPECIFIC USER INQUIRY: "${customQuery}"` : `Please provide a high-impact, professional executive strategic assessment with concrete action points:`}
+Structure your response strictly into these 4 pure data audit sections:
+1. 📊 **Executive Reconciliation Audit**: Total volume, booking conversion %, clinic show-up %, rejection %, and unreachable %.
+2. 🎯 **Meta Ads Creative Conversion Audit**: Exact breakdown of each creative with leads, bookings, and conversion rate %.
+3. 📍 **Mumbai Geographic Conversion Audit**: Factual performance across Mumbai areas.
+4. 🏥 **Health Conditions Conversion Audit**: Factual conversion numbers across spine, knee, sciatica, and neck pain.
 
-Structure your response clearly with these sections:
-1. 🚀 **Meta Ads Budget & Scale Strategy**: Specify exact ad creatives to increase budget on (+25% to +35%), and which creatives to pause immediately to stop wasting budget.
-2. 📍 **Geographic Targeting & Travel Friction**: How to refine radius targeting around Bandra West clinic (e.g. Core 5-8km radius, South Mumbai via Sea Link, friction zones to exclude).
-3. 📞 **Calling Team & Pipeline Conversion Tactics**: Specific actionable instructions for calling agents to convert the ${totalPending} pending leads and reduce the ${totalUnreachable} unreachable drop-offs.
-4. ✍️ **High-Converting Ad Copy & Hook Recommendations**: 2-3 specific ad headlines/hooks targeting the top converting health issues.
-
-Use bold text, clear bullet points, concise numbers, and emojis.`;
+Strictly present mathematical audit facts only. Zero suggestions, zero advice. Use bold numbers and clean bullet points.`;
 
       return prompt;
     }
