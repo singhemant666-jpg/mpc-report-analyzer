@@ -2322,7 +2322,9 @@
         }
       });
 
-      // If viewing Today, also credit agents with 2nd/3rd attempts AND bookings from previous leads
+      // If viewing Today, also credit agents with 2nd/3rd attempts from previous leads
+      // Only count BOOKINGS from prev leads if the lead was NOT booked on att1
+      // (meaning booking resulted from 2nd/3rd follow-up attempt done today)
       if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
@@ -2335,15 +2337,27 @@
             if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
             if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
 
-            // Credit bookings from previous date leads (2nd/3rd attempt conversions)
-            const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-            if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
+            // Only credit bookings from prev leads if NOT already booked on att1
+            // If att1 has a booked note, the booking was done yesterday already
+            const att1Lower = (l.att1 || '').toLowerCase();
+            const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
+                                     att1Lower.match(/\d{1,2}[\/-]\d{1,2}/) || att1Lower.includes(' pm ') || 
+                                     att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
+                                     att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
+                                     att1Lower.includes('appointment');
+
+            const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
+            const hasAtt2or3 = (l.att2 && l.att2.trim() !== '') || (l.att3 && l.att3.trim() !== '');
+
+            // New booking from follow-up: lead is booked, was NOT booked on att1, and has att2/att3
+            if (isBooked && !wasBookedOnAtt1 && hasAtt2or3) {
+              const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
               agentMap[caller].booked += bc;
               agentMap[caller].yesterdayBooked += bc;
-            }
-            if (l.status === 'consulted') {
-              agentMap[caller].consulted += bc;
-              agentMap[caller].yesterdayConsulted += bc;
+              if (l.status === 'consulted') {
+                agentMap[caller].consulted += bc;
+                agentMap[caller].yesterdayConsulted += bc;
+              }
             }
           }
         });
