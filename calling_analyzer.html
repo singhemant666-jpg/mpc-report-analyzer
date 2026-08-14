@@ -2342,35 +2342,28 @@
         }
       });
 
-
-
-      // If viewing Today, also credit agents with 2nd/3rd attempts from previous leads
-      // Use ATT timestamps when available for accurate daily tracking
       if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          if (ymd < todayStr) {
-            const caller = l.caller || 'Unassigned';
-            if (!agentMap[caller]) {
-              agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
-            }
+          
+          const caller = l.caller || 'Unassigned';
+          const hasTimestamps = l.att1Time || l.att2Time || l.att3Time;
 
-            // If timestamps exist, use them for accurate daily tracking
-            const hasTimestamps = l.att1Time || l.att2Time || l.att3Time;
+          if (hasTimestamps) {
+            // TIMESTAMP MODE: Strictly count edits made TODAY regardless of lead creation date
+            const att2DoneToday = l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr);
+            const att3DoneToday = l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr);
 
-            if (hasTimestamps) {
-              // ACCURATE MODE: Use cell edit timestamps
-              const att2DoneToday = l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr);
-              const att3DoneToday = l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr);
-
+            if (att2DoneToday || att3DoneToday) {
+              if (!agentMap[caller]) {
+                agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
+              }
               if (att2DoneToday) agentMap[caller].att2++;
               if (att3DoneToday) agentMap[caller].att3++;
 
-              // Credit booking ONLY if the booking attempt was done today
               const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
-              if (isBooked && (att2DoneToday || att3DoneToday)) {
-                // Check if booking text is in the att that was done today
+              if (isBooked) {
                 const att2Lower = (l.att2 || '').toLowerCase();
                 const att3Lower = (l.att3 || '').toLowerCase();
                 const att2HasBooking = att2Lower.includes('booked') || (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am')));
@@ -2386,9 +2379,14 @@
                   }
                 }
               }
-            } else {
-              // FALLBACK MODE (No cell timestamps in sheet yet):
-              // Check active recent batch leads (up to 7 days back, e.g. 10/08, 11/08, 12/08, 13/08)
+            }
+          } else {
+            // FALLBACK MODE (Before cell edit timestamps populate in sheet):
+            // Only count active yesterday leads (13-08) to prevent old July/Aug dials from inflating metrics
+            if (ymd === yestStr) {
+              if (!agentMap[caller]) {
+                agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
+              }
               if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
               if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
 
