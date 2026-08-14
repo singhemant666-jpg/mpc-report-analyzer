@@ -1505,8 +1505,26 @@
           throw new Error('API Error: ' + (json.error || 'Unknown server error'));
         }
 
+        function isValidLead(item) {
+          if (!item || typeof item !== 'object') return false;
+          const safe = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
+          const name = safe(item.full_name) || safe(item.Name) || safe(item.name) || safe(item['Lead Name']) || safe(item['First Name']);
+          const phone = safe(item.phone_number) || safe(item.Phone) || safe(item.phone) || safe(item['Phone Number']);
+          
+          // Must have at least a Name or a Phone Number (filters out date-only rows like in 07 row 131)
+          if (!name && !phone) return false;
+          
+          // Must not be a repeated header row (e.g. 'full_name', 'phone_number')
+          const nameLower = name.toLowerCase();
+          const phoneLower = phone.toLowerCase();
+          const invalidHeaders = ['full_name', 'name', 'first name', 'phone_number', 'phone', 'phone number', 'lead name', 'number', 'what issue are you facing?'];
+          if (invalidHeaders.includes(nameLower) || invalidHeaders.includes(phoneLower)) return false;
+          
+          return true;
+        }
+
         if (rows !== null && rows.length > 0) {
-          rawLeadsData = rows.map((item, idx) => normalizeLead(item, idx));
+          rawLeadsData = rows.filter(isValidLead).map((item, idx) => normalizeLead(item, idx));
           populateFilterOptions(rawLeadsData);
           applyFilters();
 
@@ -1584,7 +1602,6 @@
     }
 
     // Apply Filter Logic
-    // Apply Filter Logic
     function applyFilters() {
       const startDateVal = document.getElementById('filter-start-date').value; // "YYYY-MM-DD"
       const endDateVal = document.getElementById('filter-end-date').value;     // "YYYY-MM-DD"
@@ -1609,20 +1626,13 @@
       filteredLeads = rawLeadsData.filter(l => {
         if (startDateVal || endDateVal) {
           if (!l.leadDate) return false;
-          const yyyy = l.leadDate.getUTCFullYear();
-          const mm = String(l.leadDate.getUTCMonth() + 1).padStart(2, '0');
-          const dd = String(l.leadDate.getUTCDate()).padStart(2, '0');
+          const yyyy = l.leadDate.getFullYear();
+          const mm = String(l.leadDate.getMonth() + 1).padStart(2, '0');
+          const dd = String(l.leadDate.getDate()).padStart(2, '0');
           const leadYmd = `${yyyy}-${mm}-${dd}`;
 
-          if (isTodayFilter) {
-            // Match leads received Today OR untouched leads from Yesterday (e.g. leads received after 9 PM clinic closing)
-            const isTodayLead = (leadYmd === todayStr);
-            const isYesterdayUntouched = (leadYmd === yestStr && l.isUntouched);
-            if (!isTodayLead && !isYesterdayUntouched) return false;
-          } else {
-            if (startDateVal && leadYmd < startDateVal) return false;
-            if (endDateVal && leadYmd > endDateVal) return false;
-          }
+          if (startDateVal && leadYmd < startDateVal) return false;
+          if (endDateVal && leadYmd > endDateVal) return false;
         }
 
         if (sheet && l.sheetName !== sheet) return false;
