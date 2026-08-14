@@ -2381,29 +2381,11 @@
                 }
               }
             } else {
-              // FALLBACK MODE: No timestamps yet, use text-based detection
+              // FALLBACK MODE (No cell timestamps yet):
+              // Only count 2nd/3rd dials made by callers on previous leads.
+              // Do NOT add previous date bookings unless explicit cell timestamps prove the edit was done today!
               if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
               if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
-
-              const att1Lower = (l.att1 || '').toLowerCase();
-              const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
-                                       att1Lower.match(/\d{1,2}[\/\-]\d{1,2}/) || att1Lower.includes(' pm ') || 
-                                       att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
-                                       att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
-                                       att1Lower.includes('appointment');
-
-              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
-              const hasAtt2or3 = (l.att2 && l.att2.trim() !== '') || (l.att3 && l.att3.trim() !== '');
-
-              if (isBooked && !wasBookedOnAtt1 && hasAtt2or3) {
-                const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-                agentMap[caller].booked += bc;
-                agentMap[caller].yesterdayBooked += bc;
-                if (l.status === 'consulted') {
-                  agentMap[caller].consulted += bc;
-                  agentMap[caller].yesterdayConsulted += bc;
-                }
-              }
             }
           }
         });
