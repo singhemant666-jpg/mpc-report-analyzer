@@ -1253,24 +1253,31 @@
       return 'Unassigned';
     }
 
+    const safeStr = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
+
     // Helper: Normalize & Categorize Lead Data
     function normalizeLead(item, index) {
-      const name = (item.full_name && item.full_name.trim()) || 
-                   (item.Name && item.Name.trim()) || 
-                   (item.name && item.name.trim()) || 
-                   (item['Lead Name'] && item['Lead Name'].trim()) || 
-                   `Lead #${index + 1}`;
-      const phone = (item.phone_number || item.Phone || item.phone || item['Phone Number'] || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
-      const email = item.Email || item.email || '';
-      const rawCaller = String(item['CALLER NAME'] || item.caller || item.Caller || item['Caller Name'] || '').trim();
-      const sheetName = item._sheetName || item.sheetName || item.sheet || 'Main Sheet';
+      if (!item || typeof item !== 'object') item = {};
+      const name = safeStr(item.full_name) || 
+                   safeStr(item.Name) || 
+                   safeStr(item.name) || 
+                   safeStr(item['Lead Name']) || 
+                   ('Lead #' + (index + 1));
+
+      const phone = safeStr(item.phone_number || item.Phone || item.phone || item['Phone Number'] || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
+      const email = safeStr(item.Email || item.email || '');
+      const rawCaller = safeStr(item['CALLER NAME'] || item.caller || item.Caller || item['Caller Name'] || '');
+      const sheetName = safeStr(item._sheetName || item.sheetName || item.sheet || 'Main Sheet');
       const caller = extractAgentFromSheetName(sheetName, rawCaller);
-      const issue = formatLabel(item['what_issue_are_you_facing?'] || item.issue || item.Issue || 'Not Specified');
-      const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || item.duration || '-');
+      const rawIssue = safeStr(item['what_issue_are_you_facing?'] || item.issue || item.Issue);
+      const issue = formatLabel(rawIssue || 'Not Specified');
+      const rawDuration = safeStr(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || item.duration);
+      const duration = formatLabel(rawDuration || '-');
       
-      const att1 = item['ATTEMPT 1'] || item['ATT 1'] || '';
-      const att2 = item['ATT 2'] || '';
-      const att3 = item['ATT 3'] || '';
+      const att1 = safeStr(item['ATTEMPT 1'] || item['ATT 1'] || '');
+      const att2 = safeStr(item['ATT 2'] || '');
+      const att3 = safeStr(item['ATT 3'] || '');
+
       const allNotes = `${att1} ${att2} ${att3}`.toLowerCase();
 
       // ── PRIORITY 1: Agent-entered LOCATION column in sheet (verified via call) ──
@@ -1336,11 +1343,11 @@
       let statusText = 'Unattempted';
       let badgeClass = 'badge-muted';
 
-      const codeVal = String(item.Code || item.code || '').toLowerCase();
-      const bookingDateVal = String(item['Booking Date'] || item.booking_date || '').trim();
-      const convertedDateVal = String(item['Converted Date'] || item.converted_date || '').trim();
+      const codeVal = safeStr(item.Code || item.code || '').toLowerCase();
+      const bookingDateVal = safeStr(item['Booking Date'] || item.booking_date || '').trim();
+      const convertedDateVal = safeStr(item['Converted Date'] || item.converted_date || '').trim();
 
-      const rawBg = item._bgColor || item._color || item.bgColor || item.color || item.bg || '';
+      const rawBg = safeStr(item._bgColor || item._color || item.bgColor || item.color || item.bg || '');
       const colorType = getRowColorType(rawBg);
 
       const isNotInterestedText = 
@@ -1678,6 +1685,7 @@
 
     // Render Quality Intelligence Dashboard
     function renderQualityIntelligence(leads) {
+      if (!leads) leads = [];
       if (!leads) return;
       const total = leads.length;
 
@@ -2110,6 +2118,7 @@
 
     // Render Key Metrics Cards
     function renderKPIs(leads) {
+      if (!leads) leads = [];
       const total = leads.length;
       
       // Sum bookingCount for booked leads (counts double bookings like "2p" as 2 patients!)
@@ -2168,6 +2177,7 @@
 
     // Render Agent Performance Leaderboard
     function renderAgentLeaderboard(leads) {
+      if (!leads) leads = [];
       const grid = document.getElementById('agent-leaderboard-grid');
       if (!grid) return;
 
@@ -2246,6 +2256,7 @@
 
     // Render Analytics Charts
     function renderCharts(leads) {
+      if (!leads) leads = [];
       // 1. Disposition Chart
       const statusCounts = {
         '✅ Consulted & Visited': leads.filter(l => l.status === 'consulted').reduce((s, l) => s + (l.bookingCount || 1), 0),
@@ -2371,6 +2382,8 @@
 
     // Render Master Data Table with High Performance Pagination
     function renderTable(leads) {
+      if (!leads) leads = [];
+      if (!leads) leads = [];
       const tbody = document.getElementById('leads-tbody');
       const badge = document.getElementById('table-count-badge');
       if (!tbody) return;
