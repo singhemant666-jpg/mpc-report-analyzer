@@ -1460,6 +1460,9 @@
       const platform = (item.platform && String(item.platform).trim() !== '') ? String(item.platform).trim().toUpperCase() : 'META';
 
       let leadTimeStr = '';
+      let leadMetaDateStr = '';
+      let isOvernight = false;
+
       if (item.created_time) {
         try {
           const d = new Date(item.created_time);
@@ -1470,6 +1473,22 @@
               hour12: true,
               timeZone: 'Asia/Kolkata'
             }).toUpperCase();
+
+            leadMetaDateStr = d.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              timeZone: 'Asia/Kolkata'
+            });
+
+            // Check if submitted before midnight in IST
+            const istYmd = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            if (leadDateStr && leadDateStr.includes('-')) {
+              const parts = leadDateStr.split('-');
+              const sheetYmd = `${parts[2]}-${parts[1]}-${parts[0]}`;
+              if (istYmd < sheetYmd) {
+                isOvernight = true;
+              }
+            }
           }
         } catch (e) {}
       }
@@ -1492,6 +1511,8 @@
         leadDate,
         leadDateStr,
         leadTimeStr,
+        leadMetaDateStr,
+        isOvernight,
         isUntouched,
         att1,
         att2,
@@ -2551,8 +2572,15 @@
         <tr>
           <td><strong>${idx + 1}</strong></td>
           <td style="white-space:nowrap;">
-            <div style="font-weight:700; color:var(--text-primary); font-size:0.82rem;">${l.leadDateStr}</div>
-            ${l.leadTimeStr ? `<div style="font-size:0.7rem; color:var(--accent-purple); font-weight:600; margin-top:2px; display:inline-flex; align-items:center; gap:3px; background:rgba(124,58,237,0.08); padding:1px 6px; border-radius:4px;">🕒 ${l.leadTimeStr}</div>` : ''}
+            <div style="font-weight:700; color:var(--text-primary); font-size:0.82rem;">
+              ${l.leadMetaDateStr ? l.leadMetaDateStr : l.leadDateStr}
+            </div>
+            ${l.leadTimeStr ? `
+              <div style="font-size:0.7rem; color:var(--accent-purple); font-weight:600; margin-top:2px; display:inline-flex; align-items:center; gap:3px; background:rgba(124,58,237,0.08); padding:1px 6px; border-radius:4px;">
+                🕒 ${l.leadTimeStr}
+              </div>
+            ` : ''}
+            ${l.isOvernight ? `<div style="font-size:0.62rem; color:var(--amber); font-weight:600; margin-top:2px;">🌙 Last Night</div>` : ''}
           </td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">
