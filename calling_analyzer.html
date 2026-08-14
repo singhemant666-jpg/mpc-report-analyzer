@@ -2387,11 +2387,34 @@
                 }
               }
             } else {
-              // FALLBACK MODE (No cell timestamps yet):
-              // Only count 2nd/3rd dials made by callers on previous leads.
-              // Do NOT add previous date bookings unless explicit cell timestamps prove the edit was done today!
+              // FALLBACK MODE (No cell timestamps in sheet yet):
+              // Check active recent batch leads (up to 7 days back, e.g. 10/08, 11/08, 12/08, 13/08)
               if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
               if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+
+              const att1Lower = (l.att1 || '').toLowerCase();
+              const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
+                                       att1Lower.match(/\d{1,2}[\/\-]\d{1,2}/) || att1Lower.includes(' pm ') || 
+                                       att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
+                                       att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
+                                       att1Lower.includes('appointment');
+
+              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
+              const att2Lower = (l.att2 || '').toLowerCase();
+              const att3Lower = (l.att3 || '').toLowerCase();
+              const isFollowUpBooking = att2Lower.includes('booked') || att3Lower.includes('booked') ||
+                                        (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am'))) ||
+                                        (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
+
+              if (isBooked && !wasBookedOnAtt1 && isFollowUpBooking) {
+                const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+                agentMap[caller].booked += bc;
+                agentMap[caller].yesterdayBooked += bc;
+                if (l.status === 'consulted') {
+                  agentMap[caller].consulted += bc;
+                  agentMap[caller].yesterdayConsulted += bc;
+                }
+              }
             }
           }
         });
