@@ -2250,31 +2250,34 @@
       const unreachable = leads.filter(l => l.status === 'unreachable').length;
       const unattempted = leads.filter(l => l.status === 'unattempted').length;
 
-      let att1Total = 0, att2Total = 0, att3Total = 0;
-      leads.forEach(l => {
-        if (l.att1 && l.att1.trim() !== '') att1Total++;
-        if (l.att2 && l.att2.trim() !== '') att2Total++;
-        if (l.att3 && l.att3.trim() !== '') att3Total++;
-      });
-
-      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : '';
-      const now = new Date();
-      const todayStr = toLocalInputDateStr(now);
-      const yest = new Date(now);
-      yest.setDate(yest.getDate() - 1);
-      const yestStr = toLocalInputDateStr(yest);
       const startDateVal = document.getElementById('filter-start-date') ? document.getElementById('filter-start-date').value : '';
       const endDateVal = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
-      const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
 
+      let att1Total = 0, att2Total = 0, att3Total = 0;
+
+      // Pure timestamp-driven KPI dial calculation
       if (rawLeadsData && rawLeadsData.length > 0 && startDateVal && endDateVal) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          if (ymd < startDateVal || ymd > endDateVal) {
-            if (l.att2 && l.att2.trim() !== '' && isTimestampInRange(l.att2Time, startDateVal, endDateVal)) att2Total++;
-            if (l.att3 && l.att3.trim() !== '' && isTimestampInRange(l.att3Time, startDateVal, endDateVal)) att3Total++;
-          }
+          
+          const att1Val = (l.att1 || '').trim();
+          const att2Val = (l.att2 || '').trim();
+          const att3Val = (l.att3 || '').trim();
+
+          const att1Match = l.att1Time ? isTimestampInRange(l.att1Time, startDateVal, endDateVal) : (att1Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
+          const att2Match = l.att2Time ? isTimestampInRange(l.att2Time, startDateVal, endDateVal) : (att2Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
+          const att3Match = l.att3Time ? isTimestampInRange(l.att3Time, startDateVal, endDateVal) : (att3Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
+
+          if (att1Match) att1Total++;
+          if (att2Match) att2Total++;
+          if (att3Match) att3Total++;
+        });
+      } else {
+        leads.forEach(l => {
+          if (l.att1 && l.att1.trim() !== '') att1Total++;
+          if (l.att2 && l.att2.trim() !== '') att2Total++;
+          if (l.att3 && l.att3.trim() !== '') att3Total++;
         });
       }
 
@@ -2324,60 +2327,71 @@
       const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
 
       const agentMap = {};
-      leads.forEach(l => {
-        const caller = l.caller || 'Unassigned';
-        if (!agentMap[caller]) {
-          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
-        }
-        agentMap[caller].total++;
-        if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
-        if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
-        if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
-
-        const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-        if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
-          agentMap[caller].booked += bc;
-        }
-        if (l.status === 'consulted') {
-          agentMap[caller].consulted += bc;
-        }
-      });
 
       if (rawLeadsData && rawLeadsData.length > 0 && startDateVal && endDateVal) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          if (ymd < startDateVal || ymd > endDateVal) {
-            const caller = l.caller || 'Unassigned';
+          const caller = l.caller || 'Unassigned';
 
-            const att2DoneInRange = l.att2 && l.att2.trim() !== '' && isTimestampInRange(l.att2Time, startDateVal, endDateVal);
-            const att3DoneInRange = l.att3 && l.att3.trim() !== '' && isTimestampInRange(l.att3Time, startDateVal, endDateVal);
+          const att1Val = (l.att1 || '').trim();
+          const att2Val = (l.att2 || '').trim();
+          const att3Val = (l.att3 || '').trim();
 
-            if (att2DoneInRange || att3DoneInRange) {
-              if (!agentMap[caller]) {
-                agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
-              }
-              if (att2DoneInRange) agentMap[caller].att2++;
-              if (att3DoneInRange) agentMap[caller].att3++;
+          const att1Match = l.att1Time ? isTimestampInRange(l.att1Time, startDateVal, endDateVal) : (att1Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
+          const att2Match = l.att2Time ? isTimestampInRange(l.att2Time, startDateVal, endDateVal) : (att2Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
+          const att3Match = l.att3Time ? isTimestampInRange(l.att3Time, startDateVal, endDateVal) : (att3Val !== '' && ymd >= startDateVal && ymd <= endDateVal);
 
-              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
-              if (isBooked) {
-                const att2Lower = (l.att2 || '').toLowerCase();
-                const att3Lower = (l.att3 || '').toLowerCase();
-                const att2HasBooking = att2Lower.includes('booked') || (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am')));
-                const att3HasBooking = att3Lower.includes('booked') || (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
+          const isFreshLead = (ymd >= startDateVal && ymd <= endDateVal);
 
-                if ((att2DoneInRange && att2HasBooking) || (att3DoneInRange && att3HasBooking)) {
-                  const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-                  agentMap[caller].booked += bc;
-                  agentMap[caller].yesterdayBooked += bc;
-                  if (l.status === 'consulted') {
-                    agentMap[caller].consulted += bc;
-                    agentMap[caller].yesterdayConsulted += bc;
-                  }
-                }
+          if (isFreshLead || att1Match || att2Match || att3Match) {
+            if (!agentMap[caller]) {
+              agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
+            }
+
+            if (isFreshLead) agentMap[caller].total++;
+            if (att1Match) agentMap[caller].att1++;
+            if (att2Match) agentMap[caller].att2++;
+            if (att3Match) agentMap[caller].att3++;
+
+            const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+            const att1Lower = att1Val.toLowerCase();
+            const att2Lower = att2Val.toLowerCase();
+            const att3Lower = att3Val.toLowerCase();
+
+            const is1Booked = att1Lower.includes('booked') || (att1Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att1Lower.includes('pm') || att1Lower.includes('am')));
+            const is2Booked = att2Lower.includes('booked') || (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am')));
+            const is3Booked = att3Lower.includes('booked') || (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
+
+            const isStatusBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
+
+            if (isStatusBooked && ((att1Match && is1Booked) || (att2Match && is2Booked) || (att3Match && is3Booked) || (isFreshLead && !l.att1Time && !l.att2Time && !l.att3Time))) {
+              agentMap[caller].booked += bc;
+              if (ymd < startDateVal) agentMap[caller].yesterdayBooked += bc;
+              if (l.status === 'consulted') {
+                agentMap[caller].consulted += bc;
+                if (ymd < startDateVal) agentMap[caller].yesterdayConsulted += bc;
               }
             }
+          }
+        });
+      } else {
+        leads.forEach(l => {
+          const caller = l.caller || 'Unassigned';
+          if (!agentMap[caller]) {
+            agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
+          }
+          agentMap[caller].total++;
+          if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
+          if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+          if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+
+          const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+          if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
+            agentMap[caller].booked += bc;
+          }
+          if (l.status === 'consulted') {
+            agentMap[caller].consulted += bc;
           }
         });
       }
