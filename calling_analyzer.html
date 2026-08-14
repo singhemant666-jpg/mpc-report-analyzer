@@ -2265,14 +2265,8 @@
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
           if (ymd < todayStr) {
-            const hasTimestamps = l.att1Time || l.att2Time || l.att3Time;
-            if (hasTimestamps) {
-              if (l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr)) att2Total++;
-              if (l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr)) att3Total++;
-            } else {
-              if (l.att2 && l.att2.trim() !== '') att2Total++;
-              if (l.att3 && l.att3.trim() !== '') att3Total++;
-            }
+            if (l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr)) att2Total++;
+            if (l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr)) att3Total++;
           }
         });
       }
@@ -2346,12 +2340,10 @@
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          
-          const caller = l.caller || 'Unassigned';
-          const hasTimestamps = l.att1Time || l.att2Time || l.att3Time;
+          if (ymd < todayStr) {
+            const caller = l.caller || 'Unassigned';
 
-          if (hasTimestamps) {
-            // TIMESTAMP MODE: Strictly count edits made TODAY regardless of lead creation date
+            // Strictly check if cell edit timestamp matches TODAY
             const att2DoneToday = l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr);
             const att3DoneToday = l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr);
 
@@ -2377,40 +2369,6 @@
                     agentMap[caller].consulted += bc;
                     agentMap[caller].yesterdayConsulted += bc;
                   }
-                }
-              }
-            }
-          } else {
-            // FALLBACK MODE (Before cell edit timestamps populate in sheet):
-            // Only count active yesterday leads (13-08) to prevent old July/Aug dials from inflating metrics
-            if (ymd === yestStr) {
-              if (!agentMap[caller]) {
-                agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
-              }
-              if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
-              if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
-
-              const att1Lower = (l.att1 || '').toLowerCase();
-              const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
-                                       att1Lower.match(/\d{1,2}[\/\-]\d{1,2}/) || att1Lower.includes(' pm ') || 
-                                       att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
-                                       att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
-                                       att1Lower.includes('appointment');
-
-              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
-              const att2Lower = (l.att2 || '').toLowerCase();
-              const att3Lower = (l.att3 || '').toLowerCase();
-              const isFollowUpBooking = att2Lower.includes('booked') || att3Lower.includes('booked') ||
-                                        (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am'))) ||
-                                        (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
-
-              if (isBooked && !wasBookedOnAtt1 && isFollowUpBooking) {
-                const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-                agentMap[caller].booked += bc;
-                agentMap[caller].yesterdayBooked += bc;
-                if (l.status === 'consulted') {
-                  agentMap[caller].consulted += bc;
-                  agentMap[caller].yesterdayConsulted += bc;
                 }
               }
             }
