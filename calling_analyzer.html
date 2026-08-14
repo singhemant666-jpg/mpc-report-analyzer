@@ -1508,17 +1508,25 @@
         function isValidLead(item) {
           if (!item || typeof item !== 'object') return false;
           const safe = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
-          const name = safe(item.full_name) || safe(item.Name) || safe(item.name) || safe(item['Lead Name']) || safe(item['First Name']);
-          const phone = safe(item.phone_number) || safe(item.Phone) || safe(item.phone) || safe(item['Phone Number']);
+          const name = safe(item.full_name) || safe(item.Name) || safe(item.name) || safe(item['Lead Name']) || safe(item['First Name']) || safe(item['Patient Name']);
+          const phone = safe(item.phone_number) || safe(item.Phone) || safe(item.phone) || safe(item['Phone Number']) || safe(item.Number) || safe(item.Contact);
           
-          // Must have at least a Name or a Phone Number (filters out date-only rows like in 07 row 131)
+          // Must have at least a Name or a Phone Number
           if (!name && !phone) return false;
           
-          // Must not be a repeated header row (e.g. 'full_name', 'phone_number')
-          const nameLower = name.toLowerCase();
-          const phoneLower = phone.toLowerCase();
-          const invalidHeaders = ['full_name', 'name', 'first name', 'phone_number', 'phone', 'phone number', 'lead name', 'number', 'what issue are you facing?'];
-          if (invalidHeaders.includes(nameLower) || invalidHeaders.includes(phoneLower)) return false;
+          const nameClean = name.toLowerCase().replace(/[\s_\-]+/g, '');
+          const phoneClean = phone.toLowerCase().replace(/[\s_\-]+/g, '');
+          
+          // Blacklist of repeated table header strings (like row 678 in Form-2)
+          const invalidHeaders = ['fullname', 'name', 'firstname', 'lastname', 'phonenumber', 'phone', 'phoneno', 'number', 'mobilenumber', 'mobile', 'contact', 'leadname', 'leadstatus', 'whatissueareyoufacing', 'email', 'date', 'callername', 'id', 'createdtime'];
+          if (invalidHeaders.includes(nameClean) || invalidHeaders.includes(phoneClean)) return false;
+          
+          // Must have either a valid phone number (at least 6 digits) OR a genuine human name (contains letters and is not a header string)
+          const digitsCount = (phone.match(/\d/g) || []).length;
+          const hasRealPhone = digitsCount >= 6;
+          const hasRealName = /[a-zA-Z]/.test(name) && !invalidHeaders.some(h => nameClean.includes(h));
+          
+          if (!hasRealPhone && !hasRealName) return false;
           
           return true;
         }
