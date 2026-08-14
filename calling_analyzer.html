@@ -1670,9 +1670,9 @@
           const leadYmd = `${yyyy}-${mm}-${dd}`;
 
           if (isTodayFilter) {
-            // Match leads received Today OR previous leads where caller made 2nd/3rd re-attempts (att2 or att3)
+            // Match leads received Today OR yesterday's leads where caller made 2nd/3rd re-attempts (att2 or att3)
             const isTodayLead = (leadYmd === todayStr);
-            const isReattemptLead = (leadYmd < todayStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
+            const isReattemptLead = (leadYmd === yestStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
             if (!isTodayLead && !isReattemptLead) return false;
           } else {
             if (startDateVal && leadYmd < startDateVal) return false;
@@ -2482,7 +2482,7 @@
       let rowsHtml = visibleLeads.map((l, idx) => {
         const leadYmd = l.leadDate ? `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}` : '';
         const nowStr = toLocalInputDateStr(new Date());
-        const isReattempt = (leadYmd < nowStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
+        const isReattempt = (leadYmd === yestStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
 
         return `
         <tr>
