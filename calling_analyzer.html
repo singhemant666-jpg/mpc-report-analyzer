@@ -2306,7 +2306,7 @@
       leads.forEach(l => {
         const caller = l.caller || 'Unassigned';
         if (!agentMap[caller]) {
-          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0 };
+          agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
         }
         agentMap[caller].total++;
         if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
@@ -2322,7 +2322,7 @@
         }
       });
 
-      // If viewing Today, also credit agents with 2nd and 3rd attempts made on previous leads (e.g. yesterday's active leads)
+      // If viewing Today, also credit agents with 2nd/3rd attempts AND bookings from previous leads
       if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
@@ -2330,10 +2330,21 @@
           if (ymd === yestStr) {
             const caller = l.caller || 'Unassigned';
             if (!agentMap[caller]) {
-              agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0 };
+              agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
             }
             if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
             if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+
+            // Credit bookings from previous date leads (2nd/3rd attempt conversions)
+            const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+            if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
+              agentMap[caller].booked += bc;
+              agentMap[caller].yesterdayBooked += bc;
+            }
+            if (l.status === 'consulted') {
+              agentMap[caller].consulted += bc;
+              agentMap[caller].yesterdayConsulted += bc;
+            }
           }
         });
       }
@@ -2358,6 +2369,9 @@
         if (idx === 0) badge = '<span class="badge badge-emerald">⭐ Top Converter</span>';
         else if (idx === 1 || idx === 2) badge = '<span class="badge badge-purple">🔥 High Performer</span>';
 
+        const todayBooked = a.booked - a.yesterdayBooked;
+        const yesterdayBookedLabel = a.yesterdayBooked > 0 ? `<div style="font-size:0.65rem; color:var(--amber); font-weight:600; margin-top:1px;">📅 ${todayBooked} Today + ${a.yesterdayBooked} Prev</div>` : '';
+
         return `
           <div class="agent-card">
             <div class="agent-header">
@@ -2380,10 +2394,11 @@
               <div>
                 <div class="agent-stat-num" style="color:var(--emerald);">${a.booked}</div>
                 <div class="agent-stat-lbl">Booked</div>
+                ${yesterdayBookedLabel}
               </div>
             </div>
             <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:4px;">
-              <span>Consulted: <strong style="color:#047857;">${a.consulted}</strong></span>
+              <span>Consulted: <strong style="color:#047857;">${a.consulted}</strong>${a.yesterdayConsulted > 0 ? ` <span style="font-size:0.65rem; color:var(--amber);">(${a.yesterdayConsulted} prev)</span>` : ''}</span>
               <span>Conversion: <strong style="color:var(--emerald);">${convRate}%</strong></span>
             </div>
           </div>`;
