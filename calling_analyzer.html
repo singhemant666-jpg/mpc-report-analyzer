@@ -384,9 +384,9 @@
     </div>
 
     <div class="header-controls">
-      <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:var(--accent-purple); font-size:0.75rem; font-weight:700; padding:5px 12px; border-radius:8px;">
-        <span style="color:#10b981; font-size:0.8rem;">●</span> ⚡ AI Verified &amp; Analyzed
-      </div>
+      <button class="btn btn-purple btn-sm" onclick="openAIAuditModal()" style="display:inline-flex; align-items:center; gap:6px; background:rgba(124,58,237,0.12); border:1px solid rgba(124,58,237,0.35); color:var(--accent-purple); font-weight:700; cursor:pointer;" title="Open Real-time AI Lead Audit & Operations Intelligence">
+        <span style="color:#10b981; font-size:0.8rem;">●</span> ⚡ AI Audit &amp; Intelligence
+      </button>
       <button class="btn btn-purple btn-sm" onclick="openConfigModal()">⚙️ Script API Config</button>
       <button class="btn btn-success btn-sm" onclick="exportLeadsExcel()">📥 Download Excel</button>
       <button class="btn btn-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle Theme">☀️</button>
@@ -731,7 +731,37 @@
     transition:opacity 0.4s ease; pointer-events:none;
   "></div>
 
-  <!-- GOOGLE SCRIPT API CONFIG MODAL -->
+
+  <!-- AI EXECUTIVE AUDIT MODAL -->
+  <div class="modal-overlay hidden" id="ai-audit-modal">
+    <div class="modal" style="max-width:850px; width:95%; max-height:90vh; display:flex; flex-direction:column;">
+      <div class="modal-header" style="border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg, #7c3aed, #a855f7); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1rem; font-weight:bold;">⚡</div>
+          <div>
+            <div class="modal-title" style="font-size:1.15rem; font-weight:800; color:var(--text-main);">AI Executive Lead Audit &amp; Verification</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Llama 3.3 70B • Mathematical Lead Reconciliation &amp; Operations Analysis</div>
+          </div>
+        </div>
+        <button class="btn btn-icon" onclick="closeAIAuditModal()">✕</button>
+      </div>
+      <div id="ai-modal-content" style="flex:1; overflow-y:auto; padding:10px 4px; font-size:0.9rem; line-height:1.6;">
+        <div style="display:flex; align-items:center; gap:10px; padding:20px; color:var(--accent-purple); font-weight:700;">
+          <div class="ai-loading-spinner"></div>
+          <span>Auditing active lead batch with AI...</span>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.75rem; color:var(--text-muted);" id="ai-modal-timestamp"></span>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-sm" onclick="runAIAudit(true)">🔄 Re-Audit Now</button>
+          <button class="btn btn-purple btn-sm" onclick="closeAIAuditModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- GOOGLE SCRIPT API CONFIG MODAL -->
   <div class="modal-overlay hidden" id="config-modal">
     <div class="modal">
       <div class="modal-header">
@@ -2469,6 +2499,94 @@
     }
 
     // ── GROQ AI REAL-TIME AD & BOOKING ANALYST ENGINE ─────────────────────────
+
+
+    // AI Audit Modal Handlers
+    function openAIAuditModal() {
+      const modal = document.getElementById('ai-audit-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      runAIAudit();
+    }
+
+    function closeAIAuditModal() {
+      const modal = document.getElementById('ai-audit-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+    }
+
+    let _lastAIAuditReport = '';
+
+    async function runAIAudit(force = false) {
+      const contentEl = document.getElementById('ai-modal-content');
+      const timeEl = document.getElementById('ai-modal-timestamp');
+      if (!contentEl) return;
+
+      if (_lastAIAuditReport && !force) {
+        contentEl.innerHTML = formatAIMarkdown(_lastAIAuditReport);
+        return;
+      }
+
+      contentEl.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; padding:24px; color:var(--accent-purple); font-weight:700;">
+          <div class="ai-loading-spinner"></div>
+          <span>AI is verifying lead counts, dial intensity, agent performance &amp; clinic conversions...</span>
+        </div>
+      `;
+
+      if (!filteredLeads || filteredLeads.length === 0) {
+        contentEl.innerHTML = `<div style="padding:20px; color:var(--text-muted);">No leads available in the current date range.</div>`;
+        return;
+      }
+
+      const prompt = generateGroqAIOpsPrompt(filteredLeads);
+      
+      try {
+        const apiKey = activeGroqApiKey || DEFAULT_GROQ_API_KEY;
+        let resultText = '';
+
+        try {
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [
+                { role: 'system', content: 'You are an elite Clinical Operations Director and Lead Integrity Auditor.' },
+                { role: 'user', content: prompt }
+              ],
+              temperature: 0.3,
+              max_tokens: 2000
+            })
+          });
+          const json = await response.json();
+          if (json.error) throw new Error(json.error.message || 'Groq Error');
+          resultText = json.choices[0].message.content;
+        } catch (directErr) {
+          const fallbackRes = await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt })
+          });
+          const fallbackJson = await fallbackRes.json();
+          if (fallbackJson.error) throw new Error(fallbackJson.error);
+          resultText = fallbackJson.result;
+        }
+
+        _lastAIAuditReport = resultText;
+        contentEl.innerHTML = formatAIMarkdown(resultText);
+        if (timeEl) timeEl.textContent = `Audited at ${new Date().toLocaleTimeString()} • ${filteredLeads.length} leads analyzed`;
+      } catch (err) {
+        contentEl.innerHTML = `
+          <div style="color:var(--rose); padding:16px; border:1px solid rgba(225,29,72,0.3); border-radius:10px; background:rgba(225,29,72,0.05);">
+            <strong>⚠️ AI Audit Notice:</strong> ${err.message}
+          </div>
+        `;
+      }
+    }
 
     function triggerGroqAIFromHeader() {
       if (currentView === 'ops') {
