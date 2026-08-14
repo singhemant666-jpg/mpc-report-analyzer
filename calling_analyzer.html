@@ -1493,6 +1493,11 @@
         } catch (e) {}
       }
 
+      // ATT edit timestamps (populated by onEdit trigger in Google Sheets)
+      const att1Time = (item.ATT1_TIME && String(item.ATT1_TIME).trim() !== '') ? String(item.ATT1_TIME).trim() : '';
+      const att2Time = (item.ATT2_TIME && String(item.ATT2_TIME).trim() !== '') ? String(item.ATT2_TIME).trim() : '';
+      const att3Time = (item.ATT3_TIME && String(item.ATT3_TIME).trim() !== '') ? String(item.ATT3_TIME).trim() : '';
+
       return {
         id: index + 1,
         name,
@@ -1517,6 +1522,9 @@
         att1,
         att2,
         att3,
+        att1Time,
+        att2Time,
+        att3Time,
         status,
         statusText,
         badgeClass,
@@ -2322,9 +2330,16 @@
         }
       });
 
+      // Helper: check if an ATT timestamp falls on today (IST)
+      function isTimestampToday(tsStr, todayYmd) {
+        if (!tsStr) return false;
+        // Format from onEdit trigger: "2026-08-14 10:30:45" (IST)
+        const datePart = tsStr.split(' ')[0]; // "2026-08-14"
+        return datePart === todayYmd;
+      }
+
       // If viewing Today, also credit agents with 2nd/3rd attempts from previous leads
-      // Only count BOOKINGS from prev leads if the lead was NOT booked on att1
-      // (meaning booking resulted from 2nd/3rd follow-up attempt done today)
+      // Use ATT timestamps when available for accurate daily tracking
       if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
@@ -2334,29 +2349,60 @@
             if (!agentMap[caller]) {
               agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
             }
-            if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
-            if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
 
-            // Only credit bookings from prev leads if NOT already booked on att1
-            // If att1 has a booked note, the booking was done yesterday already
-            const att1Lower = (l.att1 || '').toLowerCase();
-            const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
-                                     att1Lower.match(/\d{1,2}[\/-]\d{1,2}/) || att1Lower.includes(' pm ') || 
-                                     att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
-                                     att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
-                                     att1Lower.includes('appointment');
+            // If timestamps exist, use them for accurate daily tracking
+            const hasTimestamps = l.att1Time || l.att2Time || l.att3Time;
 
-            const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
-            const hasAtt2or3 = (l.att2 && l.att2.trim() !== '') || (l.att3 && l.att3.trim() !== '');
+            if (hasTimestamps) {
+              // ACCURATE MODE: Use cell edit timestamps
+              const att2DoneToday = l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr);
+              const att3DoneToday = l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr);
 
-            // New booking from follow-up: lead is booked, was NOT booked on att1, and has att2/att3
-            if (isBooked && !wasBookedOnAtt1 && hasAtt2or3) {
-              const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-              agentMap[caller].booked += bc;
-              agentMap[caller].yesterdayBooked += bc;
-              if (l.status === 'consulted') {
-                agentMap[caller].consulted += bc;
-                agentMap[caller].yesterdayConsulted += bc;
+              if (att2DoneToday) agentMap[caller].att2++;
+              if (att3DoneToday) agentMap[caller].att3++;
+
+              // Credit booking ONLY if the booking attempt was done today
+              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
+              if (isBooked && (att2DoneToday || att3DoneToday)) {
+                // Check if booking text is in the att that was done today
+                const att2Lower = (l.att2 || '').toLowerCase();
+                const att3Lower = (l.att3 || '').toLowerCase();
+                const att2HasBooking = att2Lower.includes('booked') || (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am')));
+                const att3HasBooking = att3Lower.includes('booked') || (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
+
+                if ((att2DoneToday && att2HasBooking) || (att3DoneToday && att3HasBooking)) {
+                  const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+                  agentMap[caller].booked += bc;
+                  agentMap[caller].yesterdayBooked += bc;
+                  if (l.status === 'consulted') {
+                    agentMap[caller].consulted += bc;
+                    agentMap[caller].yesterdayConsulted += bc;
+                  }
+                }
+              }
+            } else {
+              // FALLBACK MODE: No timestamps yet, use text-based detection
+              if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+              if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+
+              const att1Lower = (l.att1 || '').toLowerCase();
+              const wasBookedOnAtt1 = att1Lower.includes('booked') || att1Lower.includes('book ') || 
+                                       att1Lower.match(/\d{1,2}[\/\-]\d{1,2}/) || att1Lower.includes(' pm ') || 
+                                       att1Lower.includes(' am ') || att1Lower.includes('1pm') || 
+                                       att1Lower.includes('2pm') || att1Lower.includes('3pm') || 
+                                       att1Lower.includes('appointment');
+
+              const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
+              const hasAtt2or3 = (l.att2 && l.att2.trim() !== '') || (l.att3 && l.att3.trim() !== '');
+
+              if (isBooked && !wasBookedOnAtt1 && hasAtt2or3) {
+                const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
+                agentMap[caller].booked += bc;
+                agentMap[caller].yesterdayBooked += bc;
+                if (l.status === 'consulted') {
+                  agentMap[caller].consulted += bc;
+                  agentMap[caller].yesterdayConsulted += bc;
+                }
               }
             }
           }
