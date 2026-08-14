@@ -1669,15 +1669,8 @@
           const dd = String(l.leadDate.getDate()).padStart(2, '0');
           const leadYmd = `${yyyy}-${mm}-${dd}`;
 
-          if (isTodayFilter) {
-            // Match leads received Today OR yesterday's leads where caller made 2nd/3rd re-attempts (att2 or att3)
-            const isTodayLead = (leadYmd === todayStr);
-            const isReattemptLead = (leadYmd === yestStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
-            if (!isTodayLead && !isReattemptLead) return false;
-          } else {
-            if (startDateVal && leadYmd < startDateVal) return false;
-            if (endDateVal && leadYmd > endDateVal) return false;
-          }
+          if (startDateVal && leadYmd < startDateVal) return false;
+          if (endDateVal && leadYmd > endDateVal) return false;
         }
 
         if (sheet && l.sheetName !== sheet) return false;
@@ -2210,21 +2203,9 @@
       const bookPct = total > 0 ? ((totalBookedPatients / total) * 100).toFixed(1) : '0';
 
       if (document.getElementById('kpi-total-leads')) document.getElementById('kpi-total-leads').textContent = total;
-      const now = new Date();
-      const todayStr = toLocalInputDateStr(now);
-      const freshTodayLeads = leads.filter(l => {
-        if (!l.leadDate) return false;
-        const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-        return ymd === todayStr;
-      }).length;
-      const reattemptLeads = total - freshTodayLeads;
       const totalLeadsCard = document.getElementById('kpi-total-leads');
       if (totalLeadsCard && totalLeadsCard.nextElementSibling) {
-        if (reattemptLeads > 0) {
-          totalLeadsCard.nextElementSibling.textContent = `${freshTodayLeads} fresh today • ${reattemptLeads} re-attempts`;
-        } else {
-          totalLeadsCard.nextElementSibling.textContent = 'All sheets combined';
-        }
+        totalLeadsCard.nextElementSibling.textContent = 'All sheets combined';
       }
       if (document.getElementById('kpi-total-booked')) document.getElementById('kpi-total-booked').textContent = totalBookedPatients;
       if (document.getElementById('kpi-total-booked-sub')) {
@@ -2480,16 +2461,11 @@
       const yestStr = toLocalInputDateStr(yest);
 
       let rowsHtml = visibleLeads.map((l, idx) => {
-        const leadYmd = l.leadDate ? `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}` : '';
-        const nowStr = toLocalInputDateStr(new Date());
-        const isReattempt = (leadYmd === yestStr && (Boolean(l.att2 && l.att2.trim()) || Boolean(l.att3 && l.att3.trim())));
-
         return `
         <tr>
           <td><strong>${idx + 1}</strong></td>
           <td style="font-weight:600; color:var(--text-muted); white-space:nowrap;">
             ${l.leadDateStr}
-            ${isReattempt ? `<br><span class="badge badge-amber" style="font-size:0.6rem; padding:2px 5px;" title="Follow-up / 2nd / 3rd Attempt on previous lead">🔄 Re-Attempt (ATT 2/3)</span>` : ''}
           </td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">
