@@ -1539,6 +1539,12 @@
                 .replace(/\b\w/g, l => l.toUpperCase());
     }
 
+    function isTimestampToday(tsStr, todayYmd) {
+      if (!tsStr) return false;
+      const datePart = String(tsStr).trim().split(' ')[0];
+      return datePart === todayYmd;
+    }
+
     let autoRefreshPaused = false;
 
     function toggleAutoRefresh() {
@@ -2336,13 +2342,7 @@
         }
       });
 
-      // Helper: check if an ATT timestamp falls on today (IST)
-      function isTimestampToday(tsStr, todayYmd) {
-        if (!tsStr) return false;
-        // Format from onEdit trigger: "2026-08-14 10:30:45" (IST)
-        const datePart = tsStr.split(' ')[0]; // "2026-08-14"
-        return datePart === todayYmd;
-      }
+
 
       // If viewing Today, also credit agents with 2nd/3rd attempts from previous leads
       // Use ATT timestamps when available for accurate daily tracking
