@@ -563,7 +563,7 @@
             <thead>
               <tr>
                 <th>#</th>
-                <th>Date</th>
+                <th>Lead Created Time</th>
                 <th>Sheet Tab / Form</th>
                 <th>Lead Name</th>
                 <th>Phone</th>
@@ -1460,7 +1460,7 @@
       const platform = (item.platform && String(item.platform).trim() !== '') ? String(item.platform).trim().toUpperCase() : 'META';
 
       let leadTimeStr = '';
-      let leadMetaDateStr = '';
+      let leadActualDateStr = '';
       let isOvernight = false;
 
       if (item.created_time) {
@@ -1474,18 +1474,18 @@
               timeZone: 'Asia/Kolkata'
             }).toUpperCase();
 
-            leadMetaDateStr = d.toLocaleDateString('en-IN', {
-              day: '2-digit',
-              month: 'short',
-              timeZone: 'Asia/Kolkata'
-            });
+            // IST Formatted Date (DD-MM-YYYY)
+            const dStr = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+            if (dStr) {
+              const [y, m, day] = dStr.split('-');
+              leadActualDateStr = `${day}-${m}-${y}`;
+            }
 
-            // Check if submitted before midnight in IST
-            const istYmd = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            // Check if submitted overnight before calling date
             if (leadDateStr && leadDateStr.includes('-')) {
               const parts = leadDateStr.split('-');
               const sheetYmd = `${parts[2]}-${parts[1]}-${parts[0]}`;
-              if (istYmd < sheetYmd) {
+              if (dStr < sheetYmd) {
                 isOvernight = true;
               }
             }
@@ -1511,7 +1511,7 @@
         leadDate,
         leadDateStr,
         leadTimeStr,
-        leadMetaDateStr,
+        leadActualDateStr,
         isOvernight,
         isUntouched,
         att1,
@@ -2573,14 +2573,14 @@
           <td><strong>${idx + 1}</strong></td>
           <td style="white-space:nowrap;">
             <div style="font-weight:700; color:var(--text-primary); font-size:0.82rem;">
-              ${l.leadMetaDateStr ? l.leadMetaDateStr : l.leadDateStr}
+              ${l.leadActualDateStr ? l.leadActualDateStr : l.leadDateStr}
             </div>
             ${l.leadTimeStr ? `
-              <div style="font-size:0.7rem; color:var(--accent-purple); font-weight:600; margin-top:2px; display:inline-flex; align-items:center; gap:3px; background:rgba(124,58,237,0.08); padding:1px 6px; border-radius:4px;">
+              <div style="font-size:0.72rem; color:var(--accent-purple); font-weight:700; margin-top:3px; display:inline-flex; align-items:center; gap:4px; background:rgba(124,58,237,0.1); padding:2px 7px; border-radius:5px;">
                 🕒 ${l.leadTimeStr}
               </div>
             ` : ''}
-            ${l.isOvernight ? `<div style="font-size:0.62rem; color:var(--amber); font-weight:600; margin-top:2px;">🌙 Last Night</div>` : ''}
+            ${l.isOvernight ? `<div style="font-size:0.62rem; color:var(--amber); font-weight:700; margin-top:2px;">🌙 Last Night</div>` : ''}
           </td>
           <td><span class="badge badge-purple" style="font-size:0.68rem; text-transform:none;">${l.sheetName}</span></td>
           <td style="font-weight:700; color:var(--text-primary);">
