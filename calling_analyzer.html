@@ -764,7 +764,7 @@
     // This URL is hardcoded as the factory default.
     // Once the user saves a URL via the modal it is ALSO written to localStorage
     // so it survives every browser refresh, tab close, and reopen — permanently.
-    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbzCpAcGqyc6eLSB5lE2i6uoVnZOLwGiiHeuNqG6RACnil3lU0bNl_qsS0VTKa6kcC5vXA/exec';
+    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwtfs_RmTe1eoEiy5rZFmytIT0oS0qpIvXs3ucR2FJhEWhJVEwwjjQer-VZ_jZi17OI/exec';
 
     // ── GROQ AI CONFIGURATION ──────────────────────────────────────────────────
     const DEFAULT_GROQ_API_KEY = ['gsk', '_b89mzU5', 'VR4DHG63', '3bwzbWG', 'dyb3FYyh', 'xX5GCOEui', 'RPPr9iEhoJCWn'].join('');
@@ -778,13 +778,12 @@
       return saved.trim();
     })();
 
-    // On startup: if user has ever saved a URL before, it is read from
-    // localStorage immediately. Otherwise the hardcoded default is used.
-    // Either way, activeApiUrl never changes without an explicit Save.
+    // On startup: auto-migrate to the latest active Google Apps Script URL
     let activeApiUrl = (function() {
       const saved = localStorage.getItem('mpc_leads_api_url');
-      // If user had old test copy URL or empty, auto-migrate to the new original live URL
-      if (!saved || saved.includes('AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew')) {
+      if (!saved || 
+          saved.includes('AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew') ||
+          saved.includes('AKfycbzCpAcGqyc6eLSB5lE2i6uoVnZOLwGiiHeuNqG6RACnil3lU0bNl_qsS0VTKa6kcC5vXA')) {
         localStorage.setItem('mpc_leads_api_url', DEFAULT_API_URL);
         return DEFAULT_API_URL;
       }
@@ -1256,13 +1255,18 @@
 
     // Helper: Normalize & Categorize Lead Data
     function normalizeLead(item, index) {
-      const name = item.full_name || item.name || `Lead #${index + 1}`;
-      const phone = (item.phone_number || item.phone || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
-      const rawCaller = String(item['CALLER NAME'] || item.caller || '').trim();
+      const name = (item.full_name && item.full_name.trim()) || 
+                   (item.Name && item.Name.trim()) || 
+                   (item.name && item.name.trim()) || 
+                   (item['Lead Name'] && item['Lead Name'].trim()) || 
+                   `Lead #${index + 1}`;
+      const phone = (item.phone_number || item.Phone || item.phone || item['Phone Number'] || '').replace(/^p:\+91/, '+91').replace(/^p:/, '');
+      const email = item.Email || item.email || '';
+      const rawCaller = String(item['CALLER NAME'] || item.caller || item.Caller || item['Caller Name'] || '').trim();
       const sheetName = item._sheetName || item.sheetName || item.sheet || 'Main Sheet';
       const caller = extractAgentFromSheetName(sheetName, rawCaller);
-      const issue = formatLabel(item['what_issue_are_you_facing?'] || 'Not Specified');
-      const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || '-');
+      const issue = formatLabel(item['what_issue_are_you_facing?'] || item.issue || item.Issue || 'Not Specified');
+      const duration = formatLabel(item['how_long_have_you_been_suffering_from_this_pain?'] || item['how_long_have_you_been_facing?'] || item.duration || '-');
       
       const att1 = item['ATTEMPT 1'] || item['ATT 1'] || '';
       const att2 = item['ATT 2'] || '';
@@ -2353,16 +2357,37 @@
       });
     }
 
-    // Render Master Data Table
+    let tableDisplayLimit = 150;
+
+    function loadMoreLeads() {
+      tableDisplayLimit += 200;
+      renderTable(filteredLeads);
+    }
+
+    function showAllLeads() {
+      tableDisplayLimit = filteredLeads.length;
+      renderTable(filteredLeads);
+    }
+
+    // Render Master Data Table with High Performance Pagination
     function renderTable(leads) {
       const tbody = document.getElementById('leads-tbody');
       const badge = document.getElementById('table-count-badge');
-      if (badge) badge.textContent = `Showing ${leads.length} leads`;
       if (!tbody) return;
 
       if (leads.length === 0) {
+        if (badge) badge.textContent = 'Showing 0 leads';
         tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:var(--text-muted); padding:30px;">No matching leads found</td></tr>';
         return;
+      }
+
+      const visibleLeads = leads.slice(0, tableDisplayLimit);
+      if (badge) {
+        if (leads.length > visibleLeads.length) {
+          badge.innerHTML = `Showing <strong>${visibleLeads.length}</strong> of <strong>${leads.length}</strong> leads`;
+        } else {
+          badge.textContent = `Showing ${leads.length} leads`;
+        }
       }
 
       const now = new Date();
@@ -2370,7 +2395,7 @@
       yest.setDate(yest.getDate() - 1);
       const yestStr = toLocalInputDateStr(yest);
 
-      tbody.innerHTML = leads.map((l, idx) => {
+      let rowsHtml = visibleLeads.map((l, idx) => {
         const leadYmd = l.leadDate ? `${l.leadDate.getUTCFullYear()}-${String(l.leadDate.getUTCMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getUTCDate()).padStart(2, '0')}` : '';
         const isCarriedOver = (leadYmd === yestStr && l.isUntouched);
 
@@ -2397,6 +2422,19 @@
           <td><span class="badge ${l.badgeClass}">${l.statusText}</span></td>
         </tr>`;
       }).join('');
+
+      if (leads.length > visibleLeads.length) {
+        rowsHtml += `
+        <tr>
+          <td colspan="13" style="text-align:center; padding:16px; background:rgba(124,58,237,0.03);">
+            <span style="font-size:0.8rem; color:var(--text-muted); margin-right:12px;">Showing ${visibleLeads.length} of ${leads.length} leads</span>
+            <button class="btn btn-purple btn-sm" onclick="loadMoreLeads()">➕ Load Next 200 Leads</button>
+            <button class="btn btn-sm" style="margin-left:8px;" onclick="showAllLeads()">⚡ Show All (${leads.length})</button>
+          </td>
+        </tr>`;
+      }
+
+      tbody.innerHTML = rowsHtml;
     }
 
     // ── GROQ AI REAL-TIME AD & BOOKING ANALYST ENGINE ─────────────────────────
