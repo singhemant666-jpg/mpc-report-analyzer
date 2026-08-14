@@ -2198,6 +2198,28 @@
         if (l.att2 && l.att2.trim() !== '') att2Total++;
         if (l.att3 && l.att3.trim() !== '') att3Total++;
       });
+
+      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : '';
+      const now = new Date();
+      const todayStr = toLocalInputDateStr(now);
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = toLocalInputDateStr(yest);
+      const startDateVal = document.getElementById('filter-start-date') ? document.getElementById('filter-start-date').value : '';
+      const endDateVal = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
+      const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
+
+      if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
+        rawLeadsData.forEach(l => {
+          if (!l.leadDate) return;
+          const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
+          if (ymd === yestStr) {
+            if (l.att2 && l.att2.trim() !== '') att2Total++;
+            if (l.att3 && l.att3.trim() !== '') att3Total++;
+          }
+        });
+      }
+
       const totalDials = att1Total + att2Total + att3Total;
 
       const bookPct = total > 0 ? ((totalBookedPatients / total) * 100).toFixed(1) : '0';
@@ -2233,6 +2255,16 @@
       const grid = document.getElementById('agent-leaderboard-grid');
       if (!grid) return;
 
+      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : '';
+      const now = new Date();
+      const todayStr = toLocalInputDateStr(now);
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = toLocalInputDateStr(yest);
+      const startDateVal = document.getElementById('filter-start-date') ? document.getElementById('filter-start-date').value : '';
+      const endDateVal = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
+      const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
+
       const agentMap = {};
       leads.forEach(l => {
         const caller = l.caller || 'Unassigned';
@@ -2243,20 +2275,35 @@
         if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
         if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
         if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
-        
-        const dials = (l.att1 && l.att1.trim() !== '' ? 1 : 0) +
-                      (l.att2 && l.att2.trim() !== '' ? 1 : 0) +
-                      (l.att3 && l.att3.trim() !== '' ? 1 : 0);
-        agentMap[caller].totalDials += dials;
 
         const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
-
         if (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit') {
           agentMap[caller].booked += bc;
         }
         if (l.status === 'consulted') {
           agentMap[caller].consulted += bc;
         }
+      });
+
+      // If viewing Today, also credit agents with 2nd and 3rd attempts made on previous leads (e.g. yesterday's active leads)
+      if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
+        rawLeadsData.forEach(l => {
+          if (!l.leadDate) return;
+          const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
+          if (ymd === yestStr) {
+            const caller = l.caller || 'Unassigned';
+            if (!agentMap[caller]) {
+              agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0 };
+            }
+            if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+            if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+          }
+        });
+      }
+
+      Object.values(agentMap).forEach(ag => {
+        ag.totalDials = ag.att1 + ag.att2 + ag.att3;
+        ag.attempted = (ag.att1 > 0 || ag.att2 > 0 || ag.att3 > 0) ? ag.total : 0;
       });
 
       const sortedAgents = Object.values(agentMap).sort((a, b) => b.booked - a.booked || b.totalDials - a.totalDials);
@@ -2328,6 +2375,16 @@
       );
 
       // 2. Call Attempt Intensity Chart (1st, 2nd, 3rd Attempts by Caller)
+      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : '';
+      const now = new Date();
+      const todayStr = toLocalInputDateStr(now);
+      const yest = new Date(now);
+      yest.setDate(yest.getDate() - 1);
+      const yestStr = toLocalInputDateStr(yest);
+      const startDateVal = document.getElementById('filter-start-date') ? document.getElementById('filter-start-date').value : '';
+      const endDateVal = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
+      const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
+
       const agentMap = {};
       leads.forEach(l => {
         const caller = l.caller || 'Unassigned';
@@ -2336,6 +2393,19 @@
         if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
         if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
       });
+
+      if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
+        rawLeadsData.forEach(l => {
+          if (!l.leadDate) return;
+          const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
+          if (ymd === yestStr) {
+            const caller = l.caller || 'Unassigned';
+            if (!agentMap[caller]) agentMap[caller] = { att1: 0, att2: 0, att3: 0 };
+            if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
+            if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
+          }
+        });
+      }
       const topAgents = Object.entries(agentMap).sort((a,b) => (b[1].att1+b[1].att2+b[1].att3) - (a[1].att1+a[1].att2+a[1].att3)).slice(0, 7);
       const labels = topAgents.map(e => e[0]);
       const att1Arr = topAgents.map(e => e[1].att1);
