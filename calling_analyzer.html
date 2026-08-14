@@ -1539,10 +1539,17 @@
                 .replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    function isTimestampToday(tsStr, todayYmd) {
+    function isTimestampInRange(tsStr, startYmd, endYmd) {
       if (!tsStr) return false;
       const datePart = String(tsStr).trim().split(' ')[0];
-      return datePart === todayYmd;
+      if (!datePart || datePart.length < 10) return false;
+      if (startYmd && datePart < startYmd) return false;
+      if (endYmd && datePart > endYmd) return false;
+      return true;
+    }
+
+    function isTimestampToday(tsStr, todayYmd) {
+      return isTimestampInRange(tsStr, todayYmd, todayYmd);
     }
 
     let autoRefreshPaused = false;
@@ -2260,13 +2267,13 @@
       const endDateVal = document.getElementById('filter-end-date') ? document.getElementById('filter-end-date').value : '';
       const isTodayView = (preset === 'today') || (startDateVal === todayStr && endDateVal === todayStr);
 
-      if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
+      if (rawLeadsData && rawLeadsData.length > 0 && startDateVal && endDateVal) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          if (ymd < todayStr) {
-            if (l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr)) att2Total++;
-            if (l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr)) att3Total++;
+          if (ymd < startDateVal || ymd > endDateVal) {
+            if (l.att2 && l.att2.trim() !== '' && isTimestampInRange(l.att2Time, startDateVal, endDateVal)) att2Total++;
+            if (l.att3 && l.att3.trim() !== '' && isTimestampInRange(l.att3Time, startDateVal, endDateVal)) att3Total++;
           }
         });
       }
@@ -2336,23 +2343,22 @@
         }
       });
 
-      if (isTodayView && rawLeadsData && rawLeadsData.length > 0) {
+      if (rawLeadsData && rawLeadsData.length > 0 && startDateVal && endDateVal) {
         rawLeadsData.forEach(l => {
           if (!l.leadDate) return;
           const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
-          if (ymd < todayStr) {
+          if (ymd < startDateVal || ymd > endDateVal) {
             const caller = l.caller || 'Unassigned';
 
-            // Strictly check if cell edit timestamp matches TODAY
-            const att2DoneToday = l.att2 && l.att2.trim() !== '' && isTimestampToday(l.att2Time, todayStr);
-            const att3DoneToday = l.att3 && l.att3.trim() !== '' && isTimestampToday(l.att3Time, todayStr);
+            const att2DoneInRange = l.att2 && l.att2.trim() !== '' && isTimestampInRange(l.att2Time, startDateVal, endDateVal);
+            const att3DoneInRange = l.att3 && l.att3.trim() !== '' && isTimestampInRange(l.att3Time, startDateVal, endDateVal);
 
-            if (att2DoneToday || att3DoneToday) {
+            if (att2DoneInRange || att3DoneInRange) {
               if (!agentMap[caller]) {
                 agentMap[caller] = { name: caller, total: 0, attempted: 0, att1: 0, att2: 0, att3: 0, totalDials: 0, booked: 0, consulted: 0, yesterdayBooked: 0, yesterdayConsulted: 0 };
               }
-              if (att2DoneToday) agentMap[caller].att2++;
-              if (att3DoneToday) agentMap[caller].att3++;
+              if (att2DoneInRange) agentMap[caller].att2++;
+              if (att3DoneInRange) agentMap[caller].att3++;
 
               const isBooked = (l.status === 'booked' || l.status === 'consulted' || l.status === 'booked_no_visit');
               if (isBooked) {
@@ -2361,7 +2367,7 @@
                 const att2HasBooking = att2Lower.includes('booked') || (att2Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att2Lower.includes('pm') || att2Lower.includes('am')));
                 const att3HasBooking = att3Lower.includes('booked') || (att3Lower.match(/\d{1,2}[\/\-]\d{1,2}/) && (att3Lower.includes('pm') || att3Lower.includes('am')));
 
-                if ((att2DoneToday && att2HasBooking) || (att3DoneToday && att3HasBooking)) {
+                if ((att2DoneInRange && att2HasBooking) || (att3DoneInRange && att3HasBooking)) {
                   const bc = (l.bookingCount && l.bookingCount > 1) ? l.bookingCount : 1;
                   agentMap[caller].booked += bc;
                   agentMap[caller].yesterdayBooked += bc;
