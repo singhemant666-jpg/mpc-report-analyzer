@@ -794,7 +794,7 @@
     // This URL is hardcoded as the factory default.
     // Once the user saves a URL via the modal it is ALSO written to localStorage
     // so it survives every browser refresh, tab close, and reopen — permanently.
-    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwtfs_RmTe1eoEiy5rZFmytIT0oS0qpIvXs3ucR2FJhEWhJVEwwjjQer-VZ_jZi17OI/exec';
+    const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbydQHHVFH09ydbP6he_sEa8jhgD1WccWoA9wqWRlv1mDAM6q5o0Nt7PbWuDKI4wxmOs/exec';
 
     // ── GROQ AI CONFIGURATION ──────────────────────────────────────────────────
     const DEFAULT_GROQ_API_KEY = ['gsk', '_b89mzU5', 'VR4DHG63', '3bwzbWG', 'dyb3FYyh', 'xX5GCOEui', 'RPPr9iEhoJCWn'].join('');
@@ -811,9 +811,7 @@
     // On startup: auto-migrate to the latest active Google Apps Script URL
     let activeApiUrl = (function() {
       const saved = localStorage.getItem('mpc_leads_api_url');
-      if (!saved || 
-          saved.includes('AKfycby3_Rq9yXY7F8VFzcOGhVZwNMtZG-EfSeS9bNyLBvih0enBklPtzjLpMtb6CFVPpOYiew') ||
-          saved.includes('AKfycbzCpAcGqyc6eLSB5lE2i6uoVnZOLwGiiHeuNqG6RACnil3lU0bNl_qsS0VTKa6kcC5vXA')) {
+      if (!saved || saved !== DEFAULT_API_URL) {
         localStorage.setItem('mpc_leads_api_url', DEFAULT_API_URL);
         return DEFAULT_API_URL;
       }

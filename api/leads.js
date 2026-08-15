@@ -6,7 +6,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const scriptUrl = req.query.url || 'https://script.google.com/macros/s/AKfycbwtfs_RmTe1eoEiy5rZFmytIT0oS0qpIvXs3ucR2FJhEWhJVEwwjjQer-VZ_jZi17OI/exec';
+  const scriptUrl = req.query.url || 'https://script.google.com/macros/s/AKfycbydQHHVFH09ydbP6he_sEa8jhgD1WccWoA9wqWRlv1mDAM6q5o0Nt7PbWuDKI4wxmOs/exec';
 
   try {
     const response = await fetch(scriptUrl, {
