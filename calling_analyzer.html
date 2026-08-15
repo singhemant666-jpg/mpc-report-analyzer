@@ -2453,7 +2453,7 @@
         if (l.att1 && l.att1.trim() !== '') agentMap[caller].att1++;
         if (l.att2 && l.att2.trim() !== '') agentMap[caller].att2++;
         if (l.att3 && l.att3.trim() !== '') agentMap[caller].att3++;
-      }
+      });
       const topAgents = Object.entries(agentMap).sort((a,b) => (b[1].att1+b[1].att2+b[1].att3) - (a[1].att1+a[1].att2+a[1].att3)).slice(0, 7);
       const labels = topAgents.map(e => e[0]);
       const att1Arr = topAgents.map(e => e[1].att1);
