@@ -1695,6 +1695,45 @@
       }
     }
 
+    // Apply Date Preset Handler
+    function applyDatePreset() {
+      const preset = document.getElementById('filter-date-preset') ? document.getElementById('filter-date-preset').value : 'today';
+      const startDateInput = document.getElementById('filter-start-date');
+      const endDateInput = document.getElementById('filter-end-date');
+      if (!startDateInput || !endDateInput) return;
+
+      const now = new Date();
+      const todayStr = toLocalInputDateStr(now);
+
+      if (preset === 'today') {
+        startDateInput.value = todayStr;
+        endDateInput.value = todayStr;
+      } else if (preset === 'yesterday') {
+        const yest = new Date(now);
+        yest.setDate(yest.getDate() - 1);
+        const yestStr = toLocalInputDateStr(yest);
+        startDateInput.value = yestStr;
+        endDateInput.value = yestStr;
+      } else if (preset === 'last7') {
+        const d7 = new Date(now);
+        d7.setDate(d7.getDate() - 6);
+        startDateInput.value = toLocalInputDateStr(d7);
+        endDateInput.value = todayStr;
+      } else if (preset === 'last30') {
+        const d30 = new Date(now);
+        d30.setDate(d30.getDate() - 29);
+        startDateInput.value = toLocalInputDateStr(d30);
+        endDateInput.value = todayStr;
+      } else if (preset === 'all') {
+        startDateInput.value = '';
+        endDateInput.value = '';
+      }
+
+      if (rawLeadsData && rawLeadsData.length > 0) {
+        applyFilters();
+      }
+    }
+
     // Apply Filter Logic
     function applyFilters() {
       const startDateVal = document.getElementById('filter-start-date').value; // "YYYY-MM-DD"
