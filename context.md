@@ -242,55 +242,6 @@ $$\text{totalPackageValue} = \text{initialBundleVal} + \text{renewalBundleVal}$$
 
 ---
 
-### 🔄 5.4 Real Data Patient Renewal Journey & Sequence Architecture
-
-In live clinical collection datasets, patient treatment journeys progress sequentially. The system tracks this exact 4-stage ordinal sequence:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Patient
-    participant Clinic as Clinic EMR
-    Patient->>Clinic: 1. Clinical Consultation (Fixed Fee: ₹499 / ₹1,500)
-    Note over Patient,Clinic: Stage 1: Clinical Assessment & Diagnosis
-    Patient->>Clinic: 2. 1st Initial Package (e.g. PM-12 ₹15,000)
-    Note over Patient,Clinic: Stage 2: Initial Conversion (Credited to Doctor)
-    Patient->>Clinic: 3. Installment Payments (if paid in parts)
-    Note over Patient,Clinic: Tagged as Installment (isInstallment=true, NOT a Renewal)
-    Patient->>Clinic: 4. 2nd Package / Renewal 1 (Later Date)
-    Note over Patient,Clinic: Stage 3: Package Renewal (isRenewal=true, Shows in Renewals Tab)
-    Patient->>Clinic: 5. 3rd Package / Renewal 2 (Subsequent Date)
-    Note over Patient,Clinic: Stage 4: Continuous Care Renewal
-```
-
-#### Detailed Stage & Sequence Rules:
-
-1. **Stage 1: Clinical Consultation (`hasConsultation`)**:
-   - Patient visits for clinical evaluation.
-   - Charged fixed consultation fee (₹499 for Pain Management / General, ₹1,500 for Women's Health).
-   - Classified as `Only Consultation` if no further purchases are made.
-
-2. **Stage 2: 1st Initial Package (`1st Package / Initial Conversion`)**:
-   - The first treatment package purchased by the patient on or right after consultation date.
-   - **Doctor Incentive Credit**: Counted as the **Initial Package Conversion** credited to the consulting doctor for Doctor Incentive Rankings & Pain Management Conversion % calculations.
-
-3. **Installment Payment vs True Renewal Disambiguation**:
-   - When a patient pays for a single package (e.g. PM-12 ₹15,000) in multiple installments across different dates (e.g. ₹5,000 on Day 1, ₹5,000 on Day 7, ₹5,000 on Day 14):
-   - The algorithm tracks running collection sum vs contract cost:
-     $$\text{categoryPaidSum} < \text{categoryCostSum} - 0.01 \implies \text{isInstallment} = \text{true}$$
-   - **Crucial Rule**: Installment payments are grouped under the original purchase ID and are **NEVER** misclassified as new renewals.
-
-4. **Stage 3: 2nd Package / 1st Renewal (`2nd Package / Renewal 1`)**:
-   - Occurs when the patient completes or extends their treatment course and purchases a 2nd package in the same treatment category on a **later payment date**.
-   - Classified with `isRenewal = true`.
-   - Populates the **Package Renewals** tab (`renewals`) and increments the **Renewals KPI Card**.
-
-5. **Stage 4: 3rd Package / 2nd Renewal (`3rd Package / Renewal 2`)**:
-   - Any 3rd or subsequent package purchase made on later dates.
-   - Ordinal sequence validated by AI Watchdog Check #11 to ensure no ordinal jumps occur (1st Package $\to$ 2nd Package $\to$ 3rd Package).
-
----
-
 ## 🏆 6. Metrics & Doctor Incentive Leaderboard Logic (`computeMetrics`)
 
 ### 6.1 Revenue & Patient Metrics
@@ -431,11 +382,3 @@ async function fetchLiveCollectionData() {
 ```
 
 ---
-
-## 🎯 9. Summary of Repository Modules
-
-* **`index.html`**: Daily Collection Report Analyzer & Conversion Intelligence Dashboard.
-* **`calling_analyzer.html`**: Master Calling Operations & Lead Dialing Intelligence Dashboard.
-* **`appointment_analyzer.html`**: Patient Appointment Schedule & Attendance Analyzer.
-* **`api/leads.js`**: Vercel Serverless Proxy endpoint for CORS-free Google Apps Script database fetching.
-* **`context.md`**: Complete technical documentation & logic blueprint specification.
