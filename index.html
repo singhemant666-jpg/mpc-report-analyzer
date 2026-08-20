@@ -1551,7 +1551,11 @@
           <div class="chart-container"><canvas id="chart-agent"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Lead Source Performance</div>
+          <div class="chart-title"><div class="dot"></div>Lead Source Conversion Share (%)</div>
+          <div class="chart-container pie-container"><canvas id="chart-source-pie"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title"><div class="dot"></div>Lead Source Conversion Performance</div>
           <div class="chart-container"><canvas id="chart-source"></canvas></div>
         </div>
         <div class="chart-card">
@@ -3389,7 +3393,79 @@
 
     function renderDoctorChart(m) { renderConversionBar('chart-doctor', m.doctorMap, 'doctor'); }
     function renderAgentChart(m) { renderConversionBar('chart-agent', m.agentMap, 'agent'); }
-    function renderSourceChart(m) { renderConversionBar('chart-source', m.sourceMap, 'source'); }
+    function renderSourceChart(m) {
+      renderConversionBar('chart-source', m.sourceMap, 'source');
+
+      const ctx = document.getElementById('chart-source-pie');
+      if (!ctx) return;
+
+      const sources = Object.entries(m.sourceMap || {})
+        .filter(([name, data]) => name && data.consultation > 0)
+        .map(([name, data]) => {
+          const convPct = data.consultation > 0 ? Math.min(100, Math.round((data.package / data.consultation) * 100)) : 0;
+          return {
+            name,
+            consultation: data.consultation,
+            package: data.package,
+            revenue: data.revenue,
+            convPct
+          };
+        })
+        .sort((a, b) => b.convPct !== a.convPct ? b.convPct - a.convPct : b.revenue - a.revenue);
+
+      if (sources.length === 0) {
+        if (ctx.parentElement) {
+          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No lead source conversion data available</div>';
+        }
+        return;
+      }
+
+      const bestSource = sources[0];
+      const labels = sources.map(s => `${s.name} (${s.convPct}%)`);
+      const data = sources.map(s => s.package > 0 ? s.package : s.consultation);
+
+      chartInstances.sourcePie = new Chart(ctx, {
+        type: 'doughnut',
+        plugins: [centerTextPlugin],
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: CHART_COLORS.slice(0, sources.length),
+            borderWidth: 0,
+            hoverOffset: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
+            tooltip: {
+              backgroundColor: 'rgba(15,23,42,0.95)',
+              borderColor: 'rgba(148,163,184,0.15)',
+              borderWidth: 1,
+              padding: 12,
+              callbacks: {
+                label: (ctx) => {
+                  const s = sources[ctx.dataIndex];
+                  return [
+                    ` 🎯 ${s.name}: ${s.convPct}% Conversion Rate`,
+                    ` 📦 Packages Converted: ${s.package} of ${s.consultation} Consultations`,
+                    ` 💰 Total Revenue: ${formatCurrency(s.revenue)}`
+                  ];
+                }
+              }
+            },
+            centerText: {
+              text: `${bestSource.convPct}%`,
+              subtext: `Best: ${bestSource.name}`
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    }
 
     function renderPackageChart(m) {
       const entries = Object.entries(m.packageSales)
