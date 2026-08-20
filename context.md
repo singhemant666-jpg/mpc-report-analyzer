@@ -1,159 +1,321 @@
-# Technical Context & Architecture Specification: Daily Collection Report Analyzer (`index.html`)
+# Technical Context & Complete Logic Blueprint: Daily Collection Report Analyzer (`index.html`)
 
 ---
 
-## 📌 Executive Architecture Overview
+## 📌 1. Executive Architecture & UI System
 
-`index.html` is a high-performance, single-page web application (SPA) built for **My Pain Clinic (MPC)** to analyze daily clinical collection reports, track patient treatment conversion journeys, calculate doctor performance incentives, audit data integrity, and export multi-tab Excel workbooks.
+`index.html` is a high-performance Single-Page Application (SPA) designed for **My Pain Clinic (MPC)** to analyze clinical collection data, compute patient conversion journeys, calculate doctor performance incentives, conduct automated data integrity audits, and export multi-sheet Excel workbooks.
 
-### Key Capabilities:
-1. **Dynamic File & Database Ingestion**: Reads Excel files (`.xlsx`, `.xls`) or live API endpoints via SheetJS / fetch, detecting column variations automatically.
-2. **Multi-Pass Patient Grouping & Revenue Allocation**: Grouping raw invoice transaction rows into unified patient profiles with proportional advance payment distribution across consultation, single-session services, and multi-session treatment packages.
-3. **Automated Service Classification**: Classifies services into `consultation`, `single_session`, and `package` using configured rules and a master service price registry.
-4. **Doctor Incentive & Conversion Leaderboard**: Ranks consulting doctors based on initial Pain Management package conversions, conversion rates, and revenue.
-5. **AI Watchdog Data Integrity Audit**: Runs 11 automated mathematical audit checks to detect revenue discrepancies, ordinal sequence jumps, duplicate names, or unallocated funds.
-6. **Multi-Tab Excel & PDF Export**: Generates 15 categorized Excel sheets using `ExcelJS` with professional styling, totals, and column widths.
-
----
-
-## 🛠️ Technology Stack & Libraries
-
-| Library / Tool | Version | Purpose |
+### Tech Stack & Core Dependencies
+| Technology / Library | Version | Purpose |
 |---|---|---|
-| **Inter Font** | Google Fonts | Modern, clean UI typography |
-| **SheetJS (xlsx)** | `0.18.5` | Parsing uploaded Excel workbooks into raw JSON arrays |
-| **ExcelJS** | `4.4.0` | Building formatted, multi-sheet downloadable `.xlsx` files |
-| **Chart.js** | `4.4.0` | Rendering interactive charts (Doughnut, Bar, Dual-Axis Line) |
-| **FileSaver.js** | `2.0.5` | Saving client-side generated files |
+| **Inter Typography** | Google Fonts | Primary UI font system |
+| **SheetJS (`xlsx.full.min.js`)** | `0.18.5` | Client-side parsing of uploaded `.xlsx` / `.xls` binary files |
+| **ExcelJS (`exceljs.min.js`)** | `4.4.0` | Building formatted multi-tab Excel workbooks with custom styles, headers, and totals |
+| **Chart.js (`chart.umd.min.js`)** | `4.4.0` | Rendering interactive Doughnut, Bar, Horizontal Bar, and Dual-Axis Line charts |
+| **FileSaver.js (`FileSaver.min.js`)** | `2.0.5` | Blob download management for client-side generated files |
 | **jsPDF & AutoTable** | `2.5.1` / `3.8.1` | Generating PDF executive summaries |
-| **AI Engine (Gemini / Groq)** | REST API | Generating executive reports and answering natural language queries |
+| **AI Audit Engine (Gemini / Groq)** | REST API | Executive narrative insights and interactive Q&A |
+
+### Theme System (Dark / Light Mode)
+Theme state is managed dynamically via the `data-theme` attribute on the `<html>` element (`light` or `dark`). CSS Custom Variables define backgrounds, borders, glassmorphic cards, text colors, and chart color defaults.
 
 ---
 
-## 📊 Core Data Flow Pipeline
+## 🔄 2. Complete Application Lifecycle & Workflow Architecture
 
 ```mermaid
 flowchart TD
-    A[Excel File / Live Database API] --> B[parseExcel / fetchLiveCollectionData]
-    B --> C[detectColumns - Dynamic Header Mapping]
-    C --> D[classifyService - Categorize Row]
-    D --> E[groupPatients - Pass 1: Raw Row Grouping]
-    E --> F[groupPatients - Pass 2: Chronological Revenue Allocation]
-    F --> G[groupPatients - Pass 3: Package Stage & Renewal Aggregation]
-    G --> H[computeMetrics - Overall KPIs & Doctor Leaderboard]
-    H --> I[renderDashboard & runDataIntegrityAudit]
+    A[Page Initialization: DOMContentLoaded] --> B[loadConfig & initTheme]
+    B --> C{Data Source Input}
+    C -->|Excel Upload| D[parseExcel - SheetJS Binary Reader]
+    C -->|Live API Sync| E[fetchLiveCollectionData - REST Endpoint]
+    D --> F[detectColumns - Dynamic Header Pattern Matching]
+    E --> F
+    F --> G[Row Normalization - parseDate, parseNumber, cleanLeadSource]
+    G --> H[groupPatients - Pass 1: Raw Patient Grouping]
+    H --> I[groupPatients - Pass 2: Chronological Per-Date Allocation & Contract Propagation]
+    I --> J[groupPatients - Pass 3: Package Stage, Renewal & EMR Scaling]
+    J --> K[computeMetrics - Overall KPIs & Doctor Incentive Leaderboard]
+    K --> L[renderDashboard - KPIs, Cards, Charts, Tables]
+    L --> M[runDataIntegrityAudit - 11 Automated Math Integrity Checks]
+    M --> N[renderAuditResults - AI Watchdog Bar]
 ```
 
+### Lifecycle Execution Steps:
+1. **Initialization (`DOMContentLoaded`)**:
+   - `loadConfig()`: Loads user-configured keywords from `localStorage` (key: `mpc_report_config`), falling back to default consultation and single session keywords.
+   - `initTheme()`: Sets theme based on `localStorage` (key: `mpc_theme`, default `light`).
+2. **File Ingestion (`parseExcel`)**:
+   - Reads ArrayBuffer from dropped/selected file via `FileReader`.
+   - Uses SheetJS to inspect sheet 0.
+   - **Header Auto-Discovery**: Scans top 10 rows for the first row containing $\ge 3$ non-empty cells to use as the header row.
+3. **Column Detection (`detectColumns`)**:
+   - Matches header column labels against regex patterns in `COLUMN_PATTERNS`.
+4. **Data Normalization & Classification**:
+   - Parses dates (`parseDate`), numbers (`parseNumber`), and lead sources (`cleanLeadSource`).
+   - Classifies each row into `consultation`, `single_session`, or `package` via `classifyService`.
+5. **Multi-Pass Patient Grouping (`groupPatients`)**:
+   - Runs 3 distinct passes to group raw rows, allocate advance payments, track package renewal sequences, and determine patient statuses.
+6. **KPI & Leaderboard Computation (`computeMetrics`)**:
+   - Computes overall clinical metrics, Doctor Leaderboard, Agent performance, Lead Source efficiency, and time-series trends.
+7. **UI Rendering (`renderDashboard`)**:
+   - Populates metric cards, status category cards, Doctor Leaderboard, 9-tab patient data tables, 7 Chart.js charts, and analytics summaries.
+8. **Automated Audit (`runDataIntegrityAudit`)**:
+   - Executes 11 mathematical audit algorithms and renders pass/warning/error badges on the AI Watchdog bar.
+
 ---
 
-## 🔍 Detailed Data Processing & Algorithm Specifications
+## 🔍 3. Data Parsing & Normalization Specification
 
-### 1. Column Detection Engine (`detectColumns`)
-The system accepts non-standardized header names across different EMR exports using Regular Expressions:
-* `patientName`: `/patient\s*name/i`, `/patient/i`, `/^name$/i`
-* `patientId`: `/patient\s*id/i`, `/pat.*id/i`, `/^id$/i`
-* `packageName`: `/package\s*name/i`, `/package/i`, `/service/i`
-* `doctor`: `/consult.*doctor/i`, `/doctor/i`, `/^dr$/i`, `/physician/i`
-* `agent`: `/agent\s*name/i`, `/agent/i`, `/counsellor/i`
-* `leadSource`: `/lead\s*source/i`, `/source/i`
-* `paymentDate`: `/payment\s*date/i`, `/date/i`, `/created\s*at/i`
-* `packageCost`: `/package\s*cost/i`
-* `amountPaid`: `/amount\s*paid/i`, `/amount/i`, `/paid/i`, `/collection/i`
-* `totalPackageCost`: `/total\s*package\s*cost/i`, `/total\s*cost/i`
-* `paymentMode`: `/payment\s*mode/i`, `/mode/i`
-* `invoiceNo`: `/invoice\s*no/i`, `/invoice/i`, `/bill\s*no/i`
-
----
-
-### 2. Service Classification Engine (`classifyService`)
-Every line item is evaluated against 5 hierarchical classification rules:
+### 3.1 Column Pattern Matcher (`COLUMN_PATTERNS` & `detectColumns`)
+The system dynamically maps EMR column headers using regular expressions:
 
 ```javascript
-// Rule 0: Foot Insoles product -> single_session
-if (lower.includes('foot insole') || lower.includes('insole')) return 'single_session';
+const COLUMN_PATTERNS = {
+  patientName:      [/patient\s*name/i, /patient/i, /^name$/i],
+  patientId:        [/patient\s*id/i, /pat.*id/i, /^id$/i],
+  packageName:      [/package\s*name/i, /package/i, /service/i],
+  doctor:           [/consult.*doctor/i, /doctor/i, /^dr$/i, /physician/i],
+  agent:            [/agent\s*name/i, /agent/i, /counsellor/i, /counselor/i],
+  leadSource:       [/lead\s*source/i, /source/i],
+  paymentDate:      [/payment\s*date/i, /date/i, /created\s*at/i],
+  packageCost:      [/package\s*cost/i],
+  amountPaid:       [/amount\s*paid/i, /amount/i, /paid/i, /collection/i],
+  totalPackageCost: [/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i],
+  paymentMode:      [/payment\s*mode/i, /mode/i, /payment\s*method/i],
+  invoiceNo:        [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i],
+  userplanId:       [/userplan\s*id/i, /user\s*plan\s*id/i, /plan\s*id/i],
+  cartId:           [/cart\s*id/i]
+};
+```
 
-// Rule 1: Multi-session package pattern (e.g., -3, -4, -6, -12) -> package
-if (/[-_\s]([2-9]|\d{2,})\b/.test(lower) && !lower.includes('ss')) return 'package';
+### 3.2 Date Parsing Engine (`parseDate`)
+- Accepts `Date` objects, ISO strings (`YYYY-MM-DDTHH:mm:ss`), Indian date strings (`DD-MM-YYYY`, `DD/MM/YYYY`), and hyphenated/slashed variations.
+- Correctly parses 4-digit years vs 2-digit years and extracts hours, minutes, and seconds.
 
-// Rule 2: Single session explicit tags (-ss, ss-1, single session) -> single_session
-if (lower.includes('-ss') || lower.includes('ss-1') || lower.includes('single session')) return 'single_session';
+### 3.3 Lead Source Cleaner (`cleanLeadSource`)
+- Sanitizes lead source text and extracts platform names from embedded Facebook/Instagram ad JSON payloads (e.g. `{"publisher_platform":"instagram", ...}`).
+- Standardizes platforms to: `Instagram`, `Facebook`, `Google`, `YouTube`, `WhatsApp`, `Digital Ad`, or raw headline/campaign strings.
 
-// Rule 3: Default Top Up / NA with ₹499/₹1500 fee -> consultation; else package
-if (lower === 'default top up' || lower === 'n/a' || lower === '') {
-  return (amt === 499 || amt === 1500) ? 'consultation' : 'package';
+---
+
+## 🏷️ 4. Service Classification & Master Price Registry
+
+### 4.1 Master Services Price Registry (`SERVICES_MASTER_PRICE_LIST`)
+Contains 28 official clinical services with keywords, single-session price, and package cost per session:
+
+| Service Name | Key Search Keywords | Single Session Price | Package Price/Session |
+|---|---|---|---|
+| **Consultation** | `consultation`, `consult` | ₹499 | ₹499 |
+| **Women's Health Consultation** | `women's health consultation` | ₹1,500 | ₹1,500 |
+| **Foot Insoles** | `foot insole`, `insoles` | ₹2,360 | ₹2,360 |
+| **Home Visit** | `home visit` | ₹2,500 | ₹2,500 |
+| **Online Consultation** | `online consultation` | ₹2,000 | ₹2,000 |
+| **HBOT (Soft Shell)** | `hbot soft`, `soft shell` | ₹2,000 | ₹1,500 |
+| **HBOT (Hard Shell)** | `hbot hard`, `hard shell` | ₹2,000 | ₹1,500 |
+| **EMS Training** | `ems`, `ems training` | ₹1,800 | ₹1,500 |
+| **Focused Shockwave Therapy** | `focused shockwave` | ₹2,000 | ₹1,800 |
+| **Ice Bath** | `ice bath` | ₹2,000 | ₹1,500 |
+| **Couple Ice Bath** | `couple ice bath` | ₹2,500 | ₹2,500 |
+| **Cryotherapy** | `cryotherapy`, `cryo` | ₹2,500 | ₹2,250 |
+| **Basic Physiotherapy (BMSK)**| `bmsk`, `basic physio` | ₹1,000 | ₹800 |
+| **Advance Physio (AMSK)** | `amsk`, `advance physio` | ₹1,800 | ₹1,500 |
+| **Robotic Spine Aligner** | `robotic spine`, `aligner` | ₹2,000 | ₹1,800 |
+| **Spine Decompression** | `spine decompression` | ₹1,800 | ₹1,500 |
+| **Pilates** | `pilates` | ₹1,000 | ₹800 |
+| **Prism** | `prism` | ₹500 | ₹500 |
+
+### 4.2 Classification Logic (`classifyService`)
+
+Every row is evaluated in order through 6 rules:
+
+```javascript
+function classifyService(packageName, amountPaid, totalPackageCost) {
+  if (!packageName) return 'unknown';
+  const lower = packageName.toLowerCase().trim();
+
+  // Rule 0: Foot Insoles product -> single_session
+  if (lower.includes('foot insole') || lower.includes('insole')) return 'single_session';
+
+  // Rule 1: Multi-session package pattern (e.g. -3, -4, -6, -12) -> package
+  if (/[-_\s]([2-9]|\d{2,})\b/.test(lower) && !lower.includes('ss')) return 'package';
+
+  // Rule 2: Single session explicit tags (-ss, ss-1, single session) -> single_session
+  if (lower.includes('-ss') || lower.includes('ss-1') || lower.includes('single session')) return 'single_session';
+
+  // Rule 3: Default Top Up / NA with ₹499 or ₹1500 amount -> consultation; else package
+  if (lower === 'default top up' || lower === 'n/a' || lower === '') {
+    const amt = Math.round(amountPaid || 0);
+    const cost = Math.round(totalPackageCost || 0);
+    if (amt === 499 || amt === 1500 || cost === 499 || cost === 1500) return 'consultation';
+    return 'package';
+  }
+
+  // Rule 4: Consultation Keywords Check
+  for (const kw of config.consultationKeywords) {
+    if (lower.includes(kw.toLowerCase())) return 'consultation';
+  }
+
+  // Rule 5: Single Session Keywords Check
+  for (const kw of config.singleSessionKeywords) {
+    if (lower.includes(kw.toLowerCase())) return 'single_session';
+  }
+
+  // Default fallback
+  return 'package';
 }
-
-// Rule 4 & 5: Configured Consultation & Single Session Keywords
 ```
 
 ---
 
-### 3. Patient Grouping & Proportional Revenue Allocation (`groupPatients`)
+## 🧮 5. Deep-Dive Multi-Pass Patient Grouping & Allocation Algorithm (`groupPatients`)
 
-#### **Pass 1: Raw Row Grouping**
-Groups invoice transactions by `patientId` (or `patientName`).
-
-#### **Pass 2: Chronological Per-Date Allocation**
-For each payment date:
-1. **Consultation Allocation**: Deducts exact fixed fee (e.g. ₹499 or ₹1,500) from `dateTotalPaid`.
-2. **Single Session Allocation**: Deducts master list single session price (e.g. ₹1,800, ₹2,360) from remaining funds.
-3. **Package Allocation**: Distributes remaining advance payment proportionally across active treatment packages based on their sticker costs (`packageCost`):
-   $$\text{Proportional Paid} = \left( \frac{\text{Package Cost}}{\sum \text{Package Costs}} \right) \times \text{Remaining Advance Paid}$$
-
-#### **Pass 3: Renewal & Package Ordinal Tracking**
-* Evaluates chronological payment sequence per package category (Pain Management, Wellness, Robotic Spine, BMSK).
-* **Initial Package**: The 1st treatment package purchased after consultation.
-* **Package Renewal**: Any subsequent package purchased in the same category on a later date.
+### 5.1 Pass 1: Raw Row Grouping
+Groups raw invoice records into a dictionary keyed by `patientId` (or `patientName`). Tracks global patient flags (`hasConsultation`, `hasPackage`, `hasSingleSession`, sets of `doctors`, `agents`, `leadSources`).
 
 ---
 
-### 4. Patient Status Categories
+### 5.2 Pass 2: Chronological Per-Date Allocation & Contract Propagation
 
-| Status Label | Criteria |
-|---|---|
-| **Only Consultation** | Has consultation, no packages, no single sessions |
-| **Consultation + Package** | Has consultation and treatment package(s) |
-| **Consultation + Single Session** | Has consultation and single session(s) |
-| **Consultation + Package + Single Session** | Has consultation, package(s), and single session(s) |
-| **Only Package** | Direct package purchase without clinical consultation |
-| **Only Single Session** | Direct single session purchase without consultation |
-| **Package + Single Session** | Package and single session without consultation |
-| **Package Renewal** | Patient who renewed a treatment package |
+#### **1. Contract Cost & Metadata Propagation**
+- **Date Contract Propagation (`totalPackageCost` / Col 7)**: If a patient has multiple package rows on the same payment date, and one row has an explicit `totalPackageCost` (Col 7), that contract total is propagated to all package rows for that date.
+- **Invoice Number & Payment Mode Propagation**: Propagates `invoiceNo` and `paymentMode` across package rows within the same cart/transaction.
+
+#### **2. Per-Date Revenue Allocation Steps**
+For each payment date `dateKey`:
+
+- **Step 1: Consultation Allocation**:
+  Deducts exact consultation fee (₹499 or ₹1,500) from `dateTotalPaid`:
+  $$\text{Consultation Allocated} = \min(\text{Consultation Fee}, \text{Date Total Paid})$$
+  $$\text{Remaining Date Paid} = \text{Date Total Paid} - \text{Consultation Allocated}$$
+
+- **Step 2: Single Session Allocation**:
+  Deducts single-session price from `Remaining Date Paid`:
+  $$\text{Single Session Allocated} = \min(\text{Single Session Price}, \text{Remaining Date Paid})$$
+  $$\text{Remaining Date Paid} = \text{Remaining Date Paid} - \text{Single Session Allocated}$$
+
+- **Step 3: Package Advance Payment Allocation**:
+  Allocates `Remaining Date Paid` to treatment packages:
+  - **Zero-Paid Bundle Rows Case**: If any package row has `amountPaid == 0`, distribute `Remaining Date Paid` **proportionally** based on sticker `packageCost`:
+    $$\text{Proportional Paid}_i = \left( \frac{\text{Package Cost}_i}{\sum \text{Package Cost}} \right) \times \text{Remaining Date Paid}$$
+  - **Explicit Amount Paid Case**: Allocate `min(amountPaid, dateRemaining)`.
+
+- **Step 4: Multi-Package Quantity Factor (`dateQtyFactor`)**:
+  If invoice package contract total $\ge 1.95 \times$ sticker total, `dateQtyFactor = Math.round(invoicePackageTotal / stickerTotal)`.
+
+#### **3. Category-Based Renewal & Installment Identification Algorithm**
+Sorts all package rows chronologically ascending:
+- Maintains running `categoryCostSum[cat]` and `categoryPaidSum[cat]` per package category (`Pain Management`, `Wellness`, `Robotic Spine`, `BMSK`).
+- **Installment Payment Condition**:
+  If $\text{categoryPaidSum}[cat] < \text{categoryCostSum}[cat] - 0.01$:
+  - Row is marked as an **installment payment** (`isInstallment = true`).
+  - Keeps the `purchaseId` and `isRenewal` flag of the active purchase.
+- **New Purchase / Renewal Condition**:
+  Else:
+  - Row is a new package purchase (`isInstallment = false`).
+  - If patient has consultation (`p.hasConsultation`), purchase date is after 1st package date, AND package category matches initial category $\Rightarrow$ Tagged as **Renewal** (`isRenewal = true`).
 
 ---
 
-### 5. Doctor Incentive & Conversion Metrics (`doctorMap`)
-Only **Initial Package Conversions** (1st package after consultation) are credited to doctors for incentive rankings to prevent double-counting renewals:
-* **Consultations Counted**: Patients who had a consultation with the doctor.
-* **Pain Management Conversions**: Converted patients who bought a Pain Management package (e.g. PM-12, PM-6).
-* **Pain Mgmt Conversion Rate %**:
-  $$\text{PM Conv \%} = \min\left(100, \frac{\text{PM Converted Patients}}{\text{Total Consultations}} \times 100\right)$$
+### 5.3 Pass 3: Aggregation, EMR Bundle Scaling, & Final Status
+
+#### **1. EMR Bundle Total Scaling**
+If EMR bundle total (`bundleTotalFromExcel` / Col 7) is less than the sum of sticker package costs (`stickerTotal`):
+$$\text{bundleScaleFactor} = \frac{\text{bundleTotalFromExcel}}{\text{stickerTotal}}$$
+$$\text{Effective Package Value} = \text{Package Cost} \times \text{bundleScaleFactor}$$
+
+#### **2. Total Package Value Calculation**
+$$\text{totalPackageValue} = \text{initialBundleVal} + \text{renewalBundleVal}$$
+
+#### **3. Patient Status Determination Matrix (`determineStatus`)**
+
+| Consultation? | Package? | Single Session? | Final Status Label |
+|:---:|:---:|:---:|---|
+| Yes | Yes | Yes | `Consultation + Package + Single Session` |
+| Yes | Yes | No | `Consultation + Package` |
+| Yes | No | Yes | `Consultation + Single Session` |
+| Yes | No | No | `Only Consultation` |
+| No | Yes | Yes | `Package + Single Session` |
+| No | Yes | No | `Only Package` |
+| No | No | Yes | `Only Single Session` |
 
 ---
 
-### 6. AI Watchdog Data Integrity Audit Engine (`runDataIntegrityAudit`)
-Runs 11 automated verification checks:
-1. **Total Revenue Verification**: Validates sum of `totalPaid` against sum of categorized revenues (`consultation` + `package` + `single_session`).
-2. **Consultation Revenue Audit**: Checks for unallocated consultation payments.
-3. **Package Revenue Audit**: Verifies treatment package allocations.
-4. **Single Session Revenue Audit**: Verifies standalone session allocations.
-5. **Negative / Zero Payment Anomalies**: Identifies records with ₹0 collection.
-6. **Unknown Service Categories**: Flags unmapped package names.
-7. **Package Value Overpayment Check**: Detects overpayment anomalies.
-8. **Duplicate Patient Detection**: Identifies potential duplicate patient records.
-9. **Status Sum Verification**: Verifies status count sum equals total patient count.
-10. **Renewal Sequence Audit**: Ensures renewals have prior initial package records.
-11. **Ordinal Jump Audit**: Detects installment-induced ordinal jumps (e.g. 1st -> 3rd).
+## 🏆 6. Metrics & Doctor Incentive Leaderboard Logic (`computeMetrics`)
+
+### 6.1 Revenue & Patient Metrics
+- **Total Patients**: Total unique patient count.
+- **Consultation Patients**: Patients with `hasConsultation == true`.
+- **Conversion Rate %**:
+  $$\text{Conversion Rate \%} = \frac{\text{Converted Patients (Consult + Pkg)}}{\text{Total Consultation Patients}} \times 100$$
+- **Revenue Categories**: `totalRevenue`, `consultationRevenue`, `packageRevenue`, `ssRevenue`, `renewalTotalRevenue`.
+
+### 6.2 Doctor Incentive Ranking & Pain Management Conversion Algorithm
+To prevent double-counting renewals, **ONLY initial package conversions (1st package after consult)** count toward Doctor Incentive rankings:
+
+- **Doctor Consultations**: Patients who consulted with Doctor X (`p.hasConsultation == true`).
+- **Doctor Converted Patients**: Consulted patients who purchased an **Initial Treatment Package** (`!isRenewal`).
+- **Pain Management Converted Patients**: Converted patients whose initial package was a **Pain Management Package** (e.g. PM-12, PM-6).
+- **Doctor Pain Management Conversion Rate %**:
+  $$\text{Doctor PM Conv \%} = \min\left(100, \frac{\text{Pain Mgmt Converted Patients}}{\text{Doctor Consultations}} \times 100\right)$$
+
+#### Doctor Ranking & Badge System:
+Doctors are sorted by `painMgmtCount` descending, then `painMgmtRevenue` descending:
+- **Rank 1**: `🥇 1st` $\rightarrow$ Badge: `⭐ Top Converter` (`badge-emerald`)
+- **Rank 2 & 3**: `🥈 2nd`, `🥉 3rd` $\rightarrow$ Badge: `🔥 High Performer` (`badge-purple`)
+- **Rank 4+**: `#N` $\rightarrow$ Badge: `👍 Contributor` (`badge-cyan`)
 
 ---
 
-## ⚡ How to Connect / Duplicate `index.html` with a Live Database API
+## 🛡️ 7. AI Watchdog Data Integrity Audit Engine (`runDataIntegrityAudit`)
 
-To replace manual Excel uploading with a live database feed (Google Apps Script Web App, Supabase, Vercel Serverless API, or PostgreSQL REST Endpoint), follow these steps:
+The watchdog executes 11 mathematical audit algorithms to ensure 100% data integrity:
 
-### 1. Live API Data Fetch Function (`fetchLiveCollectionData`)
+```mermaid
+flowchart LR
+    A[Run Audit] --> B1[1. Revenue Match]
+    A --> B2[2. Consult Allocation]
+    A --> B3[3. Package Allocation]
+    A --> B4[4. SS Allocation]
+    A --> B5[5. Zero/Negative Payments]
+    A --> B6[6. Unmapped Services]
+    A --> B7[7. Overpayment Check]
+    A --> B8[8. Duplicate Names]
+    A --> B9[9. Status Sum Match]
+    A --> B10[10. Renewal Sequence]
+    A --> B11[11. Ordinal Sequence]
+```
 
-Add this live fetch function into the JavaScript block of `index.html`:
+### Audit Specifications:
+1. **Total Revenue Verification**:
+   Validates if $| \text{totalPaid} - (\text{consultationRev} + \text{packageRev} + \text{ssRev}) | < 0.01$.
+2. **Consultation Revenue Audit**:
+   Ensures consultation revenue matches expected fee sum.
+3. **Package Revenue Audit**:
+   Verifies treatment package proportional allocations.
+4. **Single Session Revenue Audit**:
+   Verifies standalone session allocations.
+5. **Zero / Negative Payment Check**:
+   Identifies collection rows where `amountPaid <= 0`.
+6. **Unmapped Service Classification Check**:
+   Flags packages returning `classifyService == 'unknown'`.
+7. **Package Value Overpayment Check**:
+   Flags records where `proportionalPaid > packageCost * 1.5`.
+8. **Duplicate Patient Name Detection**:
+   Identifies potential duplicate patient records via normalized names (`trim().toLowerCase()`).
+9. **Status Count Sum Verification**:
+   Verifies $\sum \text{statusCounts} == \text{totalPatients}$.
+10. **Renewal Sequence Audit**:
+    Flags patients with `isRenewal == true` but no initial package record.
+11. **Package Renewal Ordinal Sequence Audit**:
+    Validates package ordinal sequences (e.g. 1st $\to$ 2nd $\to$ 3rd) to ensure installment splitting did not cause ordinal jumps.
+
+---
+
+## ⚡ 8. Live Database Connection & Duplication Blueprint
+
+To replace manual Excel uploading with a live API feed (Google Apps Script Web App, Supabase, Vercel Serverless API, or PostgreSQL Endpoint), add this function:
 
 ```javascript
 const LIVE_COLLECTION_API_URL = 'YOUR_LIVE_DATABASE_API_URL_HERE';
@@ -173,7 +335,6 @@ async function fetchLiveCollectionData() {
       throw new Error('No records returned from live database API');
     }
 
-    // Auto-detect columns from live JSON keys
     const sampleKeys = Object.keys(rows[0]);
     columnMap = detectColumns(sampleKeys);
 
@@ -194,7 +355,6 @@ async function fetchLiveCollectionData() {
       cartId:           String(r.cartId || r['Cart ID'] || '').trim()
     })).filter(r => r.patientName !== '');
 
-    // Process & Render Live Dashboard
     allPatients = groupPatients(rawRows);
     filteredPatients = allPatients;
     currentMetrics = computeMetrics(filteredPatients);
@@ -202,11 +362,9 @@ async function fetchLiveCollectionData() {
     populateFilters();
     renderDashboard(currentMetrics, filteredPatients);
 
-    // Run AI Watchdog Audit
     const auditResults = runDataIntegrityAudit(currentMetrics, filteredPatients);
     renderAuditResults(auditResults);
 
-    // Show Dashboard UI
     document.getElementById('upload-section').classList.add('hidden');
     document.getElementById('dashboard-section').classList.remove('hidden');
     document.getElementById('dash-file-name').textContent = 'Live Database Sync';
@@ -223,26 +381,12 @@ async function fetchLiveCollectionData() {
 }
 ```
 
-### 2. Auto-Sync on Page Load (`DOMContentLoaded`)
-
-Replace the file upload listener in `document.addEventListener('DOMContentLoaded')` with auto-sync:
-
-```javascript
-document.addEventListener('DOMContentLoaded', () => {
-  config = loadConfig();
-  initTheme();
-  
-  // Auto-connect to Live Database on startup
-  fetchLiveCollectionData();
-});
-```
-
 ---
 
-## 🎯 Summary of Key Files in Repository
+## 🎯 9. Summary of Repository Modules
 
 * **`index.html`**: Daily Collection Report Analyzer & Conversion Intelligence Dashboard.
 * **`calling_analyzer.html`**: Master Calling Operations & Lead Dialing Intelligence Dashboard.
 * **`appointment_analyzer.html`**: Patient Appointment Schedule & Attendance Analyzer.
 * **`api/leads.js`**: Vercel Serverless Proxy endpoint for CORS-free Google Apps Script database fetching.
-* **`context.md`**: Complete technical documentation & architecture specification.
+* **`context.md`**: Complete technical documentation & logic blueprint specification.
