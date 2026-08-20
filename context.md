@@ -171,18 +171,94 @@ function classifyService(packageName, amountPaid, totalPackageCost) {
 
 ## 🧮 5. Deep-Dive Multi-Pass Patient Grouping & Allocation Algorithm (`groupPatients`)
 
-### 5.1 Pass 1: Raw Row Grouping
-Groups raw invoice records into a dictionary keyed by `patientId` (or `patientName`). Tracks global patient flags (`hasConsultation`, `hasPackage`, `hasSingleSession`, sets of `doctors`, `agents`, `leadSources`).
+The core analytical engine of `index.html` resides in `groupPatients(rows, globalPatients)`. It transforms unstructured, multi-line billing records into clean, audit-verified patient treatment profiles across 3 sequential execution passes:
 
 ---
 
-### 5.2 Pass 2: Chronological Per-Date Allocation & Contract Propagation
+### 5.1 Pass 1: Raw Row Ingestion & Base Profile Initialization
+
+In Pass 1, raw billing records are grouped into patient profile objects keyed by `patientId` (or `patientName`):
+
+```javascript
+for (const row of rows) {
+  const key = row.patientId || row.patientName;
+  if (!key) continue;
+
+  if (!patients[key]) {
+    patients[key] = {
+      name: row.patientName,
+      id: row.patientId,
+      _rawRows: [],             // Array of normalized billing rows (cleared in Pass 3)
+      services: [],             // Final merged service objects
+      hasConsultation: false,   // True if patient had clinical consult (₹499 / ₹1500)
+      hasPackage: false,        // True if patient purchased multi-session package
+      hasSingleSession: false,  // True if patient purchased single-session service
+      status: '',               // Evaluated in Pass 3 (e.g. 'Consultation + Package')
+      doctors: new Set(),       // Unique consulting doctors
+      agents: new Set(),        // Unique counsellors / agents
+      leadSources: new Set(),   // Unique lead channels (Instagram, Facebook, etc.)
+      totalPaid: 0,             // Total sum of amountPaid across all dates
+      totalPackageValue: 0,     // Total contract value of all package purchases
+      consultationRevenue: 0,  // Revenue allocated to consultation
+      packageRevenue: 0,       // Revenue allocated to treatment packages
+      singleSessionRevenue: 0,  // Revenue allocated to single session services
+      packages: []              // Array of package names purchased
+    };
+  }
+
+  const p = patients[key];
+  const serviceType = classifyService(row.packageName, row.amountPaid, row.totalPackageCost);
+  const pkgName = (row.packageName || '').trim();
+
+  // Determine standard package cost based on service category & master price list
+  let pkgPrice = row.packageCost;
+  if (serviceType === 'consultation') {
+    pkgPrice = pkgName.toLowerCase().includes('women') ? 1500 : 499;
+  } else if (serviceType === 'single_session') {
+    pkgPrice = getSingleSessionPrice(pkgName, row.packageCost);
+  } else if (serviceType === 'package') {
+    pkgPrice = getPackagePrice(pkgName, row.packageCost);
+  }
+
+  p._rawRows.push({
+    packageName: pkgName,
+    type: serviceType,
+    doctor: row.doctor,
+    agent: row.agent,
+    leadSource: row.leadSource,
+    paymentDate: row.paymentDate,
+    amountPaid: row.amountPaid,
+    packageCost: pkgPrice,
+    totalPackageCost: row.totalPackageCost,
+    paymentMode: row.paymentMode,
+    invoiceNo: row.invoiceNo,
+    proportionalPaid: 0,
+    quantity: 1,
+    userplanId: row.userplanId,
+    cartId: row.cartId
+  });
+
+  p.totalPaid += row.amountPaid;
+  if (serviceType === 'consultation') p.hasConsultation = true;
+  if (serviceType === 'package') p.hasPackage = true;
+  if (serviceType === 'single_session') p.hasSingleSession = true;
+  if (row.doctor) p.doctors.add(row.doctor);
+  if (row.agent) p.agents.add(row.agent);
+  if (row.leadSource) p.leadSources.add(row.leadSource);
+}
+```
+
+---
+
+### 5.2 Pass 2: Chronological Per-Date Allocation & Contract Metadata Propagation
+
+Pass 2 sorts each patient's `_rawRows` chronologically ascending by `paymentDate` and executes per-date revenue allocation and metadata propagation:
 
 #### **1. Contract Cost & Metadata Propagation**
-- **Date Contract Propagation (`totalPackageCost` / Col 7)**: If a patient has multiple package rows on the same payment date, and one row has an explicit `totalPackageCost` (Col 7), that contract total is propagated to all package rows for that date.
+- **Date Contract Propagation (`totalPackageCost` / Col 7)**: If a patient has multiple package rows on the same payment date and one row has an explicit `totalPackageCost` (Col 7), that contract total is propagated to all package rows for that date.
 - **Invoice Number & Payment Mode Propagation**: Propagates `invoiceNo` and `paymentMode` across package rows within the same cart/transaction.
 
-#### **2. Per-Date Revenue Allocation Steps**
+#### **2. Per-Date Revenue Allocation Hierarchy**
 For each payment date `dateKey`:
 
 - **Step 1: Consultation Allocation**:
@@ -205,30 +281,107 @@ For each payment date `dateKey`:
   If invoice package contract total $\ge 1.95 \times$ sticker total, `dateQtyFactor = Math.round(invoicePackageTotal / stickerTotal)`.
 
 #### **3. Category-Based Renewal & Installment Identification Algorithm**
-Sorts all package rows chronologically ascending:
-- Maintains running `categoryCostSum[cat]` and `categoryPaidSum[cat]` per package category (`Pain Management`, `Wellness`, `Robotic Spine`, `BMSK`).
-- **Installment Payment Condition**:
-  If $\text{categoryPaidSum}[cat] < \text{categoryCostSum}[cat] - 0.01$:
-  - Row is marked as an **installment payment** (`isInstallment = true`).
-  - Keeps the `purchaseId` and `isRenewal` flag of the active purchase.
-- **New Purchase / Renewal Condition**:
-  Else:
-  - Row is a new package purchase (`isInstallment = false`).
-  - If patient has consultation (`p.hasConsultation`), purchase date is after 1st package date, AND package category matches initial category $\Rightarrow$ Tagged as **Renewal** (`isRenewal = true`).
+
+To accurately distinguish between **installment payments** (paying for 1 package across multiple dates) and **true package renewals** (buying a 2nd or 3rd package after completing the 1st), the algorithm tracks category-level financial progress chronologically:
+
+```javascript
+const allPkgRows = p._rawRows.filter(r => r.type === 'package');
+allPkgRows.sort((a, b) => parseTimestamp(a.paymentDate) - parseTimestamp(b.paymentDate));
+
+if (allPkgRows.length > 0) {
+  const firstDateStr = getRowDateStr(allPkgRows[0]);
+  const initialPkgCategory = getPackageCategory(allPkgRows[0].packageName);
+
+  const categoryCostSum = {};
+  const categoryPaidSum = {};
+  const categoryActivePurchase = {};
+
+  allPkgRows.forEach((row) => {
+    const cat = getPackageCategory(row.packageName);
+    const rowDateStr = getRowDateStr(row);
+    const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
+    const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : rowDateStr;
+
+    if (!(cat in categoryCostSum)) {
+      // First package purchase in this category -> 1st Package (Initial)
+      categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+      categoryPaidSum[cat] = 0;
+      row.isInstallment = false;
+      row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
+
+      // Check if it's a renewal: Patient had consult, date is later, and category matches initial category
+      const isSameCategoryAsFirst = (cat === initialPkgCategory);
+      if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+        row.isRenewal = true;
+      } else {
+        row.isRenewal = false;
+      }
+
+      categoryActivePurchase[cat] = row;
+    } else {
+      const prevPaid = categoryPaidSum[cat];
+      const prevCost = categoryCostSum[cat];
+
+      if (prevPaid < prevCost - 0.01) {
+        // Unpaid balance remains on prior package -> Tagged as Installment Payment (NOT a Renewal)
+        row.isInstallment = true;
+        row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
+        row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
+      } else {
+        // Prior package fully paid -> Tagged as New Package Purchase
+        row.isInstallment = false;
+        row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
+
+        const isSameCategoryAsFirst = (cat === initialPkgCategory);
+        if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+          row.isRenewal = true;  // Tagged as Renewal Package!
+        } else {
+          row.isRenewal = false;
+        }
+
+        categoryActivePurchase[cat] = row;
+        categoryCostSum[cat] += row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+      }
+    }
+
+    categoryPaidSum[cat] += (row.proportionalPaid || 0);
+  });
+}
+```
 
 ---
 
-### 5.3 Pass 3: Aggregation, EMR Bundle Scaling, & Final Status
+### 5.3 Pass 3: Aggregation, EMR Bundle Scaling, & Renewal Ordinal Stage Labelling
 
-#### **1. EMR Bundle Total Scaling**
-If EMR bundle total (`bundleTotalFromExcel` / Col 7) is less than the sum of sticker package costs (`stickerTotal`):
+#### **1. Service Merging (`pkgMap`)**
+Pass 3 aggregates `_rawRows` by `svcKey` (`packageName_type_isRenewal_purchaseId`) to sum `amountPaid` and `proportionalPaid` while keeping initial package purchases distinct from renewal purchases.
+
+#### **2. EMR Bundle Total Scaling (`bundleScaleFactor`)**
+If EMR bundle contract total (`bundleTotalFromExcel` / Col 7) is less than the sum of individual sticker costs (`stickerTotal`):
 $$\text{bundleScaleFactor} = \frac{\text{bundleTotalFromExcel}}{\text{stickerTotal}}$$
-$$\text{Effective Package Value} = \text{Package Cost} \times \text{bundleScaleFactor}$$
+$$\text{Effective Package Value} = \text{Sticker Package Cost} \times \text{bundleScaleFactor}$$
 
-#### **2. Total Package Value Calculation**
-$$\text{totalPackageValue} = \text{initialBundleVal} + \text{renewalBundleVal}$$
+#### **3. Package Renewal Ordinal Sequence Stage Labelling**
+Every package purchase is assigned an ordinal stage label based on its chronological purchase sequence within its treatment category:
 
-#### **3. Patient Status Determination Matrix (`determineStatus`)**
+```javascript
+function getPackageStageLabel(svc, allServices) {
+  if (svc.type !== 'package') return svc.type;
+  if (!svc.isRenewal) return '1st Package (Initial)';
+
+  const cat = getPackageCategory(svc.packageName);
+  const sameCatRenewals = allServices
+    .filter(s => s.type === 'package' && s.isRenewal && getPackageCategory(s.packageName) === cat)
+    .sort((a, b) => (a.paymentDate ? new Date(a.paymentDate).getTime() : 0) - (b.paymentDate ? new Date(b.paymentDate).getTime() : 0));
+
+  const renewalIndex = sameCatRenewals.findIndex(s => s.purchaseId === svc.purchaseId || s.packageName === svc.packageName);
+  if (renewalIndex === 0) return '2nd Package (Renewal 1)';
+  if (renewalIndex === 1) return '3rd Package (Renewal 2)';
+  return `${renewalIndex + 2}th Package (Renewal ${renewalIndex + 1})`;
+}
+```
+
+#### **4. Patient Status Determination Matrix (`determineStatus`)**
 
 | Consultation? | Package? | Single Session? | Final Status Label |
 |:---:|:---:|:---:|---|
