@@ -2752,19 +2752,21 @@
       // Agent-wise metrics
       const agentMap = {};
       for (const p of pList) {
+        const isConverted = p.hasConsultation && (p.services || []).some(s => s.type === 'package' && !s.isRenewal);
         for (const agent of p.agents) {
           if (!agent) continue;
           if (!agentMap[agent]) agentMap[agent] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           agentMap[agent].total++;
           agentMap[agent].revenue += p.totalPaid;
           if (p.hasConsultation) agentMap[agent].consultation++;
-          if (p.hasPackage) agentMap[agent].package++;
+          if (isConverted) agentMap[agent].package++;
         }
       }
 
       // Lead source-wise metrics
       const sourceMap = {};
       for (const p of pList) {
+        const isConverted = p.hasConsultation && (p.services || []).some(s => s.type === 'package' && !s.isRenewal);
         for (let src of p.leadSources) {
           if (!src) continue;
           if (src.toLowerCase().includes('referral') || src.toLowerCase().includes('word of mouth')) {
@@ -2774,7 +2776,7 @@
           sourceMap[src].total++;
           sourceMap[src].revenue += p.totalPaid;
           if (p.hasConsultation) sourceMap[src].consultation++;
-          if (p.hasPackage) sourceMap[src].package++;
+          if (isConverted) sourceMap[src].package++;
         }
       }
 
