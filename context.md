@@ -156,7 +156,7 @@ To replace manual Excel uploading with a live database feed (Google Apps Script 
 Add this live fetch function into the JavaScript block of `index.html`:
 
 ```javascript
-const LIVE_COLLECTION_API_URL = 'https://script.google.com/macros/s/AKfycbydQHHVFH09ydbP6he_sEa8jhgD1WccWoA9wqWRlv1mDAM6q5o0Nt7PbWuDKI4wxmOs/exec';
+const LIVE_COLLECTION_API_URL = 'YOUR_LIVE_DATABASE_API_URL_HERE';
 
 async function fetchLiveCollectionData() {
   const loadingOverlay = document.getElementById('loading-overlay');
