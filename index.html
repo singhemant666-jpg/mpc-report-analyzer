@@ -1844,6 +1844,11 @@
         if (urls.includes('whatsapp.com') || urls.includes('wa.me')) return 'WhatsApp';
       }
 
+      // Check Referral & Word of Mouth
+      if (lowerStr.includes('referral') || lowerStr.includes('word of mouth') || lowerStr.includes('word_of_mouth') || lowerStr === 'wom' || lowerStr.includes('patient ref') || lowerStr.includes('doctor ref')) {
+        return 'Referral & Word of Mouth';
+      }
+
       // Check raw text / URLs in string
       if (lowerStr.includes('instagram.com') || lowerStr.includes('ig.me') || lowerStr.includes('instagr.am') || lowerStr.includes('instagram')) {
         return 'Instagram';
@@ -2760,8 +2765,11 @@
       // Lead source-wise metrics
       const sourceMap = {};
       for (const p of pList) {
-        for (const src of p.leadSources) {
+        for (let src of p.leadSources) {
           if (!src) continue;
+          if (src.toLowerCase().includes('referral') || src.toLowerCase().includes('word of mouth')) {
+            src = 'Referral & Word of Mouth';
+          }
           if (!sourceMap[src]) sourceMap[src] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           sourceMap[src].total++;
           sourceMap[src].revenue += p.totalPaid;
@@ -3399,30 +3407,37 @@
       const ctx = document.getElementById('chart-source-pie');
       if (!ctx) return;
 
-      const sources = Object.entries(m.sourceMap || {})
-        .filter(([name, data]) => name && data.consultation > 0)
+      const entries = Object.entries(m.sourceMap || {})
+        .filter(([name, data]) => name && (data.consultation > 0 || data.total > 0));
+
+      const totalLeads = entries.reduce((sum, [_, d]) => sum + (d.consultation || d.total || 0), 0);
+
+      const sources = entries
         .map(([name, data]) => {
-          const convPct = data.consultation > 0 ? Math.min(100, Math.round((data.package / data.consultation) * 100)) : 0;
+          const leadCount = data.consultation || data.total || 0;
+          const sharePct = totalLeads > 0 ? ((leadCount / totalLeads) * 100).toFixed(1) : '0';
+          const convPct = data.consultation > 0 ? Math.min(100, Math.round(((data.package || 0) / data.consultation) * 100)) : 0;
           return {
             name,
-            consultation: data.consultation,
-            package: data.package,
-            revenue: data.revenue,
+            leadCount,
+            package: data.package || 0,
+            revenue: data.revenue || 0,
+            sharePct,
             convPct
           };
         })
-        .sort((a, b) => b.convPct !== a.convPct ? b.convPct - a.convPct : b.revenue - a.revenue);
+        .sort((a, b) => b.leadCount !== a.leadCount ? b.leadCount - a.leadCount : b.revenue - a.revenue);
 
       if (sources.length === 0) {
         if (ctx.parentElement) {
-          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No lead source conversion data available</div>';
+          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No lead source data available</div>';
         }
         return;
       }
 
-      const bestSource = sources[0];
-      const labels = sources.map(s => `${s.name} (${s.convPct}%)`);
-      const data = sources.map(s => s.package > 0 ? s.package : s.consultation);
+      const topSource = sources[0];
+      const labels = sources.map(s => `${s.name} (${s.sharePct}% Share • ${s.convPct}% Conv)`);
+      const data = sources.map(s => s.leadCount);
 
       chartInstances.sourcePie = new Chart(ctx, {
         type: 'doughnut',
@@ -3450,16 +3465,16 @@
                 label: (ctx) => {
                   const s = sources[ctx.dataIndex];
                   return [
-                    ` 🎯 ${s.name}: ${s.convPct}% Conversion Rate`,
-                    ` 📦 Packages Converted: ${s.package} of ${s.consultation} Consultations`,
+                    ` 📊 ${s.name}: ${s.sharePct}% Share of Total Leads (${s.leadCount} of ${totalLeads})`,
+                    ` 🎯 Conversion Rate: ${s.convPct}% (${s.package} Packages / ${s.leadCount} Consultations)`,
                     ` 💰 Total Revenue: ${formatCurrency(s.revenue)}`
                   ];
                 }
               }
             },
             centerText: {
-              text: `${bestSource.convPct}%`,
-              subtext: `Best: ${bestSource.name}`
+              text: `${topSource.sharePct}%`,
+              subtext: `Top: ${topSource.name.length > 14 ? topSource.name.substring(0, 12) + '...' : topSource.name}`
             }
           },
           cutout: '70%'
