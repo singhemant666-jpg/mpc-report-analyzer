@@ -1457,7 +1457,10 @@
       </div>
 
       <!-- Quick Metrics Ribbon -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;" id="dpm-metrics-ribbon"></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:12px;" id="dpm-metrics-ribbon"></div>
+
+      <!-- Package Tier Breakdown Bar inside Modal -->
+      <div style="background:var(--bg-card-light); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:14px;" id="dpm-tier-breakdown"></div>
 
       <!-- Filter Controls & Search inside Modal -->
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; background:var(--bg-card-light); padding:10px 14px; border-radius:8px; border:1px solid var(--border);">
@@ -4424,6 +4427,23 @@
       document.getElementById('dpm-count-initial').textContent = initialCount;
       document.getElementById('dpm-count-consult').textContent = consultCount;
 
+      let initialPkgContractsCount = 0;
+      let renewalPkgContractsCount = 0;
+      const doctorPkgBreakdown = {};
+
+      for (const p of currentDPMPatients) {
+        const rawP = p.rawPatient;
+        if (!rawP || !rawP.services) continue;
+        for (const s of rawP.services) {
+          if (s.type === 'package') {
+            const pName = s.packageName || 'Unknown';
+            doctorPkgBreakdown[pName] = (doctorPkgBreakdown[pName] || 0) + 1;
+            if (s.isRenewal) renewalPkgContractsCount++;
+            else initialPkgContractsCount++;
+          }
+        }
+      }
+
       const totalRev = currentDPMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
       const totalRenRev = currentDPMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
       const pkgCount = currentDPMPatients.filter(p => p.hasPackage).length;
@@ -4437,12 +4457,12 @@
             <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentDPMPatients.length}</div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PKG CONVERSIONS</div>
-            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${pkgCount} (${convRate}%)</div>
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKGS SOLD</div>
+            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${initialPkgContractsCount} <span style="font-size:11px; opacity:0.8;">(${convRate}%)</span></div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL PATIENTS</div>
-            <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalCount}</div>
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL PKGS SOLD</div>
+            <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalPkgContractsCount} <span style="font-size:11px; opacity:0.8;">(${renewalCount} Patients)</span></div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
             <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
@@ -4452,6 +4472,20 @@
             <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
             <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
           </div>
+        `;
+      }
+
+      const tierContainer = document.getElementById('dpm-tier-breakdown');
+      if (tierContainer) {
+        const sortedTiers = Object.entries(doctorPkgBreakdown).sort((a, b) => b[1] - a[1]);
+        const tierBadges = sortedTiers.map(([name, cnt]) => {
+          const short = name.replace(/Pain Management/i, 'PM');
+          return `<span class="badge badge-purple" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">${short}: <strong>${cnt}</strong></span>`;
+        }).join(' ');
+
+        tierContainer.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages):</div>
+          <div>${tierBadges || '<span style="color:var(--text-muted)">-</span>'}</div>
         `;
       }
 
