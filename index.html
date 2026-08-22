@@ -5686,6 +5686,7 @@
 
           rawRows = cached.rawRows.map(row => ({
             ...row,
+            patientName: row.patientName || row.name || '',
             name: row.patientName || row.name || '',
             paymentDate: row.paymentDate ? new Date(row.paymentDate) : null
           }));
