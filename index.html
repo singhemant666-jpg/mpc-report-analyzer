@@ -7,8 +7,8 @@
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <script src="env.js"></script>
+  <script>window.ENV = window.ENV || {};</script>
+  <script src="env.js" onerror="console.log('env.js not present, using runtime environment settings');"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -6227,68 +6227,85 @@
     // ==================== AI ANALYSIS & ACCURACY AUDIT ENGINE ====================
     function runDataIntegrityAudit(m, patients) {
       const pList = Object.values(patients || {});
-      const checks = [];
+      const issues = [];
 
       // Check 1: Patient Count Consistency
       const actualCount = pList.length;
       const reportedCount = m.totalPatients || 0;
-      checks.push({
-        name: 'Patient Count Audit',
-        passed: actualCount === reportedCount,
-        detail: `Verified ${actualCount} total patient records in profile database.`
-      });
+      if (actualCount === reportedCount) {
+        issues.push({
+          type: 'info',
+          category: 'Patient Count Audit',
+          title: 'Patient Records Verified',
+          desc: `Verified ${actualCount} total patient records in profile database.`
+        });
+      } else {
+        issues.push({
+          type: 'error',
+          category: 'Patient Count Audit',
+          title: 'Patient Count Discrepancy',
+          desc: `Actual records (${actualCount}) != Reported metrics (${reportedCount}).`
+        });
+      }
 
       // Check 2: Total Revenue Integrity
       const sumRevenue = pList.reduce((sum, p) => sum + (p.totalPaid || 0), 0);
       const totalRev = m.totalRevenue || 0;
       const revDiff = Math.abs(sumRevenue - totalRev);
-      checks.push({
-        name: 'Revenue Allocation Audit',
-        passed: revDiff < 1.0,
-        detail: `Sum of patient receipts (${formatCurrency(sumRevenue)}) matches Total Revenue (${formatCurrency(totalRev)}).`
-      });
+      if (revDiff < 1.0) {
+        issues.push({
+          type: 'info',
+          category: 'Revenue Allocation Audit',
+          title: 'Total Revenue Verified',
+          desc: `Sum of patient receipts (${formatCurrency(sumRevenue)}) matches Total Revenue (${formatCurrency(totalRev)}).`
+        });
+      } else {
+        issues.push({
+          type: 'warning',
+          category: 'Revenue Allocation Audit',
+          title: 'Revenue Variance Detected',
+          desc: `Receipt sum (${formatCurrency(sumRevenue)}) differs from calculated total (${formatCurrency(totalRev)}).`
+        });
+      }
 
       // Check 3: Consultation Patient Count Audit
       const consultCount = pList.filter(p => p.hasConsultation).length;
-      checks.push({
-        name: 'Consultation Count Audit',
-        passed: consultCount === (m.totalConsultationPatients || 0),
-        detail: `Verified ${consultCount} consultation patient profiles.`
-      });
+      if (consultCount === (m.totalConsultationPatients || 0)) {
+        issues.push({
+          type: 'info',
+          category: 'Consultation Audit',
+          title: 'Consultation Records Verified',
+          desc: `Verified ${consultCount} consultation patient profiles.`
+        });
+      } else {
+        issues.push({
+          type: 'warning',
+          category: 'Consultation Audit',
+          title: 'Consultation Count Variance',
+          desc: `Calculated (${consultCount}) vs reported (${m.totalConsultationPatients || 0}).`
+        });
+      }
 
       // Check 4: Package Retention & Renewals Audit
       const renewalPatients = pList.filter(p => p.services && p.services.some(s => s.isRenewal));
-      checks.push({
-        name: 'Package Renewals Audit',
-        passed: true,
-        detail: `Identified ${renewalPatients.length} patients with 2nd+ package renewal purchases.`
+      issues.push({
+        type: 'info',
+        category: 'Package Renewals Audit',
+        title: 'Package Renewals Verified',
+        desc: `Identified ${renewalPatients.length} patients with 2nd+ package renewal purchases.`
       });
 
       return {
         timestamp: new Date().toLocaleTimeString(),
-        passedCount: checks.filter(c => c.passed).length,
-        totalChecks: checks.length,
-        checks: checks
+        issues: issues,
+        checksRun: issues.length,
+        autoFixes: 0,
+        totalPatients: pList.length,
+        totalRevenue: totalRev,
+        errors: issues.filter(i => i.type === 'error').length,
+        warnings: issues.filter(i => i.type === 'warning').length,
+        passed: issues.filter(i => i.type === 'info').length
       };
-    }
-
-    function renderAuditResults(audit) {
-      const box = document.getElementById('ai-insights-box');
-      if (!box || !audit) return;
-
-      const items = audit.checks.map(c => `
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
-          <span>${c.passed ? '✅' : '⚠️'} <strong>${c.name}</strong>: ${c.detail}</span>
-          <span class="badge ${c.passed ? 'badge-emerald' : 'badge-amber'}">${c.passed ? 'PASSED' : 'DISCREPANCY'}</span>
-        </div>
-      `).join('');
-
-      box.innerHTML = `
-        <div style="margin-bottom:8px; font-weight:700; color:var(--cyan);">
-          🛡️ AI Watchdog Data Audit Passed (${audit.passedCount}/${audit.totalChecks} Checks Verified at ${audit.timestamp})
-        </div>
-        ${items}
-      `;
     }
 
     const getEnvGroqKey = () => (window.ENV && window.ENV.GROQ_API_KEY) ? window.ENV.GROQ_API_KEY : '';
