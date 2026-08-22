@@ -1447,52 +1447,52 @@
 
   <!-- Doctor Detailed Patient Breakdown Modal -->
   <div class="modal-overlay" id="doctor-patient-modal">
-    <div class="modal" style="max-width:1100px; width:95%; max-height:90vh; display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <div class="modal" style="max-width:1200px; width:96%; max-height:94vh; padding:16px 20px; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <div>
-          <div class="modal-title" id="dpm-title" style="margin-bottom:2px; font-size:1.3rem;">🩺 Doctor Patient Analysis</div>
-          <div style="font-size:12px; color:var(--text-muted);" id="dpm-subtitle">Showing patient list for Doctor according to active filters</div>
+          <div class="modal-title" id="dpm-title" style="margin-bottom:1px; font-size:1.15rem;">🩺 Doctor Patient Analysis</div>
+          <div style="font-size:11px; color:var(--text-muted);" id="dpm-subtitle">Showing patient list for Doctor according to active filters</div>
         </div>
         <button class="btn btn-sm btn-icon" onclick="closeDoctorPatientModal()" style="border:none; font-size:16px;">✕</button>
       </div>
 
       <!-- Quick Metrics Ribbon -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:12px;" id="dpm-metrics-ribbon"></div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:6px; margin-bottom:8px;" id="dpm-metrics-ribbon"></div>
 
       <!-- Package Tier Breakdown Bar inside Modal -->
-      <div style="background:var(--bg-card-light); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:14px;" id="dpm-tier-breakdown"></div>
+      <div style="background:var(--bg-card-light); border:1px solid var(--border); border-radius:6px; padding:6px 12px; margin-bottom:8px;" id="dpm-tier-breakdown"></div>
 
       <!-- Filter Controls & Search inside Modal -->
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; background:var(--bg-card-light); padding:10px 14px; border-radius:8px; border:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; background:var(--bg-card-light); padding:6px 10px; border-radius:6px; border:1px solid var(--border);">
         <div style="display:flex; gap:6px; flex-wrap:wrap;" id="dpm-subtabs">
-          <button class="btn btn-sm btn-primary" id="dpm-tab-all" onclick="setDPMSubtab('all')">All Patients (<span id="dpm-count-all">0</span>)</button>
-          <button class="btn btn-sm" id="dpm-tab-renewals" onclick="setDPMSubtab('renewals')">🔄 Renewals Only (<span id="dpm-count-renewals">0</span>)</button>
-          <button class="btn btn-sm" id="dpm-tab-initial" onclick="setDPMSubtab('initial_only')">1st Pkg Only (<span id="dpm-count-initial">0</span>)</button>
-          <button class="btn btn-sm" id="dpm-tab-consult" onclick="setDPMSubtab('consult_only')">Consultation Only (<span id="dpm-count-consult">0</span>)</button>
+          <button class="btn btn-sm btn-primary" id="dpm-tab-all" onclick="setDPMSubtab('all')" style="font-size:11px; padding:4px 10px;">All Patients (<span id="dpm-count-all">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-renewals" onclick="setDPMSubtab('renewals')" style="font-size:11px; padding:4px 10px;">🔄 Renewals Only (<span id="dpm-count-renewals">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-initial" onclick="setDPMSubtab('initial_only')" style="font-size:11px; padding:4px 10px;">1st Pkg Only (<span id="dpm-count-initial">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-consult" onclick="setDPMSubtab('consult_only')" style="font-size:11px; padding:4px 10px;">Consultation Only (<span id="dpm-count-consult">0</span>)</button>
         </div>
-        <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:320px;">
-          <input type="text" id="dpm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:13px;" oninput="renderDPMTable()">
+        <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:280px;">
+          <input type="text" id="dpm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px;" oninput="renderDPMTable()">
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-sm btn-emerald" onclick="exportDPMCSV()">📥 Export Doctor Patient List (CSV)</button>
+          <button class="btn btn-sm btn-emerald" onclick="exportDPMCSV()" style="font-size:11px; padding:4px 10px;">📥 Export Patient List (CSV)</button>
         </div>
       </div>
 
       <!-- Table Container -->
-      <div style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card);">
-        <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-          <thead>
+      <div style="flex:1; min-height:440px; max-height:65vh; overflow-y:auto; border:1px solid var(--border); border-radius:6px; background:var(--bg-card);">
+        <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+          <thead style="position:sticky; top:0; z-index:10; background:var(--bg-card); box-shadow:0 1px 0 var(--border);">
             <tr>
-              <th style="width:45px; text-align:center;">#</th>
-              <th>Patient Name</th>
-              <th>Initial 1st Package</th>
-              <th>Initial Date</th>
-              <th>Renewed Package(s)</th>
-              <th>Renewal Date(s)</th>
-              <th>Agent</th>
-              <th style="text-align:right;">Renewal Revenue</th>
-              <th style="text-align:right;">Total Paid</th>
-              <th style="text-align:center;">Status / Stage</th>
+              <th style="width:40px; text-align:center; padding:8px 6px;">#</th>
+              <th style="padding:8px 8px;">Patient Name</th>
+              <th style="padding:8px 8px;">Initial 1st Package</th>
+              <th style="padding:8px 8px;">Initial Date</th>
+              <th style="padding:8px 8px;">Renewed Package(s)</th>
+              <th style="padding:8px 8px;">Renewal Date(s)</th>
+              <th style="padding:8px 8px;">Agent</th>
+              <th style="text-align:right; padding:8px 8px;">Renewal Revenue</th>
+              <th style="text-align:right; padding:8px 8px;">Total Paid</th>
+              <th style="text-align:center; padding:8px 8px;">Status / Stage</th>
             </tr>
           </thead>
           <tbody id="dpm-table-body">
@@ -1501,11 +1501,11 @@
         </table>
       </div>
 
-      <div class="modal-actions" style="margin-top:14px; justify-content:space-between; align-items:center;">
-        <div style="font-size:12px; color:var(--text-muted);">
+      <div class="modal-actions" style="margin-top:8px; padding-top:4px; justify-content:space-between; align-items:center;">
+        <div style="font-size:11px; color:var(--text-muted);">
           Tip: Shows patient conversions and renewals according to selected date and package filters.
         </div>
-        <button class="btn btn-sm" onclick="closeDoctorPatientModal()">Close Analysis</button>
+        <button class="btn btn-sm" onclick="closeDoctorPatientModal()" style="font-size:11px; padding:4px 12px;">Close Analysis</button>
       </div>
     </div>
   </div>
@@ -4506,25 +4506,25 @@
       const ribbon = document.getElementById('dpm-metrics-ribbon');
       if (ribbon) {
         ribbon.innerHTML = `
-          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL PATIENTS</div>
-            <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentDPMPatients.length}</div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">TOTAL PATIENTS</div>
+            <div style="font-size:14px; font-weight:800; color:var(--cyan);">${currentDPMPatients.length}</div>
           </div>
-          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKGS SOLD</div>
-            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${initialPkgContractsCount} <span style="font-size:11px; opacity:0.8;">(${convRate}%)</span></div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">INITIAL PKGS</div>
+            <div style="font-size:14px; font-weight:800; color:var(--emerald);">${initialPkgContractsCount} <span style="font-size:10px; opacity:0.8;">(${convRate}%)</span></div>
           </div>
-          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL PKGS SOLD</div>
-            <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalPkgContractsCount} <span style="font-size:11px; opacity:0.8;">(${renewalCount} Patients)</span></div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL PKGS</div>
+            <div style="font-size:14px; font-weight:800; color:var(--purple);">${renewalPkgContractsCount} <span style="font-size:10px; opacity:0.8;">(${renewalCount} Pt)</span></div>
           </div>
-          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
-            <div style="font-size:18px; font-weight:700; color:var(--amber);">${formatCurrency(totalRenRev)}</div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
+            <div style="font-size:14px; font-weight:800; color:var(--amber);">${formatCurrency(totalRenRev)}</div>
           </div>
-          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
-            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
+            <div style="font-size:14px; font-weight:800; color:var(--emerald);">${formatCurrency(totalRev)}</div>
           </div>
         `;
       }
@@ -4541,26 +4541,23 @@
 
         const initialBadges = initialTiers.map(([name, cnt]) => {
           const short = name.replace(/Pain Management/i, 'PM');
-          return `<span class="badge badge-emerald" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">1st ${short}: <strong>${cnt}</strong></span>`;
+          return `<span class="badge badge-emerald" style="font-size:10px; padding:2px 7px; margin:1px 2px;">1st ${short}: <strong>${cnt}</strong></span>`;
         }).join(' ');
 
         const renewalBadges = renewalTiers.map(([name, cnt]) => {
           const short = name.replace(/Pain Management/i, 'PM');
-          return `<span class="badge badge-purple" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">🔄 ${short}: <strong>${cnt}</strong></span>`;
+          return `<span class="badge badge-purple" style="font-size:10px; padding:2px 7px; margin:1px 2px;">🔄 ${short}: <strong>${cnt}</strong></span>`;
         }).join(' ');
 
         tierContainer.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:8px;">
-            📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages: <span style="color:var(--emerald);">${initialPkgContractsCount} Initial 1st Pkgs</span> + <span style="color:var(--purple);">${renewalPkgContractsCount} Renewal Pkgs</span>${selectedPkgFilter ? ` for ${selectedPkgFilter}` : ''}):
-          </div>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-size:0.75rem; font-weight:700; color:var(--emerald); min-width:130px;">1st Initial Pkgs (${initialPkgContractsCount}):</span>
-              <div>${initialBadges || '<span style="color:var(--text-muted); font-size:0.75rem;">None</span>'}</div>
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-weight:700; color:var(--emerald);">1st Initial Pkgs (${initialPkgContractsCount}):</span>
+              ${initialBadges || '<span style="color:var(--text-muted); font-size:10px;">None</span>'}
             </div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-size:0.75rem; font-weight:700; color:var(--purple); min-width:130px;">🔄 Renewal Pkgs (${renewalPkgContractsCount}):</span>
-              <div>${renewalBadges || '<span style="color:var(--text-muted); font-size:0.75rem;">None</span>'}</div>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-weight:700; color:var(--purple);">🔄 Renewal Pkgs (${renewalPkgContractsCount}):</span>
+              ${renewalBadges || '<span style="color:var(--text-muted); font-size:10px;">None</span>'}
             </div>
           </div>
         `;
