@@ -4293,22 +4293,27 @@
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL PATIENTS</div>
           <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentPRMPatients.length}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">1st: ${initialCount} &nbsp;|&nbsp; Renewed: ${renewalCount}</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKG REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(initialPkgRevenue)}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialCount} Initial Patients</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWED PATIENTS</div>
           <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalCount} (${convRate}%)</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">of ${currentPRMPatients.length} total patients</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(renewalPkgRevenue)}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${renewalCount} Renewed Patients</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Initial + Renewal Combined</div>
         </div>
       `;
 
