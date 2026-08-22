@@ -4544,18 +4544,28 @@
       for (const p of currentDPMPatients) {
         const rawP = p.rawPatient;
         if (!rawP || !rawP.services) continue;
+
+        // Determine the initial category for same-category renewal matching
+        const initCatFilter = selectedPkgFilter ? getPackageCategory(selectedPkgFilter) : null;
+
         for (const s of rawP.services) {
           if (s.type === 'package') {
             const pName = s.packageName || 'Unknown';
-            if (selectedPkgFilter && pName.toLowerCase() !== selectedPkgFilter.toLowerCase()) {
-              continue; // If a package filter is active, evaluate only the selected package!
-            }
             const amt = s.proportionalPaid || 0;
             if (s.isRenewal) {
+              // For renewal: if filter is active, count all same-category renewals (not just exact match)
+              if (selectedPkgFilter) {
+                const renCat = getPackageCategory(pName);
+                if (renCat !== initCatFilter) continue;
+              }
               renewalPkgContractsCount++;
               renewalPkgRevenueTotal += amt;
               renewalPkgBreakdown[pName] = (renewalPkgBreakdown[pName] || 0) + 1;
             } else {
+              // For initial: strict exact match on filter
+              if (selectedPkgFilter && pName.toLowerCase() !== selectedPkgFilter.toLowerCase()) {
+                continue;
+              }
               initialPkgContractsCount++;
               initialPkgRevenueTotal += amt;
               initialPkgBreakdown[pName] = (initialPkgBreakdown[pName] || 0) + 1;
