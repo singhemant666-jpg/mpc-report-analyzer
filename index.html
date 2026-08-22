@@ -2516,9 +2516,15 @@
 
             if (dateRemaining > 0) {
               const hasZeroPaidRow = packageRows.some(pr => !pr.amountPaid || pr.amountPaid === 0);
+              const sumOfPkgAmounts = packageRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+              // Check if individual amountPaid values sum up to the available pool.
+              // If yes → they are explicit per-package amounts, use them directly.
+              // If sum >> dateRemaining → amountPaid values are inflated (CRM repeats invoice total
+              //   per row), so fall back to proportional distribution by packageCost.
+              const pkgAmountsSumToPool = Math.abs(sumOfPkgAmounts - dateRemaining) <= 1;
               
-              if (hasZeroPaidRow) {
-                // It's a bundle where some rows have 0/None paid. Distribute proportionally.
+              if (hasZeroPaidRow || !pkgAmountsSumToPool) {
+                // Bundle with zero-paid rows OR inflated amounts → distribute proportionally by cost
                 const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
                 if (totalPkgCost > 0) {
                   for (const pr of packageRows) {
@@ -2532,9 +2538,8 @@
                 }
                 dateRemaining = 0;
               } else {
-                // All rows have explicit amountPaid > 0.
-                // Use each package's own amountPaid directly (no draining pool),
-                // so bundles like PM-3 (₹4,500) + RSA (₹3,000) + Foot (₹1,360) each get their correct amount.
+                // All rows have explicit per-package amountPaid that sums to the pool.
+                // Use them directly — no draining pool needed.
                 for (const pr of packageRows) {
                   pr.proportionalPaid = pr.amountPaid;
                 }
