@@ -3947,8 +3947,14 @@
       tbody.innerHTML = doctors.map((d, idx) => {
         const rankLabel = rankIcons[idx] || `#${idx + 1}`;
 
-        const tierEntries = Object.entries(d.pmBreakdown || {})
+        const selectedPkgFilter = (document.getElementById('filter-package') ? document.getElementById('filter-package').value : '').trim();
+
+        let tierEntries = Object.entries(d.pmBreakdown || {})
           .sort((a, b) => b[1] - a[1]);
+
+        if (selectedPkgFilter) {
+          tierEntries = tierEntries.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
+        }
         
         const tierStr = tierEntries.length > 0
           ? tierEntries.map(([name, count]) => {
