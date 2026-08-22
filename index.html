@@ -5561,9 +5561,117 @@
       }, 3500);
     }
 
+    // ==================== INDEXEDDB DATASET PERSISTENCE ====================
+    const DB_NAME = 'MPC_Report_Analyzer_DB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'report_data';
+
+    function openReportDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveDatasetToCache(rows, filesSummary) {
+      try {
+        const db = await openReportDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const dataToSave = {
+          rawRows: rows,
+          filesSummary: filesSummary,
+          timestamp: new Date().toISOString()
+        };
+        store.put(dataToSave, 'current_report');
+        return new Promise(r => tx.oncomplete = r);
+      } catch (err) {
+        console.warn('Failed to save dataset to IndexedDB:', err);
+      }
+    }
+
+    async function loadDatasetFromCache() {
+      try {
+        const db = await openReportDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.get('current_report');
+        return new Promise((resolve) => {
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (err) {
+        console.warn('Failed to load dataset from IndexedDB:', err);
+        return null;
+      }
+    }
+
+    async function clearDatasetCache() {
+      try {
+        const db = await openReportDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.delete('current_report');
+        return new Promise(r => tx.oncomplete = r);
+      } catch (err) {
+        console.warn('Failed to clear IndexedDB dataset:', err);
+      }
+    }
+
+    async function restoreCachedDatasetOnStartup() {
+      try {
+        const cached = await loadDatasetFromCache();
+        if (cached && cached.rawRows && cached.rawRows.length > 0) {
+          showLoading('Restoring saved report dataset...');
+          await new Promise(r => setTimeout(r, 50));
+
+          rawRows = cached.rawRows.map(row => ({
+            ...row,
+            paymentDate: row.paymentDate ? (row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate)) : null
+          }));
+
+          allPatients = groupPatients(rawRows);
+          filteredPatients = { ...allPatients };
+          currentMetrics = computeMetrics(filteredPatients);
+          cachedAIPatientAudit = auditAllPatientsAI(filteredPatients);
+
+          populateFilters();
+
+          document.getElementById('upload-section').classList.add('hidden');
+          document.getElementById('dashboard-section').classList.remove('hidden');
+
+          const summaryText = cached.filesSummary && cached.filesSummary.dashFileName
+            ? cached.filesSummary.dashFileName
+            : `Saved Report (${rawRows.length} collection records)`;
+
+          document.getElementById('dash-file-name').textContent = summaryText;
+          document.getElementById('dash-row-count').textContent = `${Object.keys(allPatients).length} unique patients`;
+
+          renderDashboard(currentMetrics, filteredPatients);
+
+          const auditResults = runDataIntegrityAudit(currentMetrics, filteredPatients);
+          renderAuditResults(auditResults);
+
+          hideLoading();
+          showToast(`Restored saved report (${rawRows.length} records, ${Object.keys(allPatients).length} patients)`, 'success');
+        }
+      } catch (err) {
+        hideLoading();
+        console.error('Error restoring cached dataset:', err);
+      }
+    }
+
     let uploadedFiles = [];
 
-    function resetApp() {
+    async function resetApp() {
+      await clearDatasetCache();
       uploadedFiles = [];
       rawRows = [];
       allPatients = {};
@@ -5577,6 +5685,7 @@
       document.getElementById('upload-section').classList.remove('hidden');
       renderSelectedFilesUI();
       clearFilters();
+      showToast('Cleared saved dataset. Ready to upload new report(s)!', 'info');
     }
 
     // ==================== FILE UPLOAD ====================
@@ -5734,6 +5843,13 @@
         // Run AI Watchdog Audit automatically
         const auditResults = runDataIntegrityAudit(currentMetrics, filteredPatients);
         renderAuditResults(auditResults);
+
+        // Save dataset to IndexedDB cache for auto-restoration on page refresh
+        const filesSummary = {
+          count: totalParsedFiles,
+          dashFileName: summaryText
+        };
+        await saveDatasetToCache(rawRows, filesSummary);
 
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
         hideLoading();
@@ -6708,6 +6824,7 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
       // Load config & theme on startup
       config = loadConfig();
       initTheme();
+      restoreCachedDatasetOnStartup();
     });
   </script>
 </body>

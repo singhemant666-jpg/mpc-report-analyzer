@@ -24,7 +24,8 @@
 4. **Doctor Incentive & Conversion Leaderboard**: Ranks consulting doctors based on initial Pain Management package conversions, conversion rates, and revenue.
 5. **Package Renewal Performance Leaderboard**: Ranks treatment packages based on renewal counts, renewal conversion rates, and renewal revenue to identify top-performing retention packages.
 6. **AI Watchdog Data Integrity Audit**: Runs 11 automated mathematical audit checks to detect revenue discrepancies, ordinal sequence jumps, duplicate names, or unallocated funds.
-7. **Multi-Tab Excel & PDF Export**: Generates 15 categorized Excel sheets using `ExcelJS` with professional styling, totals, and column widths.
+7. **IndexedDB Dataset Persistence & Auto-Restoration**: Automatically saves the parsed master clinical dataset in browser IndexedDB storage so that refreshing the page (`F5` / reload) instantly restores the complete dashboard, patient profiles, analytics, and AI audits without re-uploading. Clicking **"📤 Upload New"** clears the cache to upload fresh files.
+8. **Multi-Tab Excel & PDF Export**: Generates 15 categorized Excel sheets using `ExcelJS` with professional styling, totals, and column widths.
 
 ### Theme System (Dark / Light Mode)
 Theme state is managed dynamically via the `data-theme` attribute on the `<html>` element (`light` or `dark`). CSS Custom Variables define backgrounds, borders, glassmorphic cards, text colors, and chart color defaults.
