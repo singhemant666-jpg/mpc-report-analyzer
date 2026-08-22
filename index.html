@@ -449,7 +449,6 @@
       margin-bottom: 16px;
       display: block;
       filter: drop-shadow(0 0 20px rgba(6,182,212,0.3));
-      pointer-events: none;
     }
 
     .upload-title {
@@ -458,7 +457,6 @@
       margin-bottom: 8px;
       color: var(--text-primary);
       position: relative;
-      pointer-events: none;
     }
 
     .upload-desc {
@@ -466,7 +464,6 @@
       font-size: 14px;
       margin-bottom: 24px;
       position: relative;
-      pointer-events: none;
     }
 
     .upload-file-info {
@@ -1551,21 +1548,18 @@
       <div class="upload-zone" id="drop-zone">
         <span class="upload-icon">📚</span>
         <div class="upload-title">Drop your Daily Collection Report(s) here</div>
-        <div class="upload-desc">or click anywhere inside this box to browse • Supports .xlsx, .xls, .csv, .xlsm files</div>
-        <button class="btn btn-sm" style="position:relative; pointer-events:none;">
+        <div class="upload-desc">or click to browse • Supports .xlsx, .xls, .csv, .xlsm files</div>
+        <button class="btn btn-sm" style="position:relative; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('file-input').click();">
           📎 Choose File(s)
         </button>
-        <div class="upload-file-info" id="file-info" onclick="event.stopPropagation();">
+        <div class="upload-file-info" id="file-info">
           <div id="file-summary"></div>
           <div class="selected-files-list" id="selected-files-list"></div>
         </div>
       </div>
-      <div class="generate-btn-wrap" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <div class="generate-btn-wrap">
         <button class="btn btn-primary" id="generate-btn" disabled>
           🚀 Generate Unified Report
-        </button>
-        <button class="btn btn-sm" onclick="clearAllCacheAndResetUpload()" style="background:rgba(239,68,68,0.1); color:var(--rose); border:1px solid rgba(239,68,68,0.3); padding:6px 14px; border-radius:6px; font-weight:600; font-size:12px;">
-          🗑️ Clear Saved Local Storage & Reset Upload
         </button>
       </div>
     </section>
@@ -6415,25 +6409,6 @@
       } catch (e) {}
     }
 
-    async function clearAllCacheAndResetUpload() {
-      clearDatasetCache();
-      uploadedFiles = [];
-      rawRows = [];
-      allPatients = {};
-      filteredPatients = {};
-      currentMetrics = {};
-      sortState = {};
-      currentTab = 'all';
-      destroyCharts();
-
-      document.getElementById('dashboard-section').classList.add('hidden');
-      document.getElementById('upload-section').classList.remove('hidden');
-      const fileInput = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
-      renderSelectedFilesUI();
-      showToast('Local storage cache cleared! You can now select and upload new report files.', 'success');
-    }
-
     async function restoreCachedDatasetOnStartup() {
       try {
         const cached = await loadDatasetFromCache();
@@ -6504,9 +6479,7 @@
     const fileInput = document.getElementById('file-input');
 
     dropZone.addEventListener('click', (e) => {
-      if (e.target && e.target.closest && (e.target.closest('.remove-file') || e.target.closest('.upload-file-info'))) {
-        return;
-      }
+      if (e.target.classList.contains('remove-file')) return;
       fileInput.click();
     });
 
