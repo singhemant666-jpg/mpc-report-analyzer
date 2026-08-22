@@ -2166,6 +2166,11 @@
       return 'package';
     }
 
+    function getPackageCategory(pkgName) {
+      if (!pkgName) return '';
+      return pkgName.replace(/[-_\s]\d+\b/gi, '').trim().toLowerCase();
+    }
+
     // ==================== OFFICIAL SERVICES MASTER PRICE REGISTRY ====================
     const SERVICES_MASTER_PRICE_LIST = [
       { name: 'Home Visit', keywords: ['home visit'], singleSession: 2500, packageCostPerSession: 2500 },
@@ -4187,13 +4192,18 @@
 
       currentPRMPatients = [];
 
+      const targetCat = getPackageCategory(pkgName);
+
       for (const p of Object.values(filteredPatients || {})) {
         // Require patient's Initial 1st Package to match target pkgName
         const initSvc = p.services && p.services.find(s => s.packageName === pkgName && s.type === 'package' && !s.isRenewal);
         if (!initSvc) continue;
 
-        // Renewal packages: include all subsequent package renewals purchased by this patient
-        const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal);
+        // Renewal packages: include only subsequent package renewals belonging to the SAME CATEGORY as initial package
+        const renSvcs = p.services.filter(s => {
+          if (s.type !== 'package' || !s.isRenewal || !s.packageName) return false;
+          return getPackageCategory(s.packageName) === targetCat;
+        });
         
         const renRevenue = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         
@@ -4435,7 +4445,16 @@
           initSvc = pkgSvcs.find(s => !s.isRenewal);
         }
 
-        const renSvcs = pkgSvcs.filter(s => s.isRenewal);
+        let renSvcs = [];
+        if (initSvc && initSvc.packageName) {
+          const initCat = getPackageCategory(initSvc.packageName);
+          renSvcs = pkgSvcs.filter(s => {
+            if (!s.isRenewal || !s.packageName) return false;
+            return getPackageCategory(s.packageName) === initCat;
+          });
+        } else {
+          renSvcs = pkgSvcs.filter(s => s.isRenewal);
+        }
 
         const renRevenue = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         
