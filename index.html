@@ -1421,11 +1421,11 @@
               <th>Patient Name</th>
               <th>Initial 1st Package</th>
               <th>Initial Date</th>
-              <th style="text-align:right;">Initial Pkg Revenue</th>
               <th>Renewed Package(s)</th>
               <th>Renewal Date(s)</th>
               <th>Consulting Doctor</th>
               <th>Agent</th>
+              <th style="text-align:right;">Initial Revenue</th>
               <th style="text-align:right;">Renewal Revenue</th>
               <th style="text-align:right;">Total Paid</th>
               <th style="text-align:center;">Status / Stage</th>
@@ -1488,10 +1488,10 @@
               <th style="padding:8px 8px;">Patient Name</th>
               <th style="padding:8px 8px;">Initial 1st Package</th>
               <th style="padding:8px 8px;">Initial Date</th>
-              <th style="text-align:right; padding:8px 8px;">Initial Revenue</th>
               <th style="padding:8px 8px;">Renewed Package(s)</th>
               <th style="padding:8px 8px;">Renewal Date(s)</th>
               <th style="padding:8px 8px;">Agent</th>
+              <th style="text-align:right; padding:8px 8px;">Initial Revenue</th>
               <th style="text-align:right; padding:8px 8px;">Renewal Revenue</th>
               <th style="text-align:right; padding:8px 8px;">Total Paid</th>
               <th style="text-align:center; padding:8px 8px;">Status / Stage</th>
@@ -4373,11 +4373,11 @@
           <td style="font-weight:700; color:var(--text-primary);">${item.patientName}</td>
           <td style="font-weight:600; color:var(--text-secondary);">${item.initialPkg}</td>
           <td style="color:var(--text-muted);">${item.initialDateStr}</td>
-          <td style="text-align:right; font-weight:700; color:var(--emerald);">${formatCurrency(item.initialRevenue)}</td>
           <td style="font-weight:600; color:var(--purple);">${item.renNamesStr}</td>
           <td style="color:var(--text-muted); font-size:12px;">${item.renDatesStr}</td>
           <td>${item.doctor}</td>
           <td>${item.agent}</td>
+          <td style="text-align:right; font-weight:700; color:var(--emerald);">${formatCurrency(item.initialRevenue)}</td>
           <td style="text-align:right; font-weight:700; color:var(--purple);">${formatCurrency(item.renewalRevenue)}</td>
           <td style="text-align:right; font-weight:700; color:var(--emerald);">${formatCurrency(item.totalPaid)}</td>
           <td style="text-align:center;">${item.stageBadge}</td>
@@ -4668,10 +4668,10 @@
           <td style="font-weight:700; color:var(--cyan);">${item.patientName}</td>
           <td style="font-weight:600; color:var(--text-primary);">${item.initialPkg}</td>
           <td style="font-size:0.8rem; color:var(--text-muted);">${item.initialDateStr}</td>
-          <td style="font-weight:700; color:var(--emerald); text-align:right;">${formatCurrency(item.initialRevenue)}</td>
           <td style="color:var(--purple); font-weight:600;">${item.renNamesStr}</td>
           <td style="font-size:0.8rem; color:var(--text-muted);">${item.renDatesStr}</td>
           <td>${item.agent}</td>
+          <td style="font-weight:700; color:var(--emerald); text-align:right;">${formatCurrency(item.initialRevenue)}</td>
           <td style="font-weight:700; color:var(--purple); text-align:right;">${formatCurrency(item.renewalRevenue)}</td>
           <td style="font-weight:700; color:var(--emerald); text-align:right;">${formatCurrency(item.totalPaid)}</td>
           <td style="text-align:center;">${item.stageBadge}</td>
