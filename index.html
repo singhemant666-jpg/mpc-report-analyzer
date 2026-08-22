@@ -2524,11 +2524,11 @@
               const pkgAmountsSumToPool = Math.abs(sumOfPkgAmounts - dateRemaining) <= 1;
               
               if (hasZeroPaidRow || !pkgAmountsSumToPool) {
-                // Bundle with zero-paid rows OR inflated amounts → distribute proportionally by cost
+                // Bundle with zero-paid rows OR inflated amounts → distribute proportionally by packageCost
                 const totalPkgCost = packageRows.reduce((sum, r) => sum + (r.packageCost || 0), 0);
                 if (totalPkgCost > 0) {
                   for (const pr of packageRows) {
-                    pr.proportionalPaid = Math.round((pr.packageCost / totalPkgCost * dateRemaining) * 100) / 100;
+                    pr.proportionalPaid = Math.round(((pr.packageCost || 0) / totalPkgCost * dateRemaining) * 100) / 100;
                   }
                 } else {
                   const share = Math.round((dateRemaining / packageRows.length) * 100) / 100;
