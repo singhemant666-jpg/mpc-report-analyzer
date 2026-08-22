@@ -1445,6 +1445,68 @@
     </div>
   </div>
 
+  <!-- Doctor Detailed Patient Breakdown Modal -->
+  <div class="modal-overlay" id="doctor-patient-modal">
+    <div class="modal" style="max-width:1100px; width:95%; max-height:90vh; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+          <div class="modal-title" id="dpm-title" style="margin-bottom:2px; font-size:1.3rem;">🩺 Doctor Patient Analysis</div>
+          <div style="font-size:12px; color:var(--text-muted);" id="dpm-subtitle">Showing patient list for Doctor according to active filters</div>
+        </div>
+        <button class="btn btn-sm btn-icon" onclick="closeDoctorPatientModal()" style="border:none; font-size:16px;">✕</button>
+      </div>
+
+      <!-- Quick Metrics Ribbon -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;" id="dpm-metrics-ribbon"></div>
+
+      <!-- Filter Controls & Search inside Modal -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; background:var(--bg-card-light); padding:10px 14px; border-radius:8px; border:1px solid var(--border);">
+        <div style="display:flex; gap:6px; flex-wrap:wrap;" id="dpm-subtabs">
+          <button class="btn btn-sm btn-primary" id="dpm-tab-all" onclick="setDPMSubtab('all')">All Patients (<span id="dpm-count-all">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-renewals" onclick="setDPMSubtab('renewals')">🔄 Renewals Only (<span id="dpm-count-renewals">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-initial" onclick="setDPMSubtab('initial_only')">1st Pkg Only (<span id="dpm-count-initial">0</span>)</button>
+          <button class="btn btn-sm" id="dpm-tab-consult" onclick="setDPMSubtab('consult_only')">Consultation Only (<span id="dpm-count-consult">0</span>)</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:320px;">
+          <input type="text" id="dpm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:13px;" oninput="renderDPMTable()">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm btn-emerald" onclick="exportDPMCSV()">📥 Export Doctor Patient List (CSV)</button>
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card);">
+        <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th style="width:45px; text-align:center;">#</th>
+              <th>Patient Name</th>
+              <th>Initial 1st Package</th>
+              <th>Initial Date</th>
+              <th>Renewed Package(s)</th>
+              <th>Renewal Date(s)</th>
+              <th>Agent</th>
+              <th style="text-align:right;">Renewal Revenue</th>
+              <th style="text-align:right;">Total Paid</th>
+              <th style="text-align:center;">Status / Stage</th>
+            </tr>
+          </thead>
+          <tbody id="dpm-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px; justify-content:space-between; align-items:center;">
+        <div style="font-size:12px; color:var(--text-muted);">
+          Tip: Shows patient conversions and renewals according to selected date and package filters.
+        </div>
+        <button class="btn btn-sm" onclick="closeDoctorPatientModal()">Close Analysis</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -3970,9 +4032,14 @@
 
         const safeDocName = (d.doctor || '').replace(/'/g, "\\'");
 
-        return `<tr onclick="setDoctorFilterAndScroll('${safeDocName}')" style="cursor:pointer;" title="Click to filter patient table for ${d.doctor}">
+        return `<tr onclick="openDoctorPatientModal('${safeDocName}')" style="cursor:pointer;" title="Click to view detailed patient list for ${d.doctor}">
           <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
-          <td style="font-weight:700; color:var(--text-primary);">${d.doctor}</td>
+          <td style="font-weight:700; color:var(--text-primary);">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span>${d.doctor}</span>
+              <span class="badge badge-cyan" style="font-size:10px; cursor:pointer;" onclick="event.stopPropagation(); openDoctorPatientModal('${safeDocName}')">🔍 View Patients</span>
+            </div>
+          </td>
           <td>${d.consultation}</td>
           <td>${d.totalPackages}</td>
           <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
@@ -4282,6 +4349,202 @@
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       downloadBlob(blob, `Package_Renewal_Analysis_${currentPRMPkgName.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
       showToast(`Exported ${currentPRMPatients.length} patients for ${currentPRMPkgName}`, 'success');
+    }
+
+    // ==================== DOCTOR PATIENT MODAL CONTROLLER ====================
+    let currentDPMDoctorName = '';
+    let currentDPMPatients = [];
+    let currentDPMSubtab = 'all';
+
+    function openDoctorPatientModal(doctorName) {
+      currentDPMDoctorName = doctorName;
+      currentDPMSubtab = 'all';
+
+      const searchInput = document.getElementById('dpm-search-input');
+      if (searchInput) searchInput.value = '';
+
+      currentDPMPatients = [];
+
+      for (const p of Object.values(filteredPatients || {})) {
+        const matchesDoc = (p.doctors && (Array.isArray(p.doctors) ? p.doctors.includes(doctorName) : p.doctors.has(doctorName))) || 
+                           (p.services && p.services.some(s => s.doctor === doctorName));
+        if (!matchesDoc) continue;
+
+        const initSvc = p.services.find(s => s.type === 'package' && !s.isRenewal);
+        const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal);
+        
+        const renRevenue = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        
+        const initDateStr = initSvc && initSvc.paymentDate ? formatDate(initSvc.paymentDate) : (p.services[0] ? formatDate(p.services[0].paymentDate) : '-');
+        const renDatesStr = renSvcs.length > 0 ? renSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').join('<br>') : '-';
+        const renNamesStr = renSvcs.length > 0 ? renSvcs.map(s => s.packageName).join('<br>') : '-';
+
+        let stageBadge = '<span class="badge badge-cyan">Only Consultation</span>';
+        if (p.hasPackage && renSvcs.length === 0) stageBadge = '<span class="badge badge-cyan">Initial 1st Pkg Only</span>';
+        else if (renSvcs.length === 1) stageBadge = '<span class="badge badge-purple">🔄 2nd Pkg Renewal</span>';
+        else if (renSvcs.length === 2) stageBadge = '<span class="badge badge-emerald">🔥 3rd Pkg Renewal</span>';
+        else if (renSvcs.length >= 3) stageBadge = `<span class="badge badge-emerald">🏆 ${renSvcs.length + 1}th Pkg Renewal</span>`;
+
+        const getAgentStr = (pt) => {
+          if (Array.isArray(pt.agents) && pt.agents.length > 0) return pt.agents.filter(Boolean).join(', ');
+          if (pt.agents && typeof pt.agents.values === 'function') return [...pt.agents].filter(Boolean).join(', ');
+          if (pt.services && pt.services.length > 0) {
+            const ags = [...new Set(pt.services.map(s => s.agent).filter(Boolean))];
+            if (ags.length > 0) return ags.join(', ');
+          }
+          return '-';
+        };
+
+        currentDPMPatients.push({
+          patientName: p.name,
+          agent: getAgentStr(p),
+          initialPkg: initSvc ? initSvc.packageName : (p.services[0] ? p.services[0].packageName : '-'),
+          initialDateStr: initDateStr,
+          renNamesStr: renNamesStr,
+          renDatesStr: renDatesStr,
+          renewalRevenue: renRevenue,
+          totalPaid: p.totalPaid,
+          hasRenewal: renSvcs.length > 0,
+          hasPackage: p.hasPackage,
+          hasConsultOnly: p.hasConsultation && !p.hasPackage,
+          stageBadge: stageBadge,
+          rawPatient: p
+        });
+      }
+
+      document.getElementById('dpm-title').textContent = `🩺 Doctor Patient Breakdown: ${doctorName}`;
+      document.getElementById('dpm-subtitle').textContent = `Showing exact patient list and conversions for ${doctorName} (${currentDPMPatients.length} total patients under active filters)`;
+
+      const renewalCount = currentDPMPatients.filter(p => p.hasRenewal).length;
+      const initialCount = currentDPMPatients.filter(p => p.hasPackage && !p.hasRenewal).length;
+      const consultCount = currentDPMPatients.filter(p => p.hasConsultOnly).length;
+
+      document.getElementById('dpm-count-all').textContent = currentDPMPatients.length;
+      document.getElementById('dpm-count-renewals').textContent = renewalCount;
+      document.getElementById('dpm-count-initial').textContent = initialCount;
+      document.getElementById('dpm-count-consult').textContent = consultCount;
+
+      const totalRev = currentDPMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
+      const totalRenRev = currentDPMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
+      const pkgCount = currentDPMPatients.filter(p => p.hasPackage).length;
+      const convRate = currentDPMPatients.length > 0 ? ((pkgCount / currentDPMPatients.length) * 100).toFixed(1) : 0;
+
+      const ribbon = document.getElementById('dpm-metrics-ribbon');
+      if (ribbon) {
+        ribbon.innerHTML = `
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL PATIENTS</div>
+            <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentDPMPatients.length}</div>
+          </div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">PKG CONVERSIONS</div>
+            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${pkgCount} (${convRate}%)</div>
+          </div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL PATIENTS</div>
+            <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalCount}</div>
+          </div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
+            <div style="font-size:18px; font-weight:700; color:var(--amber);">${formatCurrency(totalRenRev)}</div>
+          </div>
+          <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
+            <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
+          </div>
+        `;
+      }
+
+      setDPMSubtabStyles();
+      renderDPMTable();
+      document.getElementById('doctor-patient-modal').classList.add('show');
+    }
+
+    function closeDoctorPatientModal() {
+      document.getElementById('doctor-patient-modal').classList.remove('show');
+    }
+
+    function setDPMSubtab(tab) {
+      currentDPMSubtab = tab;
+      setDPMSubtabStyles();
+      renderDPMTable();
+    }
+
+    function setDPMSubtabStyles() {
+      ['all', 'renewals', 'initial_only', 'consult_only'].forEach(t => {
+        const btnId = `dpm-tab-${t === 'initial_only' ? 'initial' : (t === 'consult_only' ? 'consult' : t)}`;
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          btn.className = t === currentDPMSubtab ? 'btn btn-sm btn-primary' : 'btn btn-sm';
+        }
+      });
+    }
+
+    function renderDPMTable() {
+      const tbody = document.getElementById('dpm-table-body');
+      if (!tbody) return;
+
+      const query = (document.getElementById('dpm-search-input')?.value || '').toLowerCase().trim();
+
+      let list = currentDPMPatients;
+
+      if (currentDPMSubtab === 'renewals') {
+        list = list.filter(p => p.hasRenewal);
+      } else if (currentDPMSubtab === 'initial_only') {
+        list = list.filter(p => p.hasPackage && !p.hasRenewal);
+      } else if (currentDPMSubtab === 'consult_only') {
+        list = list.filter(p => p.hasConsultOnly);
+      }
+
+      if (query) {
+        list = list.filter(p => p.patientName.toLowerCase().includes(query) || p.initialPkg.toLowerCase().includes(query));
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data" style="padding:20px; text-align:center; color:var(--text-muted);">No matching patients found for this doctor filter</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map((item, idx) => `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="text-align:center; font-weight:700; color:var(--text-muted);">${idx + 1}</td>
+          <td style="font-weight:700; color:var(--cyan);">${item.patientName}</td>
+          <td style="font-weight:600; color:var(--text-primary);">${item.initialPkg}</td>
+          <td style="font-size:0.8rem; color:var(--text-muted);">${item.initialDateStr}</td>
+          <td style="color:var(--purple); font-weight:600;">${item.renNamesStr}</td>
+          <td style="font-size:0.8rem; color:var(--text-muted);">${item.renDatesStr}</td>
+          <td>${item.agent}</td>
+          <td style="font-weight:700; color:var(--purple); text-align:right;">${formatCurrency(item.renewalRevenue)}</td>
+          <td style="font-weight:700; color:var(--emerald); text-align:right;">${formatCurrency(item.totalPaid)}</td>
+          <td style="text-align:center;">${item.stageBadge}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportDPMCSV() {
+      if (!currentDPMPatients || currentDPMPatients.length === 0) {
+        showToast('No patient data to export', 'error');
+        return;
+      }
+
+      const headers = ['#', 'Patient Name', 'Initial 1st Package', 'Initial Date', 'Renewed Packages', 'Renewal Dates', 'Agent', 'Renewal Revenue (Rs)', 'Total Paid (Rs)', 'Status'];
+      const rows = currentDPMPatients.map((p, idx) => [
+        idx + 1,
+        `"${p.patientName}"`,
+        `"${p.initialPkg}"`,
+        `"${p.initialDateStr}"`,
+        `"${p.renNamesStr.replace(/<br>/g, '; ')}"`,
+        `"${p.renDatesStr.replace(/<br>/g, '; ')}"`,
+        `"${p.agent}"`,
+        p.renewalRevenue,
+        p.totalPaid,
+        `"${p.stageBadge.replace(/<[^>]+>/g, '')}"`
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      downloadBlob(blob, `Doctor_Patient_List_${currentDPMDoctorName.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+      showToast(`Exported ${currentDPMPatients.length} patient records for ${currentDPMDoctorName}`, 'success');
     }
 
     // ==================== DATA TABLES ====================
