@@ -4274,6 +4274,9 @@
 
       let initialPkgRevenue = 0;
       let renewalPkgRevenue = 0;
+      let initialPkgTxnCount = 0;
+      let renewalPkgTxnCount = 0;
+      const targetCatForCount = getPackageCategory(pkgName);
 
       for (const p of currentPRMPatients) {
         const rawP = p.rawPatient;
@@ -4282,9 +4285,13 @@
           if (s.type === 'package') {
             const amt = s.proportionalPaid || 0;
             if (s.isRenewal) {
-              renewalPkgRevenue += amt;
+              if (getPackageCategory(s.packageName || '') === targetCatForCount) {
+                renewalPkgRevenue += amt;
+                renewalPkgTxnCount++;
+              }
             } else if (s.packageName === pkgName) {
               initialPkgRevenue += amt;
+              initialPkgTxnCount++;
             }
           }
         }
@@ -4310,7 +4317,7 @@
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKG REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(initialPkgRevenue)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialCount} Initial Patients</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialCount} Patients &nbsp;|&nbsp; ${initialPkgTxnCount} Pkg(s)</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWED PATIENTS</div>
@@ -4320,12 +4327,12 @@
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(renewalPkgRevenue)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${renewalCount} Renewed Patients</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${renewalCount} Patients &nbsp;|&nbsp; ${renewalPkgTxnCount} Pkg(s)</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Initial + Renewal Combined</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialPkgTxnCount + renewalPkgTxnCount} Total Pkg(s) Sold</div>
         </div>
       `;
 
