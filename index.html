@@ -1557,9 +1557,12 @@
           <div class="selected-files-list" id="selected-files-list"></div>
         </div>
       </div>
-      <div class="generate-btn-wrap">
+      <div class="generate-btn-wrap" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
         <button class="btn btn-primary" id="generate-btn" disabled>
           🚀 Generate Unified Report
+        </button>
+        <button class="btn btn-sm" onclick="clearAllCacheAndResetUpload()" style="background:rgba(239,68,68,0.1); color:var(--rose); border:1px solid rgba(239,68,68,0.3); padding:6px 14px; border-radius:6px; font-weight:600; font-size:12px;">
+          🗑️ Clear Saved Local Storage & Reset Upload
         </button>
       </div>
     </section>
@@ -6407,6 +6410,25 @@
       try {
         localStorage.removeItem(LOCALSTORAGE_KEY);
       } catch (e) {}
+    }
+
+    async function clearAllCacheAndResetUpload() {
+      clearDatasetCache();
+      uploadedFiles = [];
+      rawRows = [];
+      allPatients = {};
+      filteredPatients = {};
+      currentMetrics = {};
+      sortState = {};
+      currentTab = 'all';
+      destroyCharts();
+
+      document.getElementById('dashboard-section').classList.add('hidden');
+      document.getElementById('upload-section').classList.remove('hidden');
+      const fileInput = document.getElementById('file-input');
+      if (fileInput) fileInput.value = '';
+      renderSelectedFilesUI();
+      showToast('Local storage cache cleared! You can now select and upload new report files.', 'success');
     }
 
     async function restoreCachedDatasetOnStartup() {
