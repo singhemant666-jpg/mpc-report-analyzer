@@ -4245,6 +4245,24 @@
       document.getElementById('prm-title').textContent = `🔄 Package Analysis: ${pkgName}`;
       document.getElementById('prm-subtitle').textContent = `Showing exact patient breakdown for ${pkgName} (${currentPRMPatients.length} total patients)`;
 
+      let initialPkgRevenue = 0;
+      let renewalPkgRevenue = 0;
+
+      for (const p of currentPRMPatients) {
+        const rawP = p.rawPatient;
+        if (!rawP || !rawP.services) continue;
+        for (const s of rawP.services) {
+          if (s.type === 'package') {
+            const amt = s.proportionalPaid || 0;
+            if (s.isRenewal) {
+              renewalPkgRevenue += amt;
+            } else if (s.packageName === pkgName) {
+              initialPkgRevenue += amt;
+            }
+          }
+        }
+      }
+
       const renewalCount = currentPRMPatients.filter(p => p.hasRenewal).length;
       const initialCount = currentPRMPatients.filter(p => !p.hasRenewal).length;
 
@@ -4253,7 +4271,6 @@
       document.getElementById('prm-count-initial').textContent = initialCount;
 
       const totalRev = currentPRMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
-      const totalRenRev = currentPRMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
       const convRate = currentPRMPatients.length > 0 ? ((renewalCount / currentPRMPatients.length) * 100).toFixed(1) : 0;
 
       const ribbon = document.getElementById('prm-metrics-ribbon');
@@ -4263,12 +4280,16 @@
           <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentPRMPatients.length}</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKG REVENUE</div>
+          <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(initialPkgRevenue)}</div>
+        </div>
+        <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWED PATIENTS</div>
           <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalCount} (${convRate}%)</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
-          <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(totalRenRev)}</div>
+          <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(renewalPkgRevenue)}</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL SPEND</div>
@@ -4469,6 +4490,8 @@
 
       let initialPkgContractsCount = 0;
       let renewalPkgContractsCount = 0;
+      let initialPkgRevenueTotal = 0;
+      let renewalPkgRevenueTotal = 0;
       const initialPkgBreakdown = {};
       const renewalPkgBreakdown = {};
 
@@ -4481,11 +4504,14 @@
             if (selectedPkgFilter && pName.toLowerCase() !== selectedPkgFilter.toLowerCase()) {
               continue; // If a package filter is active, evaluate only the selected package!
             }
+            const amt = s.proportionalPaid || 0;
             if (s.isRenewal) {
               renewalPkgContractsCount++;
+              renewalPkgRevenueTotal += amt;
               renewalPkgBreakdown[pName] = (renewalPkgBreakdown[pName] || 0) + 1;
             } else {
               initialPkgContractsCount++;
+              initialPkgRevenueTotal += amt;
               initialPkgBreakdown[pName] = (initialPkgBreakdown[pName] || 0) + 1;
             }
           }
@@ -4493,7 +4519,7 @@
       }
 
       const totalRev = currentDPMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
-      const totalRenRev = currentDPMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
+      const totalRenRev = selectedPkgFilter ? renewalPkgRevenueTotal : currentDPMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
       const pkgCount = currentDPMPatients.filter(p => p.hasPackage).length;
       const convRate = currentDPMPatients.length > 0 ? ((pkgCount / currentDPMPatients.length) * 100).toFixed(1) : 0;
 
@@ -4505,16 +4531,16 @@
             <div style="font-size:14px; font-weight:800; color:var(--cyan);">${currentDPMPatients.length}</div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
-            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">INITIAL PKGS</div>
-            <div style="font-size:14px; font-weight:800; color:var(--emerald);">${initialPkgContractsCount} <span style="font-size:10px; opacity:0.8;">(${convRate}%)</span></div>
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">INITIAL PKG REV</div>
+            <div style="font-size:14px; font-weight:800; color:var(--emerald);">${formatCurrency(initialPkgRevenueTotal)} <span style="font-size:10px; opacity:0.8;">(${initialPkgContractsCount} Pkg)</span></div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
-            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL PKGS</div>
-            <div style="font-size:14px; font-weight:800; color:var(--purple);">${renewalPkgContractsCount} <span style="font-size:10px; opacity:0.8;">(${renewalCount} Pt)</span></div>
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL PKG REV</div>
+            <div style="font-size:14px; font-weight:800; color:var(--purple);">${formatCurrency(totalRenRev)} <span style="font-size:10px; opacity:0.8;">(${renewalPkgContractsCount} Pkg)</span></div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
-            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
-            <div style="font-size:14px; font-weight:800; color:var(--amber);">${formatCurrency(totalRenRev)}</div>
+            <div style="font-size:10px; color:var(--text-muted); font-weight:600;">RENEWAL PATIENTS</div>
+            <div style="font-size:14px; font-weight:800; color:var(--amber);">${renewalCount} Patients</div>
           </div>
           <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:6px 10px; border-radius:6px;">
             <div style="font-size:10px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
