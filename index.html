@@ -1578,9 +1578,12 @@
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Rank" onclick="sortDoctorLeaderboard('painMgmtCount')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="doctor" data-title="Consulting Doctor" onclick="sortDoctorLeaderboard('doctor')">Consulting Doctor</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="consultation" data-title="Consultations" onclick="sortDoctorLeaderboard('consultation')">Consultations</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="Total Pkgs Sold" onclick="sortDoctorLeaderboard('totalPackages')">Total Pkgs Sold</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="1st Pkg Converted" onclick="sortDoctorLeaderboard('totalPackages')">1st Pkg Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Pain Mgmt Pkgs" onclick="sortDoctorLeaderboard('painMgmtCount')">Pain Mgmt Pkgs</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtConvPct" data-title="Pain Mgmt Conv %" onclick="sortDoctorLeaderboard('painMgmtConvPct')">Pain Mgmt Conv %</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortDoctorLeaderboard('renewalCount')">Renewals Sold</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalConvPct" data-title="Renewal Conv %" onclick="sortDoctorLeaderboard('renewalConvPct')">Renewal Conv %</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue" onclick="sortDoctorLeaderboard('renewalRevenue')">Renewal Revenue</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtRevenue" data-title="Pain Mgmt Revenue" onclick="sortDoctorLeaderboard('painMgmtRevenue')">Pain Mgmt Revenue</th>
                   <th>Pain Mgmt Tier Breakdown</th>
                   <th style="text-align:center;">Incentive Rank</th>
@@ -2847,6 +2850,8 @@
               consultation: 0,
               totalPackages: 0,
               painMgmtCount: 0,
+              renewalCount: 0,
+              renewalRevenue: 0,
               otherPackageCount: 0,
               singleSessionCount: 0,
               painMgmtRevenue: 0,
@@ -2862,6 +2867,10 @@
 
             const initialPkgSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal);
             if (initialPkgSvcs.length > 0) dMap.totalPackages++;
+
+            const renPkgSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal);
+            dMap.renewalCount += renPkgSvcs.length;
+            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
 
             const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
             if (initialPmSvcs.length > 0) {
@@ -2890,6 +2899,7 @@
         const d = doctorMap[doc];
         d.overallConvPct = d.consultation > 0 ? Math.min(100, (d.totalPackages / d.consultation * 100)) : 0;
         d.painMgmtConvPct = d.consultation > 0 ? Math.min(100, (d.painMgmtCount / d.consultation * 100)) : 0;
+        d.renewalConvPct = d.totalPackages > 0 ? (d.renewalCount / d.totalPackages * 100) : 0;
       }
 
       // Agent-wise metrics
@@ -3888,6 +3898,17 @@
       renderDoctorIncentiveTable(currentMetrics);
     }
 
+    function setDoctorFilterAndScroll(doctorName) {
+      const select = document.getElementById('filter-doctor');
+      if (select) {
+        select.value = doctorName;
+        applyFilters();
+        const el = document.getElementById('search-input') || document.querySelector('.tables-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        showToast(`Filtered patient records for ${doctorName}`, 'info');
+      }
+    }
+
     function renderDoctorIncentiveTable(m) {
       const tbody = document.getElementById('doctor-incentive-tbody');
       if (!tbody) return;
@@ -3917,7 +3938,7 @@
       });
 
       if (doctors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No doctor data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="no-data">No doctor data available</td></tr>';
         return;
       }
 
@@ -3941,7 +3962,9 @@
         if (idx === 0) { badgeClass = 'badge-emerald'; rankBadge = '⭐ Top Converter'; }
         else if (idx === 1 || idx === 2) { badgeClass = 'badge-purple'; rankBadge = '🔥 High Performer'; }
 
-        return `<tr>
+        const safeDocName = (d.doctor || '').replace(/'/g, "\\'");
+
+        return `<tr onclick="setDoctorFilterAndScroll('${safeDocName}')" style="cursor:pointer;" title="Click to filter patient table for ${d.doctor}">
           <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
           <td style="font-weight:700; color:var(--text-primary);">${d.doctor}</td>
           <td>${d.consultation}</td>
@@ -3950,9 +3973,17 @@
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-weight:700; min-width:45px;">${d.painMgmtConvPct.toFixed(1)}%</span>
-              <div class="gauge" style="width:80px;"><div class="gauge-fill" style="width:${Math.min(d.painMgmtConvPct, 100)}%"></div></div>
+              <div class="gauge" style="width:70px;"><div class="gauge-fill" style="width:${Math.min(d.painMgmtConvPct, 100)}%"></div></div>
             </div>
           </td>
+          <td style="font-weight:700; color:var(--purple);">${d.renewalCount}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; color:var(--purple); min-width:45px;">${d.renewalConvPct.toFixed(1)}%</span>
+              <div class="gauge" style="width:70px;"><div class="gauge-fill" style="width:${Math.min(d.renewalConvPct, 100)}%; background:linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>
+            </div>
+          </td>
+          <td style="font-weight:700; color:var(--purple);">${formatCurrency(d.renewalRevenue)}</td>
           <td style="font-weight:700; color:var(--amber);">${formatCurrency(d.painMgmtRevenue)}</td>
           <td>${tierStr}</td>
           <td><span class="badge ${badgeClass}">${rankBadge}</span></td>
