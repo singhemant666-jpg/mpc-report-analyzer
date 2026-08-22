@@ -5586,26 +5586,16 @@
       };
     }
 
-    function openReportDB() {
-      return new Promise((resolve, reject) => {
-        if (!window.indexedDB) {
-          reject(new Error('IndexedDB not supported'));
-          return;
-        }
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME);
-          }
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
+    function fallbackSaveLocalStorage(dataToSave) {
+      try {
+        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(dataToSave));
+      } catch (e) {
+        console.warn('LocalStorage fallback save failed:', e);
+      }
     }
 
-    async function saveDatasetToCache(rows, filesSummary) {
-      if (!rows || rows.length === 0) return;
+    function saveDatasetToCache(rows, filesSummary) {
+      if (!rows || rows.length === 0) return Promise.resolve(false);
       const cleanRows = rows.map(cleanRowForStorage);
       const dataToSave = {
         rawRows: cleanRows,
@@ -5613,46 +5603,90 @@
         timestamp: new Date().toISOString()
       };
 
-      let idbSuccess = false;
-      try {
-        const db = await openReportDB();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.put(dataToSave, 'current_report');
-        await new Promise((r, j) => {
-          tx.oncomplete = r;
-          tx.onerror = j;
-        });
-        idbSuccess = true;
-      } catch (err) {
-        console.warn('IndexedDB save failed, attempting LocalStorage fallback:', err);
-      }
-
-      // Always save LocalStorage fallback for high reliability
-      try {
-        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(dataToSave));
-      } catch (e) {
-        if (!idbSuccess) console.warn('LocalStorage save failed:', e);
-      }
+      return new Promise((resolve) => {
+        try {
+          if (!window.indexedDB) {
+            fallbackSaveLocalStorage(dataToSave);
+            resolve(false);
+            return;
+          }
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              db.createObjectStore(STORE_NAME);
+            }
+          };
+          req.onsuccess = (e) => {
+            try {
+              const db = e.target.result;
+              const tx = db.transaction(STORE_NAME, 'readwrite');
+              const store = tx.objectStore(STORE_NAME);
+              const putReq = store.put(dataToSave, 'current_report');
+              putReq.onsuccess = () => {
+                fallbackSaveLocalStorage(dataToSave);
+                resolve(true);
+              };
+              putReq.onerror = () => {
+                fallbackSaveLocalStorage(dataToSave);
+                resolve(false);
+              };
+            } catch (err) {
+              fallbackSaveLocalStorage(dataToSave);
+              resolve(false);
+            }
+          };
+          req.onerror = () => {
+            fallbackSaveLocalStorage(dataToSave);
+            resolve(false);
+          };
+        } catch (err) {
+          fallbackSaveLocalStorage(dataToSave);
+          resolve(false);
+        }
+      });
     }
 
-    async function loadDatasetFromCache() {
-      // 1. Try IndexedDB
-      try {
-        const db = await openReportDB();
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.get('current_report');
-        const res = await new Promise((resolve) => {
-          req.onsuccess = () => resolve(req.result || null);
-          req.onerror = () => resolve(null);
-        });
-        if (res && res.rawRows && res.rawRows.length > 0) return res;
-      } catch (err) {
-        console.warn('IndexedDB load failed, falling back to LocalStorage:', err);
-      }
+    function loadDatasetFromCache() {
+      return new Promise((resolve) => {
+        try {
+          if (window.indexedDB) {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = (e) => {
+              const db = e.target.result;
+              if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+              }
+            };
+            req.onsuccess = (e) => {
+              try {
+                const db = e.target.result;
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const getReq = store.get('current_report');
+                getReq.onsuccess = () => {
+                  if (getReq.result && getReq.result.rawRows && getReq.result.rawRows.length > 0) {
+                    resolve(getReq.result);
+                  } else {
+                    resolve(loadFromLocalStorageFallback());
+                  }
+                };
+                getReq.onerror = () => resolve(loadFromLocalStorageFallback());
+              } catch (e) {
+                resolve(loadFromLocalStorageFallback());
+              }
+            };
+            req.onerror = () => resolve(loadFromLocalStorageFallback());
+          } else {
+            resolve(loadFromLocalStorageFallback());
+          }
+        } catch (e) {
+          resolve(loadFromLocalStorageFallback());
+        }
+      });
+    }
 
-      // 2. Fallback to LocalStorage
+    function loadFromLocalStorageFallback() {
       try {
         const saved = localStorage.getItem(LOCALSTORAGE_KEY);
         if (saved) {
@@ -5660,16 +5694,21 @@
           if (parsed && parsed.rawRows && parsed.rawRows.length > 0) return parsed;
         }
       } catch (e) {}
-
       return null;
     }
 
-    async function clearDatasetCache() {
+    function clearDatasetCache() {
       try {
-        const db = await openReportDB();
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        store.delete('current_report');
+        if (window.indexedDB) {
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onsuccess = (e) => {
+            try {
+              const db = e.target.result;
+              const tx = db.transaction(STORE_NAME, 'readwrite');
+              tx.objectStore(STORE_NAME).delete('current_report');
+            } catch (err) {}
+          };
+        }
       } catch (err) {}
 
       try {
