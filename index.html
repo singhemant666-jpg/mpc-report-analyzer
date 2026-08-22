@@ -1548,7 +1548,7 @@
 
     <!-- Upload Section -->
     <section id="upload-section">
-      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-zone" id="drop-zone">
         <span class="upload-icon">📚</span>
         <div class="upload-title">Drop your Daily Collection Report(s) here</div>
         <div class="upload-desc">or click anywhere inside this box to browse • Supports .xlsx, .xls, .csv, .xlsm files</div>
@@ -6507,6 +6507,7 @@
       if (e.target && e.target.closest && (e.target.closest('.remove-file') || e.target.closest('.upload-file-info'))) {
         return;
       }
+      fileInput.click();
     });
 
     dropZone.addEventListener('dragover', (e) => {
