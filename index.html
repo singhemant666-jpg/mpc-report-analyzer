@@ -4282,7 +4282,7 @@
       document.getElementById('prm-count-renewals').textContent = renewalCount;
       document.getElementById('prm-count-initial').textContent = initialCount;
 
-      const totalRev = currentPRMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
+      const totalRev = initialPkgRevenue + renewalPkgRevenue;
       const convRate = currentPRMPatients.length > 0 ? ((renewalCount / currentPRMPatients.length) * 100).toFixed(1) : 0;
 
       const ribbon = document.getElementById('prm-metrics-ribbon');
@@ -4304,7 +4304,7 @@
           <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(renewalPkgRevenue)}</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
-          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL SPEND</div>
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
         </div>
       `;
