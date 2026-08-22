@@ -1518,6 +1518,28 @@
             </table>
           </div>
         </div>
+      <!-- Package Renewal Performance Leaderboard -->
+      <div class="section-title"><span class="icon">🔄</span> Package Renewal Performance Leaderboard (Best Renewed Packages)</div>
+      <div class="tables-section" style="margin-bottom: 28px;">
+        <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:center;">Rank</th>
+                  <th>Treatment Package</th>
+                  <th style="text-align:center;">Initial Sales (1st Pkg)</th>
+                  <th style="text-align:center;">Renewals Count</th>
+                  <th>Renewal Conversion %</th>
+                  <th>Renewal Revenue (₹)</th>
+                  <th>Total Package Revenue (₹)</th>
+                  <th style="text-align:center;">Renewal Performance Badge</th>
+                </tr>
+              </thead>
+              <tbody id="package-renewal-tbody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Data Tables -->
@@ -2827,17 +2849,43 @@
         }
       }
 
-      // Package sales
+      // Package sales & renewal performance
       const packageSales = {};
       for (const p of pList) {
         for (const svc of p.services) {
           if (svc.type === 'package') {
             const name = svc.packageName || 'Unknown';
-            if (!packageSales[name]) packageSales[name] = { count: 0, revenue: 0 };
+            if (!packageSales[name]) {
+              packageSales[name] = {
+                initialCount: 0,
+                initialRevenue: 0,
+                renewalCount: 0,
+                renewalRevenue: 0,
+                totalCount: 0,
+                totalRevenue: 0,
+                count: 0,
+                revenue: 0
+              };
+            }
+            packageSales[name].totalCount++;
+            packageSales[name].totalRevenue += (svc.proportionalPaid || 0);
             packageSales[name].count++;
-            packageSales[name].revenue += svc.proportionalPaid;
+            packageSales[name].revenue += (svc.proportionalPaid || 0);
+
+            if (svc.isRenewal) {
+              packageSales[name].renewalCount++;
+              packageSales[name].renewalRevenue += (svc.proportionalPaid || 0);
+            } else {
+              packageSales[name].initialCount++;
+              packageSales[name].initialRevenue += (svc.proportionalPaid || 0);
+            }
           }
         }
+      }
+
+      for (const pkgName of Object.keys(packageSales)) {
+        const item = packageSales[pkgName];
+        item.renewalRate = item.initialCount > 0 ? Math.min(100, Math.round((item.renewalCount / item.initialCount) * 100)) : 0;
       }
 
       // Revenue by date
@@ -3039,6 +3087,7 @@
       renderCategoryCards(metrics);
       renderCharts(metrics);
       renderDoctorIncentiveTable(metrics);
+      renderPackageRenewalLeaderboard(metrics);
       renderTables(patients, metrics);
     }
 
@@ -3751,6 +3800,54 @@
           <td style="font-weight:700; color:var(--amber);">${formatCurrency(d.painMgmtRevenue)}</td>
           <td>${tierStr}</td>
           <td><span class="badge ${badgeClass}">${rankBadge}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderPackageRenewalLeaderboard(m) {
+      const tbody = document.getElementById('package-renewal-tbody');
+      if (!tbody) return;
+
+      const entries = Object.entries(m.packageSales || {})
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.renewalCount !== a.renewalCount ? b.renewalCount - a.renewalCount : b.renewalRate - a.renewalRate);
+
+      if (entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="no-data">No package renewal data available</td></tr>';
+        return;
+      }
+
+      const rankIcons = ['🥇 1st', '🥈 2nd', '🥉 3rd'];
+
+      tbody.innerHTML = entries.map((item, idx) => {
+        const rankLabel = rankIcons[idx] || `#${idx + 1}`;
+        let badgeClass = 'badge-cyan';
+        let badgeLabel = '👍 Active';
+
+        if (idx === 0) {
+          badgeClass = 'badge-emerald';
+          badgeLabel = '🏆 Best Renewed Package';
+        } else if (idx === 1 || idx === 2) {
+          badgeClass = 'badge-purple';
+          badgeLabel = '🔥 High Retention';
+        }
+
+        const gaugeWidth = Math.min(item.renewalRate, 100);
+
+        return `<tr>
+          <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
+          <td style="font-weight:700; color:var(--text-primary);">${item.name}</td>
+          <td style="text-align:center;">${item.initialCount}</td>
+          <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewalCount}</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; min-width:45px;">${item.renewalRate}%</span>
+              <div class="gauge" style="width:80px;"><div class="gauge-fill" style="width:${gaugeWidth}%"></div></div>
+            </div>
+          </td>
+          <td style="font-weight:700; color:var(--purple);">${formatCurrency(item.renewalRevenue)}</td>
+          <td style="font-weight:700; color:var(--emerald);">${formatCurrency(item.totalRevenue)}</td>
+          <td style="text-align:center;"><span class="badge ${badgeClass}">${badgeLabel}</span></td>
         </tr>`;
       }).join('');
     }
