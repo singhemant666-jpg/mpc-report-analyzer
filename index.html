@@ -586,7 +586,7 @@
     /* ==================== METRIC CARDS ==================== */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
@@ -596,11 +596,14 @@
       backdrop-filter: blur(20px);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 22px;
+      padding: 20px 22px;
       position: relative;
       overflow: hidden;
       transition: var(--transition);
       animation: fadeInUp 0.5s ease-out both;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .metric-card:hover {
@@ -634,10 +637,14 @@
     }
 
     .metric-value {
-      font-size: 30px;
+      font-size: 26px;
       font-weight: 800;
-      letter-spacing: -1px;
-      line-height: 1;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     .metric-value.cyan { color: var(--cyan); }
@@ -3251,9 +3258,14 @@
         }
         if (c.sub) subHtml += `<div class="metric-sub">${c.sub}</div>`;
 
+        let fontSizeStyle = '';
+        if (displayVal.length >= 12) fontSizeStyle = 'font-size: 19px;';
+        else if (displayVal.length >= 10) fontSizeStyle = 'font-size: 21px;';
+        else if (displayVal.length >= 8) fontSizeStyle = 'font-size: 24px;';
+
         card.innerHTML = `
           <div class="metric-label">${c.icon} ${c.label}</div>
-          <div class="metric-value ${c.color}" data-target="${c.value}" data-fmt="${c.fmt}">${displayVal}</div>
+          <div class="metric-value ${c.color}" style="${fontSizeStyle}" data-target="${c.value}" data-fmt="${c.fmt}">${displayVal}</div>
           ${subHtml}`;
         grid.appendChild(card);
       });
