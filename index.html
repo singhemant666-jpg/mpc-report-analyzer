@@ -2928,41 +2928,65 @@
       const pkg = document.getElementById('filter-package').value;
       const status = document.getElementById('filter-status').value;
 
-      // Filter raw rows first, then regroup
-      let filtered = rawRows.filter(row => {
-        if (dateFrom && row.paymentDate) {
-          const rd = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
-          if (rd < new Date(dateFrom)) return false;
-        }
-        if (dateTo && row.paymentDate) {
-          const rd = row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate);
-          if (rd > new Date(dateTo + 'T23:59:59')) return false;
-        }
-        if (doctor && row.doctor !== doctor) return false;
-        if (agent && row.agent !== agent) return false;
-        if (source && row.leadSource !== source) return false;
-        if (pkg && row.packageName !== pkg) return false;
-        return true;
-      });
+      const dFrom = dateFrom ? new Date(dateFrom) : null;
+      const dTo = dateTo ? new Date(dateTo + 'T23:59:59') : null;
 
-      filteredPatients = groupPatients(filtered, allPatients);
+      const filtered = {};
 
-      // Apply status filter on grouped data
-      if (status) {
-        const newFiltered = {};
-        for (const [k, p] of Object.entries(filteredPatients)) {
+      for (const [key, p] of Object.entries(allPatients)) {
+        // Date range filter
+        if (dFrom || dTo) {
+          const hasMatchingDate = (p.services || []).some(s => {
+            if (!s.paymentDate) return false;
+            const rd = s.paymentDate instanceof Date ? s.paymentDate : new Date(s.paymentDate);
+            if (isNaN(rd.getTime())) return false;
+            if (dFrom && rd < dFrom) return false;
+            if (dTo && rd > dTo) return false;
+            return true;
+          });
+          if (!hasMatchingDate) continue;
+        }
+
+        // Doctor filter
+        if (doctor) {
+          const matchesDoc = (p.doctors && p.doctors.has(doctor)) || (p.services && p.services.some(s => s.doctor === doctor));
+          if (!matchesDoc) continue;
+        }
+
+        // Agent filter
+        if (agent) {
+          const matchesAgent = (p.agents && p.agents.has(agent)) || (p.services && p.services.some(s => s.agent === agent));
+          if (!matchesAgent) continue;
+        }
+
+        // Lead source filter
+        if (source) {
+          const matchesSource = (p.leadSources && p.leadSources.has(source)) || (p.services && p.services.some(s => s.leadSource === source));
+          if (!matchesSource) continue;
+        }
+
+        // Package filter
+        if (pkg) {
+          const matchesPkg = p.services && p.services.some(s => s.packageName === pkg);
+          if (!matchesPkg) continue;
+        }
+
+        // Status filter
+        if (status) {
           if (status === 'Package Renewal') {
-            if (p.services && p.services.some(s => s.isRenewal)) newFiltered[k] = p;
+            if (!p.services || !p.services.some(s => s.isRenewal)) continue;
           } else {
-            if (p.status === status) newFiltered[k] = p;
+            if (p.status !== status) continue;
           }
         }
-        filteredPatients = newFiltered;
+
+        filtered[key] = p;
       }
 
+      filteredPatients = filtered;
       currentMetrics = computeMetrics(filteredPatients);
       renderDashboard(currentMetrics, filteredPatients);
-      showToast('Filters applied', 'info');
+      showToast(`Filters applied: ${Object.keys(filteredPatients).length} patients found`, 'info');
     }
 
     function clearFilters() {
