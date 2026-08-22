@@ -1500,39 +1500,41 @@
       <div class="tables-section" style="margin-bottom: 28px;">
         <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
           <div class="table-wrapper">
-            <table>
+            <table id="doctor-incentive-table">
               <thead>
                 <tr>
-                  <th>Rank</th>
-                  <th>Consulting Doctor</th>
-                  <th>Consultations</th>
-                  <th>Total Pkgs Sold</th>
-                  <th>Pain Mgmt Pkgs</th>
-                  <th>Pain Mgmt Conv %</th>
-                  <th>Pain Mgmt Revenue</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Rank" onclick="sortDoctorLeaderboard('painMgmtCount')">Rank</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="doctor" data-title="Consulting Doctor" onclick="sortDoctorLeaderboard('doctor')">Consulting Doctor</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="consultation" data-title="Consultations" onclick="sortDoctorLeaderboard('consultation')">Consultations</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="Total Pkgs Sold" onclick="sortDoctorLeaderboard('totalPackages')">Total Pkgs Sold</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Pain Mgmt Pkgs" onclick="sortDoctorLeaderboard('painMgmtCount')">Pain Mgmt Pkgs</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtConvPct" data-title="Pain Mgmt Conv %" onclick="sortDoctorLeaderboard('painMgmtConvPct')">Pain Mgmt Conv %</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtRevenue" data-title="Pain Mgmt Revenue" onclick="sortDoctorLeaderboard('painMgmtRevenue')">Pain Mgmt Revenue</th>
                   <th>Pain Mgmt Tier Breakdown</th>
-                  <th>Incentive Rank</th>
+                  <th style="text-align:center;">Incentive Rank</th>
                 </tr>
               </thead>
               <tbody id="doctor-incentive-tbody"></tbody>
             </table>
           </div>
         </div>
+      </div>
+
       <!-- Package Renewal Performance Leaderboard -->
       <div class="section-title"><span class="icon">🔄</span> Package Renewal Performance Leaderboard (Best Renewed Packages)</div>
       <div class="tables-section" style="margin-bottom: 28px;">
         <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
           <div class="table-wrapper">
-            <table>
+            <table id="package-renewal-table">
               <thead>
                 <tr>
-                  <th style="text-align:center;">Rank</th>
-                  <th>Treatment Package</th>
-                  <th style="text-align:center;">Initial Sales (1st Pkg)</th>
-                  <th style="text-align:center;">Renewals Count</th>
-                  <th>Renewal Conversion %</th>
-                  <th>Renewal Revenue (₹)</th>
-                  <th>Total Package Revenue (₹)</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Rank" onclick="sortPackageRenewalLeaderboard('renewalCount')">Rank</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="name" data-title="Treatment Package" onclick="sortPackageRenewalLeaderboard('name')">Treatment Package</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Sales (1st Pkg)" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Sales (1st Pkg)</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Count" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewals Count</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRate" data-title="Renewal Conversion %" onclick="sortPackageRenewalLeaderboard('renewalRate')">Renewal Conversion %</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue (₹)" onclick="sortPackageRenewalLeaderboard('renewalRevenue')">Renewal Revenue (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="totalRevenue" data-title="Total Package Revenue (₹)" onclick="sortPackageRenewalLeaderboard('totalRevenue')">Total Package Revenue (₹)</th>
                   <th style="text-align:center;">Renewal Performance Badge</th>
                 </tr>
               </thead>
@@ -3748,16 +3750,44 @@
     }
 
     // ==================== DOCTOR INCENTIVE LEADERBOARD ====================
+    let doctorSortState = { key: 'painMgmtCount', dir: 'desc' };
+
+    function sortDoctorLeaderboard(key) {
+      if (doctorSortState.key === key) {
+        doctorSortState.dir = doctorSortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        doctorSortState = { key, dir: key === 'doctor' ? 'asc' : 'desc' };
+      }
+      renderDoctorIncentiveTable(currentMetrics);
+    }
+
     function renderDoctorIncentiveTable(m) {
       const tbody = document.getElementById('doctor-incentive-tbody');
       if (!tbody) return;
 
-      const doctors = Object.values(m.doctorMap)
-        .filter(d => d.doctor && d.consultation > 0)
-        .sort((a, b) => {
-          if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
-          return b.painMgmtRevenue - a.painMgmtRevenue;
-        });
+      let doctors = Object.values(m.doctorMap || {})
+        .filter(d => d.doctor && d.consultation > 0);
+
+      doctors.sort((a, b) => {
+        let va = a[doctorSortState.key];
+        let vb = b[doctorSortState.key];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return doctorSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return doctorSortState.dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // Update header sort arrows
+      document.querySelectorAll('#doctor-incentive-table th[data-sort]').forEach(th => {
+        const k = th.getAttribute('data-sort');
+        const title = th.getAttribute('data-title');
+        if (k === doctorSortState.key) {
+          th.innerHTML = `${title} ${doctorSortState.dir === 'asc' ? '<span style="color:var(--cyan); margin-left:4px;">▲</span>' : '<span style="color:var(--cyan); margin-left:4px;">▼</span>'}`;
+        } else {
+          th.innerHTML = `${title} <span style="opacity:0.35; margin-left:4px;">↕</span>`;
+        }
+      });
 
       if (doctors.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="no-data">No doctor data available</td></tr>';
@@ -3769,7 +3799,6 @@
       tbody.innerHTML = doctors.map((d, idx) => {
         const rankLabel = rankIcons[idx] || `#${idx + 1}`;
 
-        // Build Pain Mgmt Tier Breakdown string e.g. "PM-12: 15  PM-6: 8"
         const tierEntries = Object.entries(d.pmBreakdown || {})
           .sort((a, b) => b[1] - a[1]);
         
@@ -3804,13 +3833,45 @@
       }).join('');
     }
 
+    // ==================== PACKAGE RENEWAL LEADERBOARD ====================
+    let packageRenewalSortState = { key: 'renewalCount', dir: 'desc' };
+
+    function sortPackageRenewalLeaderboard(key) {
+      if (packageRenewalSortState.key === key) {
+        packageRenewalSortState.dir = packageRenewalSortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        packageRenewalSortState = { key, dir: key === 'name' ? 'asc' : 'desc' };
+      }
+      renderPackageRenewalLeaderboard(currentMetrics);
+    }
+
     function renderPackageRenewalLeaderboard(m) {
       const tbody = document.getElementById('package-renewal-tbody');
       if (!tbody) return;
 
-      const entries = Object.entries(m.packageSales || {})
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.renewalCount !== a.renewalCount ? b.renewalCount - a.renewalCount : b.renewalRate - a.renewalRate);
+      let entries = Object.entries(m.packageSales || {})
+        .map(([name, data]) => ({ name, ...data }));
+
+      entries.sort((a, b) => {
+        let va = a[packageRenewalSortState.key];
+        let vb = b[packageRenewalSortState.key];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va < vb) return packageRenewalSortState.dir === 'asc' ? -1 : 1;
+        if (va > vb) return packageRenewalSortState.dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // Update header sort arrows
+      document.querySelectorAll('#package-renewal-table th[data-sort]').forEach(th => {
+        const k = th.getAttribute('data-sort');
+        const title = th.getAttribute('data-title');
+        if (k === packageRenewalSortState.key) {
+          th.innerHTML = `${title} ${packageRenewalSortState.dir === 'asc' ? '<span style="color:var(--cyan); margin-left:4px;">▲</span>' : '<span style="color:var(--cyan); margin-left:4px;">▼</span>'}`;
+        } else {
+          th.innerHTML = `${title} <span style="opacity:0.35; margin-left:4px;">↕</span>`;
+        }
+      });
 
       if (entries.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="no-data">No package renewal data available</td></tr>';
@@ -4339,9 +4400,15 @@
         { key: 'status', label: 'Status' }
       ];
 
-      let thead = '<tr>' + cols.map(c =>
-        `<th onclick="sortTable('${c.key}')">${c.label} <span class="sort-arrow">↕</span></th>`
-      ).join('') + '</tr>';
+      let thead = '<tr>' + cols.map(c => {
+        let arrow = '<span class="sort-arrow" style="opacity:0.35; margin-left:4px;">↕</span>';
+        if (sortState.key === c.key) {
+          arrow = sortState.dir === 'asc' 
+            ? '<span class="sort-arrow" style="color:var(--cyan); margin-left:4px; font-weight:bold;">▲</span>' 
+            : '<span class="sort-arrow" style="color:var(--cyan); margin-left:4px; font-weight:bold;">▼</span>';
+        }
+        return `<th onclick="sortTable('${c.key}')" style="cursor:pointer; user-select:none;">${c.label} ${arrow}</th>`;
+      }).join('') + '</tr>';
 
       let sortedData = [...filtered];
       if (sortState.key) {
