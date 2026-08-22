@@ -4431,7 +4431,8 @@
 
       let initialPkgContractsCount = 0;
       let renewalPkgContractsCount = 0;
-      const doctorPkgBreakdown = {};
+      const initialPkgBreakdown = {};
+      const renewalPkgBreakdown = {};
 
       for (const p of currentDPMPatients) {
         const rawP = p.rawPatient;
@@ -4442,9 +4443,13 @@
             if (selectedPkgFilter && pName.toLowerCase() !== selectedPkgFilter.toLowerCase()) {
               continue; // If a package filter is active, evaluate only the selected package!
             }
-            doctorPkgBreakdown[pName] = (doctorPkgBreakdown[pName] || 0) + 1;
-            if (s.isRenewal) renewalPkgContractsCount++;
-            else initialPkgContractsCount++;
+            if (s.isRenewal) {
+              renewalPkgContractsCount++;
+              renewalPkgBreakdown[pName] = (renewalPkgBreakdown[pName] || 0) + 1;
+            } else {
+              initialPkgContractsCount++;
+              initialPkgBreakdown[pName] = (initialPkgBreakdown[pName] || 0) + 1;
+            }
           }
         }
       }
@@ -4482,18 +4487,38 @@
 
       const tierContainer = document.getElementById('dpm-tier-breakdown');
       if (tierContainer) {
-        let sortedTiers = Object.entries(doctorPkgBreakdown).sort((a, b) => b[1] - a[1]);
+        let initialTiers = Object.entries(initialPkgBreakdown).sort((a, b) => b[1] - a[1]);
+        let renewalTiers = Object.entries(renewalPkgBreakdown).sort((a, b) => b[1] - a[1]);
+
         if (selectedPkgFilter) {
-          sortedTiers = sortedTiers.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
+          initialTiers = initialTiers.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
+          renewalTiers = renewalTiers.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
         }
-        const tierBadges = sortedTiers.map(([name, cnt]) => {
+
+        const initialBadges = initialTiers.map(([name, cnt]) => {
           const short = name.replace(/Pain Management/i, 'PM');
-          return `<span class="badge badge-purple" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">${short}: <strong>${cnt}</strong></span>`;
+          return `<span class="badge badge-emerald" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">1st ${short}: <strong>${cnt}</strong></span>`;
+        }).join(' ');
+
+        const renewalBadges = renewalTiers.map(([name, cnt]) => {
+          const short = name.replace(/Pain Management/i, 'PM');
+          return `<span class="badge badge-purple" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">🔄 ${short}: <strong>${cnt}</strong></span>`;
         }).join(' ');
 
         tierContainer.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages${selectedPkgFilter ? ` for ${selectedPkgFilter}` : ''}):</div>
-          <div>${tierBadges || '<span style="color:var(--text-muted)">-</span>'}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:8px;">
+            📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages: <span style="color:var(--emerald);">${initialPkgContractsCount} Initial 1st Pkgs</span> + <span style="color:var(--purple);">${renewalPkgContractsCount} Renewal Pkgs</span>${selectedPkgFilter ? ` for ${selectedPkgFilter}` : ''}):
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--emerald); min-width:130px;">1st Initial Pkgs (${initialPkgContractsCount}):</span>
+              <div>${initialBadges || '<span style="color:var(--text-muted); font-size:0.75rem;">None</span>'}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-size:0.75rem; font-weight:700; color:var(--purple); min-width:130px;">🔄 Renewal Pkgs (${renewalPkgContractsCount}):</span>
+              <div>${renewalBadges || '<span style="color:var(--text-muted); font-size:0.75rem;">None</span>'}</div>
+            </div>
+          </div>
         `;
       }
 
