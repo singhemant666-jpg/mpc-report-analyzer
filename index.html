@@ -2532,11 +2532,13 @@
                 }
                 dateRemaining = 0;
               } else {
-                // All rows have explicit amountPaid > 0. Trust the explicit amounts, but cap at dateRemaining.
+                // All rows have explicit amountPaid > 0.
+                // Use each package's own amountPaid directly (no draining pool),
+                // so bundles like PM-3 (₹4,500) + RSA (₹3,000) + Foot (₹1,360) each get their correct amount.
                 for (const pr of packageRows) {
-                  pr.proportionalPaid = Math.min(pr.amountPaid, dateRemaining);
-                  dateRemaining = Math.max(0, dateRemaining - pr.proportionalPaid);
+                  pr.proportionalPaid = pr.amountPaid;
                 }
+                dateRemaining = 0;
               }
             }
 
