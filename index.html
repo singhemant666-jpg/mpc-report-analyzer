@@ -3227,8 +3227,15 @@
     }
 
     function renderPieChart(m) {
-      const labels = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
-      const data = labels.map(s => m.statusCounts[s] || 0);
+      const statuses = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
+      const counts = statuses.map(s => m.statusCounts[s] || 0);
+      const total = counts.reduce((a, b) => a + b, 0);
+
+      const labels = statuses.map(s => {
+        const c = m.statusCounts[s] || 0;
+        const pct = total > 0 ? ((c / total) * 100).toFixed(1) : '0';
+        return `${s} (${pct}% • ${c})`;
+      });
 
       chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
         type: 'doughnut',
@@ -3236,8 +3243,8 @@
         data: {
           labels,
           datasets: [{
-            data,
-            backgroundColor: CHART_COLORS.slice(0, labels.length),
+            data: counts,
+            backgroundColor: CHART_COLORS.slice(0, statuses.length),
             borderWidth: 0,
             hoverOffset: 8
           }]
@@ -3246,7 +3253,10 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
+            legend: {
+              position: 'right',
+              labels: { padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: '600' } }
+            },
             tooltip: {
               backgroundColor: 'rgba(15,23,42,0.95)',
               borderColor: 'rgba(148,163,184,0.15)',
@@ -3254,9 +3264,13 @@
               padding: 12,
               callbacks: {
                 label: (ctx) => {
-                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
-                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
-                  return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                  const statusName = statuses[ctx.dataIndex];
+                  const c = counts[ctx.dataIndex];
+                  const pct = total > 0 ? ((c / total) * 100).toFixed(1) : '0';
+                  return [
+                    ` 👥 ${statusName}: ${c} Patients (${pct}%)`,
+                    ` 📊 Distribution Share: ${pct}% of Total Patients`
+                  ];
                 }
               }
             },
@@ -3282,17 +3296,24 @@
 
       if (categories.length === 0) {
         const ctx = document.getElementById('chart-revenue-pie');
-        if (ctx) {
+        if (ctx && ctx.parentElement) {
           ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No revenue data available</div>';
         }
         return;
       }
 
+      const totalRev = categories.reduce((sum, c) => sum + c.value, 0);
+
+      const labels = categories.map(c => {
+        const pct = totalRev > 0 ? ((c.value / totalRev) * 100).toFixed(1) : '0';
+        return `${c.name} (${pct}% • ${formatCurrencyCompact(c.value)})`;
+      });
+
       chartInstances.revenuePie = new Chart(document.getElementById('chart-revenue-pie'), {
         type: 'doughnut',
         plugins: [centerTextPlugin],
         data: {
-          labels: categories.map(c => c.name),
+          labels,
           datasets: [{
             data: categories.map(c => c.value),
             backgroundColor: categories.map(c => c.color),
@@ -3312,9 +3333,12 @@
               padding: 12,
               callbacks: {
                 label: (ctx) => {
-                  const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
-                  const pct = ((ctx.parsed / total) * 100).toFixed(1);
-                  return ` ${ctx.label}: ${formatCurrency(ctx.parsed)} (${pct}%)`;
+                  const cat = categories[ctx.dataIndex];
+                  const pct = totalRev > 0 ? ((cat.value / totalRev) * 100).toFixed(1) : '0';
+                  return [
+                    ` 💰 ${cat.name}: ${formatCurrency(cat.value)}`,
+                    ` 📈 Revenue Share: ${pct}% of Total Collection`
+                  ];
                 }
               }
             },
