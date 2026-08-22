@@ -3026,8 +3026,13 @@
       }
 
       // Package sales & renewal performance
+      // initialCount = unique patients who have this package as initial (non-renewal)
+      // renewalCount = unique patients who have at least one renewal of this package category
       const packageSales = {};
       for (const p of pList) {
+        // Track per-patient per-package whether they have initial/renewal
+        const seenInitial = new Set();
+        const seenRenewal = new Set();
         for (const svc of p.services) {
           if (svc.type === 'package') {
             const name = svc.packageName || 'Unknown';
@@ -3049,13 +3054,20 @@
             packageSales[name].revenue += (svc.proportionalPaid || 0);
 
             if (svc.isRenewal) {
-              packageSales[name].renewalCount++;
               packageSales[name].renewalRevenue += (svc.proportionalPaid || 0);
+              seenRenewal.add(name);
             } else {
-              packageSales[name].initialCount++;
               packageSales[name].initialRevenue += (svc.proportionalPaid || 0);
+              seenInitial.add(name);
             }
           }
+        }
+        // Count unique patients per package (not transactions)
+        for (const name of seenInitial) {
+          if (packageSales[name]) packageSales[name].initialCount++;
+        }
+        for (const name of seenRenewal) {
+          if (packageSales[name]) packageSales[name].renewalCount++;
         }
       }
 
