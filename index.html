@@ -1377,6 +1377,68 @@
     </div>
   </div>
 
+  <!-- Package Renewal Detailed Patient Analysis Modal -->
+  <div class="modal-overlay" id="package-renewal-modal">
+    <div class="modal" style="max-width:1150px; width:95%; max-height:92vh; display:flex; flex-direction:column; padding:24px;">
+      <div class="modal-header" style="border-bottom:1px solid var(--border); padding-bottom:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div class="modal-title" style="font-size:1.3rem; color:var(--text-primary); font-weight:700;" id="prm-title">🔄 Package Renewal Detailed Patient Analysis</div>
+          <div style="font-size:0.85rem; color:var(--cyan); margin-top:2px; font-weight:600;" id="prm-subtitle">Individual Patient Name Breakdown & Renewal Stages</div>
+        </div>
+        <button class="btn btn-sm" onclick="closePackageRenewalModal()" style="font-size:1.1rem; padding:4px 10px; cursor:pointer;">✕</button>
+      </div>
+
+      <!-- Quick Metrics Ribbon inside Modal -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-bottom:14px;" id="prm-metrics-ribbon"></div>
+
+      <!-- Filter Controls & Search inside Modal -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; background:var(--bg-card-light); padding:10px 14px; border-radius:8px; border:1px solid var(--border);">
+        <div style="display:flex; gap:6px; flex-wrap:wrap;" id="prm-subtabs">
+          <button class="btn btn-sm btn-primary" id="prm-tab-all" onclick="setPRMSubtab('all')">All Patients (<span id="prm-count-all">0</span>)</button>
+          <button class="btn btn-sm" id="prm-tab-renewals" onclick="setPRMSubtab('renewals')">🔄 Renewals Only (<span id="prm-count-renewals">0</span>)</button>
+          <button class="btn btn-sm" id="prm-tab-initial" onclick="setPRMSubtab('initial_only')">1st Pkg Only (<span id="prm-count-initial">0</span>)</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex:1; max-width:320px;">
+          <input type="text" id="prm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:13px;" oninput="renderPRMTable()">
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm btn-emerald" onclick="exportPRMCSV()">📥 Export Patient List (CSV)</button>
+        </div>
+      </div>
+
+      <!-- Table Container -->
+      <div style="flex:1; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card);">
+        <table class="data-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th style="width:45px; text-align:center;">#</th>
+              <th>Patient Name</th>
+              <th>Initial 1st Package</th>
+              <th>Initial Date</th>
+              <th>Renewed Package(s)</th>
+              <th>Renewal Date(s)</th>
+              <th>Consulting Doctor</th>
+              <th>Agent</th>
+              <th style="text-align:right;">Renewal Revenue</th>
+              <th style="text-align:right;">Total Paid</th>
+              <th style="text-align:center;">Status / Stage</th>
+            </tr>
+          </thead>
+          <tbody id="prm-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-actions" style="margin-top:14px; justify-content:space-between; align-items:center;">
+        <div style="font-size:12px; color:var(--text-muted);">
+          Tip: Shows exact patient timeline and stage breakdown for this treatment package.
+        </div>
+        <button class="btn btn-sm" onclick="closePackageRenewalModal()">Close Analysis</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
@@ -3948,11 +4010,17 @@
         }
 
         const gaugeWidth = Math.min(item.renewalRate, 100);
+        const safeName = item.name.replace(/'/g, "\\'");
 
-        return `<tr>
+        return `<tr onclick="openPackageRenewalModal('${safeName}')" style="cursor:pointer;" title="Click to view detailed patient analysis for ${item.name}">
           <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
-          <td style="font-weight:700; color:var(--text-primary);">${item.name}</td>
-          <td style="text-align:center;">${item.initialCount}</td>
+          <td style="font-weight:700; color:var(--text-primary);">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span>${item.name}</span>
+              <span class="badge badge-cyan" style="font-size:10px; cursor:pointer;">🔍 View Patients</span>
+            </div>
+          </td>
+          <td style="text-align:center; font-weight:600;">${item.initialCount}</td>
           <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewalCount}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -3965,6 +4033,187 @@
           <td style="text-align:center;"><span class="badge ${badgeClass}">${badgeLabel}</span></td>
         </tr>`;
       }).join('');
+    }
+
+    // ==================== PACKAGE RENEWAL MODAL CONTROLLER ====================
+    let currentPRMPkgName = '';
+    let currentPRMPatients = [];
+    let currentPRMSubtab = 'all';
+
+    function openPackageRenewalModal(pkgName) {
+      currentPRMPkgName = pkgName;
+      currentPRMSubtab = 'all';
+
+      const searchInput = document.getElementById('prm-search-input');
+      if (searchInput) searchInput.value = '';
+
+      currentPRMPatients = [];
+
+      for (const p of Object.values(filteredPatients || {})) {
+        const hasThisPkg = p.services && p.services.some(s => s.packageName === pkgName);
+        if (!hasThisPkg) continue;
+
+        const initSvc = p.services.find(s => s.packageName === pkgName && s.type === 'package' && !s.isRenewal);
+        const renSvcs = p.services.filter(s => s.packageName === pkgName && s.type === 'package' && s.isRenewal);
+        
+        const renRevenue = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        
+        const initDateStr = initSvc && initSvc.paymentDate ? formatDate(initSvc.paymentDate) : (p.services[0] ? formatDate(p.services[0].paymentDate) : '-');
+        const renDatesStr = renSvcs.length > 0 ? renSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').join('<br>') : '-';
+        const renNamesStr = renSvcs.length > 0 ? renSvcs.map(s => s.packageName).join('<br>') : '-';
+
+        let stageBadge = '<span class="badge badge-cyan">Initial 1st Pkg Only</span>';
+        if (renSvcs.length === 1) stageBadge = '<span class="badge badge-purple">🔄 2nd Pkg Renewal</span>';
+        else if (renSvcs.length === 2) stageBadge = '<span class="badge badge-emerald">🔥 3rd Pkg Renewal</span>';
+        else if (renSvcs.length >= 3) stageBadge = `<span class="badge badge-emerald">🏆 ${renSvcs.length + 1}th Pkg Renewal</span>`;
+
+        currentPRMPatients.push({
+          patientName: p.name,
+          doctor: p.doctors && p.doctors.size > 0 ? [...p.doctors].join(', ') : '-',
+          agent: p.agents && p.agents.size > 0 ? [...p.agents].join(', ') : '-',
+          initialPkg: initSvc ? initSvc.packageName : (p.services[0] ? p.services[0].packageName : pkgName),
+          initialDateStr: initDateStr,
+          renNamesStr: renNamesStr,
+          renDatesStr: renDatesStr,
+          renewalRevenue: renRevenue,
+          totalPaid: p.totalPaid,
+          hasRenewal: renSvcs.length > 0,
+          stageBadge: stageBadge,
+          rawPatient: p
+        });
+      }
+
+      document.getElementById('prm-title').textContent = `🔄 Package Analysis: ${pkgName}`;
+      document.getElementById('prm-subtitle').textContent = `Showing exact patient breakdown for ${pkgName} (${currentPRMPatients.length} total patients)`;
+
+      const renewalCount = currentPRMPatients.filter(p => p.hasRenewal).length;
+      const initialCount = currentPRMPatients.filter(p => !p.hasRenewal).length;
+
+      document.getElementById('prm-count-all').textContent = currentPRMPatients.length;
+      document.getElementById('prm-count-renewals').textContent = renewalCount;
+      document.getElementById('prm-count-initial').textContent = initialCount;
+
+      const totalRev = currentPRMPatients.reduce((sum, p) => sum + p.totalPaid, 0);
+      const totalRenRev = currentPRMPatients.reduce((sum, p) => sum + p.renewalRevenue, 0);
+      const convRate = currentPRMPatients.length > 0 ? ((renewalCount / currentPRMPatients.length) * 100).toFixed(1) : 0;
+
+      const ribbon = document.getElementById('prm-metrics-ribbon');
+      ribbon.innerHTML = `
+        <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL PATIENTS</div>
+          <div style="font-size:18px; font-weight:700; color:var(--cyan);">${currentPRMPatients.length}</div>
+        </div>
+        <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWED PATIENTS</div>
+          <div style="font-size:18px; font-weight:700; color:var(--purple);">${renewalCount} (${convRate}%)</div>
+        </div>
+        <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
+          <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(totalRenRev)}</div>
+        </div>
+        <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
+          <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL SPEND</div>
+          <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
+        </div>
+      `;
+
+      updatePRMSubtabStyles();
+      renderPRMTable();
+
+      document.getElementById('package-renewal-modal').classList.add('show');
+    }
+
+    function closePackageRenewalModal() {
+      document.getElementById('package-renewal-modal').classList.remove('show');
+    }
+
+    function setPRMSubtab(subtab) {
+      currentPRMSubtab = subtab;
+      updatePRMSubtabStyles();
+      renderPRMTable();
+    }
+
+    function updatePRMSubtabStyles() {
+      const tabs = ['all', 'renewals', 'initial'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`prm-tab-${t}`);
+        if (btn) {
+          if ((t === 'all' && currentPRMSubtab === 'all') ||
+              (t === 'renewals' && currentPRMSubtab === 'renewals') ||
+              (t === 'initial' && currentPRMSubtab === 'initial_only')) {
+            btn.className = 'btn btn-sm btn-primary';
+          } else {
+            btn.className = 'btn btn-sm';
+          }
+        }
+      });
+    }
+
+    function renderPRMTable() {
+      const tbody = document.getElementById('prm-table-body');
+      if (!tbody) return;
+
+      const query = (document.getElementById('prm-search-input')?.value || '').trim().toLowerCase();
+
+      let filtered = currentPRMPatients;
+
+      if (currentPRMSubtab === 'renewals') {
+        filtered = filtered.filter(p => p.hasRenewal);
+      } else if (currentPRMSubtab === 'initial_only') {
+        filtered = filtered.filter(p => !p.hasRenewal);
+      }
+
+      if (query) {
+        filtered = filtered.filter(p => p.patientName.toLowerCase().includes(query));
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="no-data" style="padding:20px; text-align:center; color:var(--text-muted);">No matching patients found for this package filter</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((item, idx) => `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="text-align:center; font-weight:700; color:var(--text-muted);">${idx + 1}</td>
+          <td style="font-weight:700; color:var(--text-primary);">${item.patientName}</td>
+          <td style="font-weight:600; color:var(--text-secondary);">${item.initialPkg}</td>
+          <td style="color:var(--text-muted);">${item.initialDateStr}</td>
+          <td style="font-weight:600; color:var(--purple);">${item.renNamesStr}</td>
+          <td style="color:var(--text-muted); font-size:12px;">${item.renDatesStr}</td>
+          <td>${item.doctor}</td>
+          <td>${item.agent}</td>
+          <td style="text-align:right; font-weight:700; color:var(--purple);">${formatCurrency(item.renewalRevenue)}</td>
+          <td style="text-align:right; font-weight:700; color:var(--emerald);">${formatCurrency(item.totalPaid)}</td>
+          <td style="text-align:center;">${item.stageBadge}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportPRMCSV() {
+      if (!currentPRMPatients || currentPRMPatients.length === 0) {
+        showToast('No patient data to export', 'error');
+        return;
+      }
+
+      const headers = ['#', 'Patient Name', 'Initial Package', 'Initial Date', 'Renewed Packages', 'Renewal Dates', 'Doctor', 'Agent', 'Renewal Revenue (Rs)', 'Total Paid (Rs)', 'Has Renewal'];
+      const rows = currentPRMPatients.map((p, idx) => [
+        idx + 1,
+        `"${p.patientName}"`,
+        `"${p.initialPkg}"`,
+        `"${p.initialDateStr}"`,
+        `"${p.renNamesStr.replace(/<br>/g, '; ')}"`,
+        `"${p.renDatesStr.replace(/<br>/g, '; ')}"`,
+        `"${p.doctor}"`,
+        `"${p.agent}"`,
+        p.renewalRevenue,
+        p.totalPaid,
+        p.hasRenewal ? 'Yes' : 'No'
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      downloadBlob(blob, `Package_Renewal_Analysis_${currentPRMPkgName.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+      showToast(`Exported ${currentPRMPatients.length} patients for ${currentPRMPkgName}`, 'success');
     }
 
     // ==================== DATA TABLES ====================
