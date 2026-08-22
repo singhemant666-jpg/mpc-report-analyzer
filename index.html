@@ -480,7 +480,54 @@
       position: relative;
     }
 
-    .upload-file-info.show { display: flex; align-items: center; gap: 10px; }
+    .upload-file-info.show {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .selected-files-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 680px;
+    }
+
+    .selected-file-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(6,182,212,0.12);
+      border: 1px solid rgba(6,182,212,0.3);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--cyan);
+      font-weight: 600;
+      transition: var(--transition);
+    }
+
+    .selected-file-badge:hover {
+      border-color: var(--cyan);
+      background: rgba(6,182,212,0.18);
+    }
+
+    .selected-file-badge .remove-file {
+      cursor: pointer;
+      color: var(--rose);
+      font-weight: 800;
+      margin-left: 4px;
+      padding: 0 4px;
+      border-radius: 50%;
+      transition: var(--transition);
+    }
+
+    .selected-file-badge .remove-file:hover {
+      background: rgba(244,63,94,0.25);
+      color: #fff;
+    }
 
     .generate-btn-wrap { margin-top: 28px; }
 
@@ -1334,7 +1381,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Hidden file input -->
-  <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+  <input type="file" id="file-input" accept=".xlsx,.xls" multiple style="display:none">
 
   <!-- Main Container -->
   <div class="container">
@@ -1366,20 +1413,20 @@
     <!-- Upload Section -->
     <section id="upload-section">
       <div class="upload-zone" id="drop-zone">
-        <span class="upload-icon">📁</span>
-        <div class="upload-title">Drop your Daily Collection Report here</div>
-        <div class="upload-desc">or click to browse • Supports .xlsx files</div>
+        <span class="upload-icon">📚</span>
+        <div class="upload-title">Drop your Daily Collection Report(s) here</div>
+        <div class="upload-desc">or click to browse • Supports single or multiple .xlsx files</div>
         <button class="btn btn-sm" style="position:relative; pointer-events:none;">
-          📎 Choose File
+          📎 Choose File(s)
         </button>
         <div class="upload-file-info" id="file-info">
-          <span>📄</span>
-          <span id="file-name"></span>
+          <div id="file-summary"></div>
+          <div class="selected-files-list" id="selected-files-list"></div>
         </div>
       </div>
       <div class="generate-btn-wrap">
         <button class="btn btn-primary" id="generate-btn" disabled>
-          🚀 Generate Report
+          🚀 Generate Unified Report
         </button>
       </div>
     </section>
@@ -5248,8 +5295,10 @@
       }, 3500);
     }
 
+    let uploadedFiles = [];
+
     function resetApp() {
-      uploadedFile = null;
+      uploadedFiles = [];
       rawRows = [];
       allPatients = {};
       filteredPatients = {};
@@ -5260,8 +5309,7 @@
 
       document.getElementById('dashboard-section').classList.add('hidden');
       document.getElementById('upload-section').classList.remove('hidden');
-      document.getElementById('file-info').classList.remove('show');
-      document.getElementById('generate-btn').disabled = true;
+      renderSelectedFilesUI();
       clearFilters();
     }
 
@@ -5269,7 +5317,10 @@
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
 
-    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-file')) return;
+      fileInput.click();
+    });
 
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -5283,60 +5334,117 @@
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) handleFile(files[0]);
+      const files = Array.from(e.dataTransfer.files).filter(f => f.name.match(/\.xlsx?$/i));
+      if (files.length > 0) addFiles(files);
+      else showToast('Please upload valid .xlsx or .xls files', 'error');
     });
 
     fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleFile(e.target.files[0]);
+      const files = Array.from(e.target.files).filter(f => f.name.match(/\.xlsx?$/i));
+      if (files.length > 0) addFiles(files);
+      fileInput.value = '';
     });
 
-    function handleFile(file) {
-      if (!file.name.match(/\.xlsx?$/i)) {
-        showToast('Please upload an .xlsx file', 'error');
+    function addFiles(files) {
+      files.forEach(file => {
+        if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+          uploadedFiles.push(file);
+        }
+      });
+      renderSelectedFilesUI();
+    }
+
+    function removeFile(index) {
+      uploadedFiles.splice(index, 1);
+      renderSelectedFilesUI();
+    }
+
+    function renderSelectedFilesUI() {
+      const infoContainer = document.getElementById('file-info');
+      const summaryElem = document.getElementById('file-summary');
+      const listElem = document.getElementById('selected-files-list');
+      const generateBtn = document.getElementById('generate-btn');
+
+      if (!uploadedFiles || uploadedFiles.length === 0) {
+        if (infoContainer) infoContainer.classList.remove('show');
+        if (generateBtn) generateBtn.disabled = true;
         return;
       }
-      uploadedFile = file;
-      document.getElementById('file-name').textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
-      document.getElementById('file-info').classList.add('show');
-      document.getElementById('generate-btn').disabled = false;
+
+      if (infoContainer) infoContainer.classList.add('show');
+      if (generateBtn) generateBtn.disabled = false;
+
+      const totalSizeBytes = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
+      const totalSizeFormatted = (totalSizeBytes / 1024).toFixed(0) + ' KB';
+
+      if (summaryElem) {
+        if (uploadedFiles.length === 1) {
+          summaryElem.innerHTML = `📄 <strong>1 Report Selected</strong> (${totalSizeFormatted})`;
+        } else {
+          summaryElem.innerHTML = `📚 <strong>${uploadedFiles.length} Reports Selected</strong> (${totalSizeFormatted} Total)`;
+        }
+      }
+
+      if (listElem) {
+        listElem.innerHTML = uploadedFiles.map((f, idx) => `
+          <div class="selected-file-badge">
+            <span>📄 ${f.name}</span>
+            <span style="opacity:0.75; font-weight:400; font-size:11px;">(${(f.size/1024).toFixed(0)} KB)</span>
+            <span class="remove-file" title="Remove file" onclick="event.stopPropagation(); removeFile(${idx});">✕</span>
+          </div>
+        `).join('');
+      }
     }
 
     // ==================== GENERATE REPORT ====================
     document.getElementById('generate-btn').addEventListener('click', async () => {
-      if (!uploadedFile) return;
+      if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-      showLoading('Reading Excel file...');
       const startTime = performance.now();
+      let allCombinedRows = [];
+      let lastColMap = null;
+      let totalParsedFiles = 0;
 
       try {
-        await new Promise(r => setTimeout(r, 50)); // Let UI update
+        showLoading(`Reading ${uploadedFiles.length} Excel report(s)...`);
+        await new Promise(r => setTimeout(r, 50));
 
-        showLoading('Parsing Excel data...');
-        const result = await parseExcel(uploadedFile);
-        rawRows = result.rows;
-        columnMap = result.colMap;
+        for (let i = 0; i < uploadedFiles.length; i++) {
+          const file = uploadedFiles[i];
+          showLoading(`Parsing report ${i + 1} of ${uploadedFiles.length}: ${file.name}...`);
+          await new Promise(r => setTimeout(r, 30));
 
-        if (rawRows.length === 0) {
+          const result = await parseExcel(file);
+          if (result.rows && result.rows.length > 0) {
+            allCombinedRows = allCombinedRows.concat(result.rows);
+            lastColMap = result.colMap;
+            totalParsedFiles++;
+          }
+        }
+
+        if (allCombinedRows.length === 0) {
           hideLoading();
-          showToast('No data rows found in the Excel file', 'error');
+          showToast('No data rows found in the uploaded Excel file(s)', 'error');
           return;
         }
+
+        rawRows = allCombinedRows;
+        columnMap = lastColMap;
 
         showLoading('Classifying services...');
         await new Promise(r => setTimeout(r, 50));
 
-        showLoading('Grouping patients...');
+        showLoading(`Grouping patients across ${totalParsedFiles} report(s)...`);
         allPatients = groupPatients(rawRows);
         filteredPatients = { ...allPatients };
 
-        showLoading('Computing analytics & patient AI audit...');
+        showLoading('Computing analytics & AI audit...');
         await new Promise(r => setTimeout(r, 50));
         currentMetrics = computeMetrics(filteredPatients);
         cachedAIPatientAudit = auditAllPatientsAI(filteredPatients);
 
-        // Mandatory Groq AI Pre-Generation Audit (Checking Same-Category Renewals & Math Reconciliation)
-        showLoading(`🤖 Groq AI auditing dataset & verifying same-category renewals... (${Object.keys(allPatients).length} patients)`);
+        // Mandatory AI Pre-Generation Audit
+        showLoading(`🤖 AI auditing dataset... (${Object.keys(allPatients).length} patients)`);
         await new Promise(r => setTimeout(r, 100));
 
         showLoading('Rendering dashboard...');
@@ -5349,23 +5457,21 @@
         document.getElementById('dashboard-section').classList.remove('hidden');
 
         // Update file info bar
-        document.getElementById('dash-file-name').textContent = uploadedFile.name;
-        document.getElementById('dash-row-count').textContent = rawRows.length + ' rows • ' +
-          Object.keys(allPatients).length + ' patients';
+        const summaryText = uploadedFiles.length === 1 
+          ? uploadedFiles[0].name 
+          : `${uploadedFiles.length} Reports Combined (${rawRows.length} collection records)`;
+        document.getElementById('dash-file-name').textContent = summaryText;
+        document.getElementById('dash-row-count').textContent = `${Object.keys(allPatients).length} unique patients`;
 
         renderDashboard(currentMetrics, filteredPatients);
 
-        // Run AI Background Audit Watchdog automatically
-        runBackgroundAudit(filteredPatients, currentMetrics);
-
-        // Run Groq AI Report Audit automatically
-        setTimeout(() => {
-          generateAIExecutiveReport();
-        }, 500);
+        // Run AI Watchdog Audit automatically
+        const auditResults = runDataIntegrityAudit(currentMetrics, filteredPatients);
+        renderAuditResults(auditResults);
 
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
         hideLoading();
-        showToast(`Analysis & Groq AI 100% verification audit complete in ${elapsed}s — ${Object.keys(allPatients).length} patients verified`, 'success');
+        showToast(`Unified Report Generated! Combined ${totalParsedFiles} report(s), ${rawRows.length} records in ${elapsed}s`, 'success');
 
       } catch (err) {
         hideLoading();

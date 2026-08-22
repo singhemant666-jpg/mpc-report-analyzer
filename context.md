@@ -17,6 +17,14 @@
 | **jsPDF & AutoTable** | `2.5.1` / `3.8.1` | Generating PDF executive summaries |
 | **AI Audit Engine (Gemini / Groq)** | REST API | Executive narrative insights and interactive Q&A |
 
+### Key Capabilities:
+1. **Multi-Report Excel Ingestion & Dataset Combination**: Supports selecting, dropping, and combining **multiple `.xlsx` / `.xls` daily collection reports** at once into a unified master clinical dataset.
+2. **Multi-Pass Patient Grouping & Revenue Allocation**: Grouping raw invoice transaction rows into unified patient profiles with proportional advance payment distribution across consultation, single-session services, and multi-session treatment packages.
+3. **Automated Service Classification**: Classifies services into `consultation`, `single_session`, and `package` using configured rules and a master service price registry.
+4. **Doctor Incentive & Conversion Leaderboard**: Ranks consulting doctors based on initial Pain Management package conversions, conversion rates, and revenue.
+5. **AI Watchdog Data Integrity Audit**: Runs 11 automated mathematical audit checks to detect revenue discrepancies, ordinal sequence jumps, duplicate names, or unallocated funds.
+6. **Multi-Tab Excel & PDF Export**: Generates 15 categorized Excel sheets using `ExcelJS` with professional styling, totals, and column widths.
+
 ### Theme System (Dark / Light Mode)
 Theme state is managed dynamically via the `data-theme` attribute on the `<html>` element (`light` or `dark`). CSS Custom Variables define backgrounds, borders, glassmorphic cards, text colors, and chart color defaults.
 
