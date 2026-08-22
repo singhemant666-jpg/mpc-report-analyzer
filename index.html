@@ -449,6 +449,7 @@
       margin-bottom: 16px;
       display: block;
       filter: drop-shadow(0 0 20px rgba(6,182,212,0.3));
+      pointer-events: none;
     }
 
     .upload-title {
@@ -457,6 +458,7 @@
       margin-bottom: 8px;
       color: var(--text-primary);
       position: relative;
+      pointer-events: none;
     }
 
     .upload-desc {
@@ -464,6 +466,7 @@
       font-size: 14px;
       margin-bottom: 24px;
       position: relative;
+      pointer-events: none;
     }
 
     .upload-file-info {
@@ -1545,14 +1548,14 @@
 
     <!-- Upload Section -->
     <section id="upload-section">
-      <div class="upload-zone" id="drop-zone">
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
         <span class="upload-icon">📚</span>
         <div class="upload-title">Drop your Daily Collection Report(s) here</div>
-        <div class="upload-desc">or click to browse • Supports .xlsx, .xls, .csv, .xlsm files</div>
-        <button class="btn btn-sm" style="position:relative; cursor:pointer;" onclick="event.stopPropagation(); document.getElementById('file-input').click();">
+        <div class="upload-desc">or click anywhere inside this box to browse • Supports .xlsx, .xls, .csv, .xlsm files</div>
+        <button class="btn btn-sm" style="position:relative; pointer-events:none;">
           📎 Choose File(s)
         </button>
-        <div class="upload-file-info" id="file-info">
+        <div class="upload-file-info" id="file-info" onclick="event.stopPropagation();">
           <div id="file-summary"></div>
           <div class="selected-files-list" id="selected-files-list"></div>
         </div>
@@ -6501,8 +6504,9 @@
     const fileInput = document.getElementById('file-input');
 
     dropZone.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-file')) return;
-      fileInput.click();
+      if (e.target && e.target.closest && (e.target.closest('.remove-file') || e.target.closest('.upload-file-info'))) {
+        return;
+      }
     });
 
     dropZone.addEventListener('dragover', (e) => {
