@@ -4067,10 +4067,30 @@
         else if (renSvcs.length === 2) stageBadge = '<span class="badge badge-emerald">🔥 3rd Pkg Renewal</span>';
         else if (renSvcs.length >= 3) stageBadge = `<span class="badge badge-emerald">🏆 ${renSvcs.length + 1}th Pkg Renewal</span>`;
 
+        const getDoctorStr = (pt) => {
+          if (Array.isArray(pt.doctors) && pt.doctors.length > 0) return pt.doctors.filter(Boolean).join(', ');
+          if (pt.doctors && typeof pt.doctors.values === 'function') return [...pt.doctors].filter(Boolean).join(', ');
+          if (pt.services && pt.services.length > 0) {
+            const docs = [...new Set(pt.services.map(s => s.doctor).filter(Boolean))];
+            if (docs.length > 0) return docs.join(', ');
+          }
+          return '-';
+        };
+
+        const getAgentStr = (pt) => {
+          if (Array.isArray(pt.agents) && pt.agents.length > 0) return pt.agents.filter(Boolean).join(', ');
+          if (pt.agents && typeof pt.agents.values === 'function') return [...pt.agents].filter(Boolean).join(', ');
+          if (pt.services && pt.services.length > 0) {
+            const ags = [...new Set(pt.services.map(s => s.agent).filter(Boolean))];
+            if (ags.length > 0) return ags.join(', ');
+          }
+          return '-';
+        };
+
         currentPRMPatients.push({
           patientName: p.name,
-          doctor: p.doctors && p.doctors.size > 0 ? [...p.doctors].join(', ') : '-',
-          agent: p.agents && p.agents.size > 0 ? [...p.agents].join(', ') : '-',
+          doctor: getDoctorStr(p),
+          agent: getAgentStr(p),
           initialPkg: initSvc ? initSvc.packageName : (p.services[0] ? p.services[0].packageName : pkgName),
           initialDateStr: initDateStr,
           renNamesStr: renNamesStr,
