@@ -4427,6 +4427,8 @@
       document.getElementById('dpm-count-initial').textContent = initialCount;
       document.getElementById('dpm-count-consult').textContent = consultCount;
 
+      const selectedPkgFilter = (document.getElementById('filter-package') ? document.getElementById('filter-package').value : '').trim();
+
       let initialPkgContractsCount = 0;
       let renewalPkgContractsCount = 0;
       const doctorPkgBreakdown = {};
@@ -4437,6 +4439,9 @@
         for (const s of rawP.services) {
           if (s.type === 'package') {
             const pName = s.packageName || 'Unknown';
+            if (selectedPkgFilter && pName.toLowerCase() !== selectedPkgFilter.toLowerCase()) {
+              continue; // If a package filter is active, evaluate only the selected package!
+            }
             doctorPkgBreakdown[pName] = (doctorPkgBreakdown[pName] || 0) + 1;
             if (s.isRenewal) renewalPkgContractsCount++;
             else initialPkgContractsCount++;
@@ -4477,14 +4482,17 @@
 
       const tierContainer = document.getElementById('dpm-tier-breakdown');
       if (tierContainer) {
-        const sortedTiers = Object.entries(doctorPkgBreakdown).sort((a, b) => b[1] - a[1]);
+        let sortedTiers = Object.entries(doctorPkgBreakdown).sort((a, b) => b[1] - a[1]);
+        if (selectedPkgFilter) {
+          sortedTiers = sortedTiers.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
+        }
         const tierBadges = sortedTiers.map(([name, cnt]) => {
           const short = name.replace(/Pain Management/i, 'PM');
           return `<span class="badge badge-purple" style="font-size:0.75rem; padding:4px 10px; margin:2px 3px;">${short}: <strong>${cnt}</strong></span>`;
         }).join(' ');
 
         tierContainer.innerHTML = `
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages):</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; margin-bottom:4px;">📦 Package Sales Breakdown (${initialPkgContractsCount + renewalPkgContractsCount} Total Packages${selectedPkgFilter ? ` for ${selectedPkgFilter}` : ''}):</div>
           <div>${tierBadges || '<span style="color:var(--text-muted)">-</span>'}</div>
         `;
       }
