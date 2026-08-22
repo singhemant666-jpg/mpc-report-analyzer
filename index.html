@@ -5561,13 +5561,37 @@
       }, 3500);
     }
 
-    // ==================== INDEXEDDB DATASET PERSISTENCE ====================
+    // ==================== DUAL PERSISTENCE ENGINE (INDEXEDDB + LOCALSTORAGE FALLBACK) ====================
     const DB_NAME = 'MPC_Report_Analyzer_DB';
     const DB_VERSION = 1;
     const STORE_NAME = 'report_data';
+    const LOCALSTORAGE_KEY = 'mpc_cached_report_dataset';
+
+    function cleanRowForStorage(r) {
+      return {
+        patientName: String(r.patientName || r.name || ''),
+        patientId: String(r.patientId || ''),
+        packageName: String(r.packageName || ''),
+        doctor: String(r.doctor || ''),
+        agent: String(r.agent || ''),
+        leadSource: String(r.leadSource || ''),
+        paymentDate: r.paymentDate ? (r.paymentDate instanceof Date ? r.paymentDate.toISOString() : String(r.paymentDate)) : null,
+        packageCost: Number(r.packageCost) || 0,
+        amountPaid: Number(r.amountPaid) || 0,
+        totalPackageCost: Number(r.totalPackageCost) || 0,
+        paymentMode: String(r.paymentMode || ''),
+        invoiceNo: String(r.invoiceNo || ''),
+        userplanId: String(r.userplanId || ''),
+        cartId: String(r.cartId || '')
+      };
+    }
 
     function openReportDB() {
       return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          reject(new Error('IndexedDB not supported'));
+          return;
+        }
         const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = (e) => {
           const db = e.target.result;
@@ -5581,36 +5605,63 @@
     }
 
     async function saveDatasetToCache(rows, filesSummary) {
+      if (!rows || rows.length === 0) return;
+      const cleanRows = rows.map(cleanRowForStorage);
+      const dataToSave = {
+        rawRows: cleanRows,
+        filesSummary: filesSummary,
+        timestamp: new Date().toISOString()
+      };
+
+      let idbSuccess = false;
       try {
         const db = await openReportDB();
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
-        const dataToSave = {
-          rawRows: rows,
-          filesSummary: filesSummary,
-          timestamp: new Date().toISOString()
-        };
         store.put(dataToSave, 'current_report');
-        return new Promise(r => tx.oncomplete = r);
+        await new Promise((r, j) => {
+          tx.oncomplete = r;
+          tx.onerror = j;
+        });
+        idbSuccess = true;
       } catch (err) {
-        console.warn('Failed to save dataset to IndexedDB:', err);
+        console.warn('IndexedDB save failed, attempting LocalStorage fallback:', err);
+      }
+
+      // Always save LocalStorage fallback for high reliability
+      try {
+        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(dataToSave));
+      } catch (e) {
+        if (!idbSuccess) console.warn('LocalStorage save failed:', e);
       }
     }
 
     async function loadDatasetFromCache() {
+      // 1. Try IndexedDB
       try {
         const db = await openReportDB();
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
         const req = store.get('current_report');
-        return new Promise((resolve) => {
+        const res = await new Promise((resolve) => {
           req.onsuccess = () => resolve(req.result || null);
           req.onerror = () => resolve(null);
         });
+        if (res && res.rawRows && res.rawRows.length > 0) return res;
       } catch (err) {
-        console.warn('Failed to load dataset from IndexedDB:', err);
-        return null;
+        console.warn('IndexedDB load failed, falling back to LocalStorage:', err);
       }
+
+      // 2. Fallback to LocalStorage
+      try {
+        const saved = localStorage.getItem(LOCALSTORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.rawRows && parsed.rawRows.length > 0) return parsed;
+        }
+      } catch (e) {}
+
+      return null;
     }
 
     async function clearDatasetCache() {
@@ -5619,10 +5670,11 @@
         const tx = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         store.delete('current_report');
-        return new Promise(r => tx.oncomplete = r);
-      } catch (err) {
-        console.warn('Failed to clear IndexedDB dataset:', err);
-      }
+      } catch (err) {}
+
+      try {
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+      } catch (e) {}
     }
 
     async function restoreCachedDatasetOnStartup() {
@@ -5634,7 +5686,8 @@
 
           rawRows = cached.rawRows.map(row => ({
             ...row,
-            paymentDate: row.paymentDate ? (row.paymentDate instanceof Date ? row.paymentDate : new Date(row.paymentDate)) : null
+            name: row.patientName || row.name || '',
+            paymentDate: row.paymentDate ? new Date(row.paymentDate) : null
           }));
 
           allPatients = groupPatients(rawRows);
