@@ -3192,19 +3192,34 @@
 
         // Doctor filter
         if (doctor) {
-          const matchesDoc = (p.doctors && p.doctors.has(doctor)) || (p.services && p.services.some(s => s.doctor === doctor));
+          const docTarget = doctor.trim().toLowerCase();
+          const matchesDoc = (p.doctors && (
+            Array.isArray(p.doctors) 
+              ? p.doctors.some(d => d && d.trim().toLowerCase() === docTarget)
+              : (p.doctors.has ? p.doctors.has(doctor) : false)
+          )) || (p.services && p.services.some(s => s.doctor && s.doctor.trim().toLowerCase() === docTarget));
           if (!matchesDoc) continue;
         }
 
         // Agent filter
         if (agent) {
-          const matchesAgent = (p.agents && p.agents.has(agent)) || (p.services && p.services.some(s => s.agent === agent));
+          const agentTarget = agent.trim().toLowerCase();
+          const matchesAgent = (p.agents && (
+            Array.isArray(p.agents) 
+              ? p.agents.some(a => a && a.trim().toLowerCase() === agentTarget)
+              : (p.agents.has ? p.agents.has(agent) : false)
+          )) || (p.services && p.services.some(s => s.agent && s.agent.trim().toLowerCase() === agentTarget));
           if (!matchesAgent) continue;
         }
 
         // Lead source filter
         if (source) {
-          const matchesSource = (p.leadSources && p.leadSources.has(source)) || (p.services && p.services.some(s => s.leadSource === source));
+          const srcTarget = source.trim().toLowerCase();
+          const matchesSource = (p.leadSources && (
+            Array.isArray(p.leadSources) 
+              ? p.leadSources.some(s => s && s.trim().toLowerCase() === srcTarget)
+              : (p.leadSources.has ? p.leadSources.has(source) : false)
+          )) || (p.services && p.services.some(s => s.leadSource && s.leadSource.trim().toLowerCase() === srcTarget));
           if (!matchesSource) continue;
         }
 
