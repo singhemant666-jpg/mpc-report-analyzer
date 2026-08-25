@@ -1593,31 +1593,31 @@
       <div class="filters-bar" id="filters-bar">
         <div class="filter-group">
           <label class="filter-label">Date From</label>
-          <input type="date" class="filter-input" id="filter-date-from">
+          <input type="date" class="filter-input" id="filter-date-from" onchange="applyFilters()">
         </div>
         <div class="filter-group">
           <label class="filter-label">Date To</label>
-          <input type="date" class="filter-input" id="filter-date-to">
+          <input type="date" class="filter-input" id="filter-date-to" onchange="applyFilters()">
         </div>
         <div class="filter-group">
           <label class="filter-label">Doctor</label>
-          <select class="filter-select" id="filter-doctor"><option value="">All Doctors</option></select>
+          <select class="filter-select" id="filter-doctor" onchange="applyFilters()"><option value="">All Doctors</option></select>
         </div>
         <div class="filter-group">
           <label class="filter-label">Agent</label>
-          <select class="filter-select" id="filter-agent"><option value="">All Agents</option></select>
+          <select class="filter-select" id="filter-agent" onchange="applyFilters()"><option value="">All Agents</option></select>
         </div>
         <div class="filter-group">
           <label class="filter-label">Lead Source</label>
-          <select class="filter-select" id="filter-source"><option value="">All Sources</option></select>
+          <select class="filter-select" id="filter-source" onchange="applyFilters()"><option value="">All Sources</option></select>
         </div>
         <div class="filter-group">
           <label class="filter-label">Package</label>
-          <select class="filter-select" id="filter-package"><option value="">All Packages</option></select>
+          <select class="filter-select" id="filter-package" onchange="applyFilters()"><option value="">All Packages</option></select>
         </div>
         <div class="filter-group">
           <label class="filter-label">Final Status</label>
-          <select class="filter-select" id="filter-status"><option value="">All Statuses</option></select>
+          <select class="filter-select" id="filter-status" onchange="applyFilters()"><option value="">All Statuses</option></select>
         </div>
         <div class="filter-actions">
           <button class="btn btn-sm btn-primary" onclick="applyFilters()">Apply</button>
@@ -3165,13 +3165,14 @@
     function applyFilters() {
       const dateFrom = document.getElementById('filter-date-from').value;
       const dateTo = document.getElementById('filter-date-to').value;
-      const doctor = document.getElementById('filter-doctor').value;
-      const agent = document.getElementById('filter-agent').value;
-      const source = document.getElementById('filter-source').value;
-      const pkg = document.getElementById('filter-package').value;
-      const status = document.getElementById('filter-status').value;
+      const doctor = (document.getElementById('filter-doctor').value || '').trim();
+      const agent = (document.getElementById('filter-agent').value || '').trim();
+      const source = (document.getElementById('filter-source').value || '').trim();
+      const pkg = (document.getElementById('filter-package').value || '').trim();
+      const status = (document.getElementById('filter-status').value || '').trim();
 
-      const dFrom = dateFrom ? new Date(dateFrom) : null;
+      // Ensure local time parsing for dateFrom and dateTo
+      const dFrom = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
       const dTo = dateTo ? new Date(dateTo + 'T23:59:59') : null;
 
       const filtered = {};
@@ -3192,7 +3193,7 @@
 
         // Doctor filter
         if (doctor) {
-          const docTarget = doctor.trim().toLowerCase();
+          const docTarget = doctor.toLowerCase();
           const matchesDoc = (p.doctors && (
             Array.isArray(p.doctors) 
               ? p.doctors.some(d => d && d.trim().toLowerCase() === docTarget)
@@ -3203,7 +3204,7 @@
 
         // Agent filter
         if (agent) {
-          const agentTarget = agent.trim().toLowerCase();
+          const agentTarget = agent.toLowerCase();
           const matchesAgent = (p.agents && (
             Array.isArray(p.agents) 
               ? p.agents.some(a => a && a.trim().toLowerCase() === agentTarget)
@@ -3214,7 +3215,7 @@
 
         // Lead source filter
         if (source) {
-          const srcTarget = source.trim().toLowerCase();
+          const srcTarget = source.toLowerCase();
           const matchesSource = (p.leadSources && (
             Array.isArray(p.leadSources) 
               ? p.leadSources.some(s => s && s.trim().toLowerCase() === srcTarget)
@@ -3225,7 +3226,8 @@
 
         // Package filter
         if (pkg) {
-          const matchesPkg = p.services && p.services.some(s => s.packageName === pkg);
+          const pkgTarget = pkg.toLowerCase();
+          const matchesPkg = p.services && p.services.some(s => s.packageName && s.packageName.trim().toLowerCase() === pkgTarget);
           if (!matchesPkg) continue;
         }
 
@@ -3234,7 +3236,7 @@
           if (status === 'Package Renewal') {
             if (!p.services || !p.services.some(s => s.isRenewal)) continue;
           } else {
-            if (p.status !== status) continue;
+            if (!p.status || p.status.trim().toLowerCase() !== status.toLowerCase()) continue;
           }
         }
 
