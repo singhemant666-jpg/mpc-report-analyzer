@@ -7532,10 +7532,10 @@
         .map(([src, d]) => `  * ${src}: Consultations=${d.consultation}, Packages=${d.package}, Total=${d.total}`)
         .join('\n');
 
-      // 4. Package Sales Breakdown
+      // 4. Package Sales & Renewal Retention Breakdown
       const packageLines = Object.entries(m.packageSales || {})
-        .sort((a,b) => b[1].revenue - a[1].revenue)
-        .map(([pkg, d]) => `  * ${pkg}: Count=${d.count}, Revenue=${formatCurrency(d.revenue)}`)
+        .sort((a,b) => (b[1].totalRevenue || b[1].revenue || 0) - (a[1].totalRevenue || a[1].revenue || 0))
+        .map(([pkg, d]) => `  * ${pkg}: Initial Patients=${d.initialCount || 0}, Renewed Patients=${d.renewedPatientsCount || 0}, Patient Retention Conv=${(d.patientConvPct || 0).toFixed(1)}%, Renewals Sold=${d.renewalCount || 0}, Initial Revenue=${formatCurrency(d.initialRevenue || 0)}, Renewal Revenue=${formatCurrency(d.renewalRevenue || 0)}, Total Revenue=${formatCurrency(d.totalRevenue || d.revenue || 0)}`)
         .join('\n');
 
       // 5. Status Breakdown
@@ -7609,24 +7609,29 @@ ${patientLines || 'None'}
 --- SINGLE SESSION PATIENTS SAMPLE ---
 ${ssLines || 'None'}
 
-      --- MATHEMATICAL INTEGRITY & LOGIC AUDIT INSTRUCTIONS ---
+      --- MATHEMATICAL INTEGRITY, PACKAGE RENEWAL & EXECUTIVE AUDIT INSTRUCTIONS ---
       1. Verify math totals: Sum of consultation + package + single session revenue should equal total collection revenue (${formatCurrency(m.totalRevenue)}).
-      2. Audit doctor pain management conversion calculations: painMgmtCount / consultation * 100 should match reported conversion %.
-      3. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package -> 4th Package series).
-      4. Verify that each patient's payment dates, payment modes, and invoice numbers are correctly listed.
-      5. Cross-check status counts sum equals total patients.
-      6. CRITICAL: Audit Renewal Detection Logic:
+      2. Comprehensive Package Renewal & Cohort Retention Analysis:
+         a. Evaluate patient renewal conversion rates across all packages (e.g. Pain Management-3, PM-6, PM-12, Wellness, Robotic Spine).
+         b. Identify high-retention superstar packages vs. low-conversion drop-off tiers.
+         c. Audit multi-package sequences (2nd, 3rd, 4th, 5th package renewals) and highlight patient loyalty patterns.
+         d. Provide actionable clinical and sales protocols to prevent patient drop-off after the 1st initial package.
+      3. Audit doctor pain management conversion calculations: painMgmtCount / consultation * 100 should match reported conversion %.
+      4. Validate patient renewal package chronological sequencing (1st Package -> 2nd Package -> 3rd Package -> 4th Package series).
+      5. Verify that each patient's payment dates, payment modes, and invoice numbers are correctly listed.
+      6. Cross-check status counts sum equals total patients.
+      7. CRITICAL: Audit Renewal Detection Logic:
          a. Verify that renewals are NOT false positives from installments (unpaid balance payments for the same package contract are grouped together until fully paid).
          b. Only when a package contract's cost is fully paid, the subsequent transaction in the same category counts as a renewal (e.g. 2nd Package, 3rd Package).
          c. Single sessions (e.g., Wellness and Recovery-SS-1, Pain Management-SS-1) and consultations do not count as renewals.
-      7. CRITICAL: Audit Package & Single Session Bifurcation:
+      8. CRITICAL: Audit Package & Single Session Bifurcation:
          a. Single sessions are kept separate from packages.
          b. If a patient purchases multiple packages of the same category, they auto-increment sequentially (1st Package -> 2nd Package -> 3rd Package -> 4th Package).
-      8. CRITICAL: Audit Consultation Classification:
+      9. CRITICAL: Audit Consultation Classification:
          a. Only "Consultation" and "Women's Health Consultation" are consultations.
          b. Women's health treatment packages (e.g. Womens Health-3/4/6) are classified under packages, not consultations.
-      9. Verify PDF and Excel export columns (now including Payment Mode and Invoice No.) match dashboard data exactly.
-      10. Flag any mathematical anomalies, logic errors, or data inconsistencies found with specific patient names and amounts.`;
+      10. Verify PDF and Excel export columns (now including Payment Mode and Invoice No.) match dashboard data exactly.
+      11. Flag any mathematical anomalies, logic errors, or data inconsistencies found with specific patient names and amounts.`;
     }
 
     async function generateAIExecutiveReport() {
