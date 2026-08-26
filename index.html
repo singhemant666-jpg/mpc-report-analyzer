@@ -887,7 +887,7 @@
     
     .sim-slider-group {
       display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
-      background: rgba(15, 23, 42, 0.3); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg-secondary); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
     }
     .sim-slider-header {
       display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-secondary);
@@ -897,11 +897,15 @@
       width: 100%; accent-color: var(--purple); cursor: pointer; height: 6px; border-radius: 3px; background: rgba(148,163,184,0.2);
     }
     .sim-result-card {
-      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.9));
+      background: var(--bg-card);
       border: 1px solid rgba(139, 92, 246, 0.35);
       border-radius: var(--radius);
       padding: 20px 24px;
       display: flex; flex-direction: column; justify-content: center; gap: 14px;
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.1);
+    }
+    body.theme-dark .sim-result-card, [data-theme="dark"] .sim-result-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.9));
       box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     }
     .sim-result-item {
