@@ -7,8 +7,8 @@
   <meta name="description" content="Upload Daily Collection Reports and instantly generate patient conversion analytics, dashboards, and categorized Excel workbooks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <script>window.ENV = window.ENV || {};</script>
   <script src="env.js"></script>
+  <script>window.ENV = window.ENV || {};</script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -7385,12 +7385,12 @@
 
       updateAIModalStats();
       renderAIPatientAuditTable();
-      modal.classList.add('active');
+      modal.classList.add('show');
     }
 
     function closeAIModal() {
       const modal = document.getElementById('ai-modal');
-      if (modal) modal.classList.remove('active');
+      if (modal) modal.classList.remove('show');
     }
 
     function updateAIModalStats() {
@@ -7402,8 +7402,8 @@
       const docEl = document.getElementById('ai-stat-doc');
       const docDescEl = document.getElementById('ai-stat-doc-desc');
 
-      if (convEl) convEl.textContent = (m.overallConversionRate || 0).toFixed(1) + '%';
-      if (convDescEl) convDescEl.textContent = `${m.packagePatients || 0} of ${m.consultationPatients || 0} converted`;
+      if (convEl) convEl.textContent = (m.conversionPct || 0).toFixed(1) + '%';
+      if (convDescEl) convDescEl.textContent = `${m.converted || 0} of ${m.totalConsultationPatients || 0} converted`;
 
       if (renRevEl) renRevEl.textContent = formatCurrency(m.renewalTotalRevenue || 0);
       if (renCntEl) renCntEl.textContent = `${m.renewalCount || 0} Patients Renewed`;
@@ -7686,8 +7686,8 @@ Task: Provide a concise, professional Executive Insights Report covering:
 
         aiResponseText = `### 📌 Executive Summary
 - **Total Revenue Audited**: **${formatCurrency(m.totalRevenue)}** across **${m.totalPatients} unique patients**.
-- **Overall Conversion Efficiency**: **${m.overallConversionRate.toFixed(1)}%** of consultation patients (${m.packagePatients} of ${m.consultationPatients}) converted into treatment packages.
-- **Pain Management Dominance**: Generated **${formatCurrency(m.painMgmtRevenue)}** (${m.painMgmtCount} packages sold) with a **${m.painMgmtConvPct.toFixed(1)}%** conversion rate.
+- **Overall Conversion Efficiency**: **${(m.conversionPct || 0).toFixed(1)}%** of consultation patients (${m.converted || 0} of ${m.totalConsultationPatients || 0}) converted into treatment packages.
+- **Pain Management Dominance**: Generated **${formatCurrency(m.painMgmtRevenue)}** (${m.painMgmtCount} packages sold) with a **${(m.totalConsultationPatients > 0 ? Math.min(100, m.painMgmtCount / m.totalConsultationPatients * 100) : 0).toFixed(1)}%** conversion rate.
 
 ### 🏆 Doctor & Channel Performance
 - **Top Converting Doctor**: **${doc1}** ${doc2 ? 'followed by ' + doc2 : ''}.
