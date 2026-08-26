@@ -1713,9 +1713,9 @@
                   <th style="cursor:pointer; user-select:none;" data-sort="doctor" data-title="Consulting Doctor" onclick="sortDoctorLeaderboard('doctor')">Consulting Doctor</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="consultation" data-title="Consultations" onclick="sortDoctorLeaderboard('consultation')">Consultations</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="Converted After Consultation" onclick="sortDoctorLeaderboard('totalPackages')">Converted After Consultation</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="nonConverted" data-title="Non Converted" onclick="sortDoctorLeaderboard('nonConverted')">Non Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="overallConvPct" data-title="Overall Conv %" onclick="sortDoctorLeaderboard('overallConvPct')">Overall Conv %</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="1st Pkg Converted" onclick="sortDoctorLeaderboard('totalPackages')">1st Pkg Converted</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="nonConverted" data-title="Non Converted" onclick="sortDoctorLeaderboard('nonConverted')">Non Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Pain Mgmt Pkgs" onclick="sortDoctorLeaderboard('painMgmtCount')">Pain Mgmt Pkgs</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtConvPct" data-title="Pain Mgmt Conv %" onclick="sortDoctorLeaderboard('painMgmtConvPct')">Pain Mgmt Conv %</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortDoctorLeaderboard('renewalCount')">Renewals Sold</th>
@@ -4439,6 +4439,7 @@
           </td>
           <td>${d.consultation}</td>
           <td style="font-weight:700; color:var(--emerald);">${d.totalPackages}</td>
+          <td style="font-weight:700; color:var(--rose);">${d.nonConverted}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-weight:700; color:var(--emerald); min-width:45px;">${d.overallConvPct.toFixed(1)}%</span>
@@ -4446,7 +4447,6 @@
             </div>
           </td>
           <td style="font-weight:700; color:var(--cyan);">${d.totalPackages}</td>
-          <td style="font-weight:700; color:var(--rose);">${d.nonConverted}</td>
           <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
