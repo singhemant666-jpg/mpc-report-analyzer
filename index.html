@@ -2700,7 +2700,7 @@
               row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
               
               const isSameCategoryAsFirst = cat === initialPkgCategory;
-              if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+              if (isLaterDate && isSameCategoryAsFirst) {
                 row.isRenewal = true;
               } else {
                 row.isRenewal = false;
@@ -2720,7 +2720,7 @@
                 row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
                 
                 const isSameCategoryAsFirst = cat === initialPkgCategory;
-                if (p.hasConsultation && isLaterDate && isSameCategoryAsFirst) {
+                if (isLaterDate && isSameCategoryAsFirst) {
                   row.isRenewal = true;
                 } else {
                   row.isRenewal = false;
@@ -5161,7 +5161,7 @@
       { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
       { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
       { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' },
-      { id: 'renewals', label: 'Package Renewals', filter: p => p.hasConsultation && p.services && p.services.some(s => s.type === 'package' && s.isRenewal) }
+      { id: 'renewals', label: 'Package Renewals', filter: p => p.services && p.services.some(s => s.type === 'package' && s.isRenewal) }
     ];
 
     function renderTables(patients, metrics) {
@@ -7514,7 +7514,7 @@
         .join('\n');
 
       // 7. Renewal Patient Samples with exact 1st -> 2nd -> 3rd package series
-      const renewalPatients = Object.values(allPatients || {}).filter(p => p.hasConsultation && p.services && p.services.some(s => s.isRenewal));
+      const renewalPatients = Object.values(allPatients || {}).filter(p => p.services && p.services.some(s => s.isRenewal));
       const renewalLines = renewalPatients.slice(0, 15).map(p => {
         const pkgChain = p.services.filter(s => s.type !== 'consultation').map((s, idx) => `${getOrdinalLabel(idx+1)}: ${s.packageName} (${formatCurrency(s.proportionalPaid)}, ${formatDate(s.paymentDate)})`).join(' -> ');
         return `  * ${p.name}: ${pkgChain}`;
