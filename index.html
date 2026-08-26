@@ -849,6 +849,52 @@
       font-weight: 600;
     }
 
+    /* ==================== PREDICTIVE SIMULATOR & EXECUTIVE ANALYTICS ==================== */
+    .scenario-simulator-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 16px;
+    }
+    @media (max-width: 900px) { .scenario-grid { grid-template-columns: 1fr; } }
+    .sim-slider-group {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;
+    }
+    .sim-slider-header {
+      display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    }
+    .sim-slider-val { font-weight: 800; color: var(--cyan); }
+    .sim-slider {
+      width: 100%; accent-color: var(--purple); cursor: pointer; height: 6px; border-radius: 3px;
+    }
+    .sim-result-card {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex; flex-direction: column; justify-content: center; gap: 12px;
+    }
+    .sim-result-item {
+      display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .sim-result-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .sim-result-val { font-size: 18px; font-weight: 800; }
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+    }
+    .risk-badge.low { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .risk-badge.moderate { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .risk-badge.high { background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid rgba(244,63,94,0.3); }
+
     /* ==================== DATA TABLES ==================== */
     .tables-section {
       margin-bottom: 28px;
@@ -1736,10 +1782,13 @@
       </div>
 
       <!-- Analytics -->
-      <div class="section-title"><span class="icon">📊</span> Analytics</div>
+      <div class="section-title"><span class="icon">📊</span> Executive Financial & Predictive Intelligence Suite</div>
 
       <!-- Summary Insights -->
       <div id="analytics-insights" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:24px;"></div>
+
+      <!-- Interactive What-If Predictive Scenario Simulator -->
+      <div id="predictive-scenario-simulator"></div>
 
       <!-- Charts -->
       <div class="charts-grid">
@@ -3504,7 +3553,8 @@
       Chart.defaults.font.family = 'Inter';
       Chart.defaults.font.size = 11;
 
-      renderInsights(m);
+      renderExecutiveInsights(m);
+      renderScenarioSimulator(m);
       renderPieChart(m);
       renderRevenuePieChart(m);
       renderDoctorChart(m);
@@ -3514,51 +3564,100 @@
       renderRevenueChart(m);
     }
 
-    function renderInsights(m) {
+    function renderExecutiveInsights(m) {
       const container = document.getElementById('analytics-insights');
       if (!container) return;
 
-      const renewalRate = m.totalConsultationPatients > 0 ? ((m.statusCounts['Package Renewal'] || 0) / m.totalConsultationPatients * 100) : 0;
+      // Calculate date span of active dataset
+      let daysSpan = 1;
+      if (datasetMinDate && datasetMaxDate) {
+        const d1 = new Date(datasetMinDate);
+        const d2 = new Date(datasetMaxDate);
+        const diffTime = Math.abs(d2 - d1);
+        daysSpan = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+      }
+
+      const dailyVelocity = m.totalRevenue / daysSpan;
+      const monthlyRunRate = dailyVelocity * 30;
+
+      const renewalRate = m.totalConsultationPatients > 0 ? ((m.renewalCount || 0) / m.totalConsultationPatients * 100) : 0;
       const topPackage = Object.entries(m.packageSales || {}).sort((a, b) => b[1].revenue - a[1].revenue)[0];
-      const avgRevenue = m.totalPatients > 0 ? m.totalRevenue / m.totalPatients : 0;
-      const topDoctor = Object.values(m.doctorMap || {}).sort((a, b) => b.painMgmtCount - a.painMgmtCount)[0];
+      const avgRevenuePerPatient = m.totalPatients > 0 ? m.totalRevenue / m.totalPatients : 0;
+      const avgOrderValuePkg = (m.packageSales && Object.keys(m.packageSales).length > 0)
+        ? (m.packageRevenue / (Object.values(m.packageSales).reduce((sum, p) => sum + p.count, 0) || 1))
+        : 0;
+
+      const topDoctor = Object.values(m.doctorMap || {}).sort((a, b) => b.painMgmtRevenue - a.painMgmtRevenue)[0];
+
+      // Calculate Concentration Risk (Share of top 2 packages in total revenue)
+      const sortedPkgs = Object.entries(m.packageSales || {}).sort((a, b) => b[1].revenue - a[1].revenue);
+      const top2Revenue = (sortedPkgs[0] ? sortedPkgs[0][1].revenue : 0) + (sortedPkgs[1] ? sortedPkgs[1][1].revenue : 0);
+      const top2SharePct = m.totalRevenue > 0 ? (top2Revenue / m.totalRevenue * 100) : 0;
+
+      let riskBadgeClass = 'risk-badge low';
+      let riskLabel = 'LOW CONCENTRATION RISK';
+      if (top2SharePct > 60) {
+        riskBadgeClass = 'risk-badge high';
+        riskLabel = 'HIGH CONCENTRATION RISK';
+      } else if (top2SharePct > 35) {
+        riskBadgeClass = 'risk-badge moderate';
+        riskLabel = 'MODERATE RISK';
+      }
 
       const insights = [
         {
-          title: '💰 Revenue Snapshot',
+          title: '💰 Revenue Architecture & Mix',
           items: [
-            `Total: ${formatCurrency(m.totalRevenue)}`,
-            `Avg/Patient: ${formatCurrency(avgRevenue)}`,
-            `Package: ${formatCurrency(m.packageRevenue)} (${m.totalPatients > 0 ? (m.packageRevenue / m.totalRevenue * 100).toFixed(1) : 0}%)`,
-            `Consultation: ${formatCurrency(m.consultationRevenue)}`
+            `Total Collection: <strong>${formatCurrency(m.totalRevenue)}</strong>`,
+            `Avg Revenue / Patient: <strong>${formatCurrency(avgRevenuePerPatient)}</strong>`,
+            `Package Contribution: <strong>${m.totalRevenue > 0 ? (m.packageRevenue / m.totalRevenue * 100).toFixed(1) : 0}%</strong> (${formatCurrency(m.packageRevenue)})`,
+            `Consultation Share: <strong>${m.totalRevenue > 0 ? (m.consultationRevenue / m.totalRevenue * 100).toFixed(1) : 0}%</strong> (${formatCurrency(m.consultationRevenue)})`
           ]
         },
         {
-          title: '🔄 Renewal Health',
+          title: '🔮 Predictive Revenue Run-Rate',
           items: [
-            `Renewed Patients: ${m.renewalCount || 0}`,
-            `Renewal Revenue: ${formatCurrency(m.renewalTotalRevenue || 0)}`,
-            `Renewal Rate: ${renewalRate.toFixed(1)}%`,
-            `Of ${m.totalConsultationPatients} consultation patients`
+            `Sample Period: <strong>${daysSpan} Day(s)</strong>`,
+            `Daily Collection Pace: <strong>${formatCurrency(dailyVelocity)} / day</strong>`,
+            `Projected 30-Day Monthly: <strong>${formatCurrency(monthlyRunRate)}</strong>`,
+            `Annualized Run Pace: <strong>${formatCurrency(monthlyRunRate * 12)}</strong>`
           ]
         },
         {
-          title: '🏆 Top Performer',
+          title: '🔄 Renewal Cohort & Repeat LTV',
+          items: [
+            `Renewed Patients: <strong>${m.renewalCount || 0} Patients</strong>`,
+            `Renewal Rate: <strong>${renewalRate.toFixed(1)}%</strong> of consults`,
+            `Renewal Collection: <strong>${formatCurrency(m.renewalTotalRevenue || 0)}</strong>`,
+            `Renewal Share: <strong>${m.packageRevenue > 0 ? ((m.renewalTotalRevenue || 0) / m.packageRevenue * 100).toFixed(1) : 0}%</strong> of package rev`
+          ]
+        },
+        {
+          title: '🩺 Doctor Yield Efficiency',
           items: topDoctor ? [
-            `Doctor: ${topDoctor.doctor}`,
-            `PM Packages: ${topDoctor.painMgmtCount}`,
-            `Conversion: ${topDoctor.painMgmtConvPct.toFixed(1)}%`,
-            `Revenue: ${formatCurrency(topDoctor.painMgmtRevenue)}`
+            `Top Doctor: <strong>${topDoctor.doctor}</strong>`,
+            `PM Packages Converted: <strong>${topDoctor.painMgmtCount}</strong>`,
+            `Conversion Rate: <strong>${topDoctor.painMgmtConvPct.toFixed(1)}%</strong>`,
+            `Revenue / Consult: <strong>${topDoctor.consultation > 0 ? formatCurrency(topDoctor.painMgmtRevenue / topDoctor.consultation) : '₹0'}</strong>`
           ] : ['No doctor data available']
         },
         {
-          title: '📦 Top Package',
+          title: '📦 Portfolio Performance & AOV',
           items: topPackage ? [
-            `Package: ${topPackage[0]}`,
-            `Patients: ${topPackage[1].count}`,
-            `Revenue: ${formatCurrency(topPackage[1].revenue)}`,
-            `Avg: ${formatCurrency(topPackage[1].revenue / topPackage[1].count)}`
+            `Top Package: <strong>${topPackage[0]}</strong>`,
+            `Package Collection: <strong>${formatCurrency(topPackage[1].revenue)}</strong>`,
+            `Patients Converted: <strong>${topPackage[1].count}</strong>`,
+            `Avg Order Value (AOV): <strong>${formatCurrency(avgOrderValuePkg)}</strong>`
           ] : ['No package data available']
+        },
+        {
+          title: '🛡️ Portfolio Risk & Concentration',
+          items: [
+            `Concentration: <span class="${riskBadgeClass}">${riskLabel}</span>`,
+            `Top 2 Pkg Share: <strong>${top2SharePct.toFixed(1)}%</strong>`,
+            `Unconverted Patients: <strong>${m.totalConsultationPatients - (m.statusCounts['Consultation + Package'] || 0) - (m.statusCounts['Consultation + Package + Single Session'] || 0)} Patients</strong>`,
+            `Pipeline Opportunity: <strong>High Yield Potential</strong>`
+          ]
         }
       ];
 
@@ -3570,6 +3669,118 @@
           </div>
         </div>
       `).join('');
+    }
+
+    function renderScenarioSimulator(m) {
+      const container = document.getElementById('predictive-scenario-simulator');
+      if (!container) return;
+
+      const totalConsults = m.totalConsultationPatients || 0;
+      const currentConversions = (m.statusCounts['Consultation + Package'] || 0) + (m.statusCounts['Consultation + Package + Single Session'] || 0);
+      const currentRenewals = m.renewalCount || 0;
+      const avgPkgPrice = (currentConversions + currentRenewals) > 0 ? (m.packageRevenue / (currentConversions + currentRenewals)) : 5000;
+
+      container.innerHTML = `
+        <div class="scenario-simulator-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:15px; font-weight:800; color:var(--text-primary);">🎛️ What-If Executive Revenue Scenario Modeling</div>
+              <div style="font-size:12px; color:var(--text-muted);">Simulate revenue growth by boosting conversion rates, renewal rates, and ticket size realization</div>
+            </div>
+            <span class="badge badge-purple" style="font-size:11px;">🔮 Interactive CA / MBA Simulator</span>
+          </div>
+
+          <div class="scenario-grid">
+            <div style="display:flex; flex-direction:column; justify-content:center;">
+              <div class="sim-slider-group">
+                <div class="sim-slider-header">
+                  <span>📈 Target Conversion Rate Boost</span>
+                  <span class="sim-slider-val" id="sim-conv-val">+5%</span>
+                </div>
+                <input type="range" min="0" max="30" value="5" class="sim-slider" id="sim-conv-slider" oninput="updateScenarioSimulation()">
+              </div>
+
+              <div class="sim-slider-group">
+                <div class="sim-slider-header">
+                  <span>🔄 Target Package Renewal Boost</span>
+                  <span class="sim-slider-val" id="sim-ren-val">+10%</span>
+                </div>
+                <input type="range" min="0" max="30" value="10" class="sim-slider" id="sim-ren-slider" oninput="updateScenarioSimulation()">
+              </div>
+
+              <div class="sim-slider-group">
+                <div class="sim-slider-header">
+                  <span>💵 Average Package Ticket Price Boost</span>
+                  <span class="sim-slider-val" id="sim-price-val">+5%</span>
+                </div>
+                <input type="range" min="0" max="25" value="5" class="sim-slider" id="sim-price-slider" oninput="updateScenarioSimulation()">
+              </div>
+            </div>
+
+            <div class="sim-result-card">
+              <div class="sim-result-item">
+                <span class="sim-result-label">Base Period Collection</span>
+                <span class="sim-result-val" style="color:var(--text-secondary);">${formatCurrency(m.totalRevenue)}</span>
+              </div>
+              <div class="sim-result-item">
+                <span class="sim-result-label">Simulated Additional Revenue</span>
+                <span class="sim-result-val" id="sim-additional-rev" style="color:var(--emerald);">+₹0</span>
+              </div>
+              <div class="sim-result-item" style="border-bottom:none; padding-bottom:0;">
+                <span class="sim-result-label">Projected Total Collection</span>
+                <span class="sim-result-val" id="sim-projected-total" style="color:var(--cyan); font-size:22px; font-weight:900;">${formatCurrency(m.totalRevenue)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container._totalConsults = totalConsults;
+      container._currentConversions = currentConversions;
+      container._currentRenewals = currentRenewals;
+      container._baseRevenue = m.totalRevenue;
+      container._avgPkgPrice = avgPkgPrice;
+
+      updateScenarioSimulation();
+    }
+
+    function updateScenarioSimulation() {
+      const container = document.getElementById('predictive-scenario-simulator');
+      if (!container) return;
+
+      const convBoost = parseInt(document.getElementById('sim-conv-slider')?.value || 0, 10);
+      const renBoost = parseInt(document.getElementById('sim-ren-slider')?.value || 0, 10);
+      const priceBoost = parseInt(document.getElementById('sim-price-slider')?.value || 0, 10);
+
+      const convValEl = document.getElementById('sim-conv-val');
+      const renValEl = document.getElementById('sim-ren-val');
+      const priceValEl = document.getElementById('sim-price-val');
+
+      if (convValEl) convValEl.textContent = `+${convBoost}%`;
+      if (renValEl) renValEl.textContent = `+${renBoost}%`;
+      if (priceValEl) priceValEl.textContent = `+${priceBoost}%`;
+
+      const totalConsults = container._totalConsults || 0;
+      const baseRev = container._baseRevenue || 0;
+      const avgPrice = container._avgPkgPrice || 5000;
+
+      const extraConversions = Math.round(totalConsults * (convBoost / 100));
+      const extraRenewals = Math.round(totalConsults * (renBoost / 100));
+
+      const boostedPrice = avgPrice * (1 + (priceBoost / 100));
+      
+      const extraRevFromConversions = extraConversions * boostedPrice;
+      const extraRevFromRenewals = extraRenewals * boostedPrice;
+      const priceUpliftOnExisting = (container._currentConversions + container._currentRenewals) * (boostedPrice - avgPrice);
+
+      const totalAdditionalRev = Math.round(extraRevFromConversions + extraRevFromRenewals + priceUpliftOnExisting);
+      const projectedTotal = Math.round(baseRev + totalAdditionalRev);
+
+      const addEl = document.getElementById('sim-additional-rev');
+      const projEl = document.getElementById('sim-projected-total');
+
+      if (addEl) addEl.textContent = `+${formatCurrency(totalAdditionalRev)}`;
+      if (projEl) projEl.textContent = formatCurrency(projectedTotal);
     }
 
     function renderPieChart(m) {
