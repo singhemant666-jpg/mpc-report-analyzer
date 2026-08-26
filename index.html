@@ -3815,7 +3815,43 @@
       if (projEl) projEl.textContent = formatCurrency(projectedTotal);
     }
 
+    function ensureCanvas(id) {
+      let canvas = document.getElementById(id);
+      if (!canvas) {
+        const cardTitleMap = {
+          'chart-pie': 'Patient Distribution by Status',
+          'chart-revenue-pie': 'Revenue Breakdown by Category',
+          'chart-revenue': 'Revenue Trend Over Time',
+          'chart-doctor': 'Top Doctors by Consultations',
+          'chart-agent': 'Top Agents by Conversions',
+          'chart-source-pie': 'Lead Source Conversion Share (%)',
+          'chart-source': 'Lead Source Conversion Performance',
+          'chart-package': 'Package Sales (Top 15)'
+        };
+        const titleText = cardTitleMap[id];
+        const cards = document.querySelectorAll('.chart-card');
+        for (const card of cards) {
+          const t = card.querySelector('.chart-title');
+          if (t && t.textContent.trim().includes(titleText)) {
+            let container = card.querySelector('.chart-container');
+            if (!container) {
+              container = document.createElement('div');
+              container.className = 'chart-container' + (id.includes('pie') ? ' pie-container' : '');
+              card.appendChild(container);
+            }
+            container.innerHTML = `<canvas id="${id}"></canvas>`;
+            canvas = document.getElementById(id);
+            break;
+          }
+        }
+      }
+      return canvas;
+    }
+
     function renderPieChart(m) {
+      const canvas = ensureCanvas('chart-pie');
+      if (!canvas) return;
+
       const statuses = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
       const counts = statuses.map(s => m.statusCounts[s] || 0);
       const total = counts.reduce((a, b) => a + b, 0);
@@ -3826,7 +3862,7 @@
         return `${s} (${pct}% • ${c})`;
       });
 
-      chartInstances.pie = new Chart(document.getElementById('chart-pie'), {
+      chartInstances.pie = new Chart(canvas, {
         type: 'doughnut',
         plugins: [centerTextPlugin],
         data: {
@@ -3874,6 +3910,10 @@
     }
 
     function renderRevenuePieChart(m) {
+      const canvas = ensureCanvas('chart-revenue-pie');
+      if (!canvas) return;
+      const container = canvas.parentElement;
+
       const categories = [
         { name: 'Pain Management', value: m.painMgmtRevenue || 0, color: '#8b5cf6' },
         { name: 'Wellness', value: m.wellnessRevenue || 0, color: '#06b6d4' },
@@ -3884,11 +3924,24 @@
       ].filter(c => c.value > 0);
 
       if (categories.length === 0) {
-        const ctx = document.getElementById('chart-revenue-pie');
-        if (ctx && ctx.parentElement) {
-          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No revenue data available</div>';
+        canvas.style.display = 'none';
+        let overlay = container ? container.querySelector('.chart-no-data') : null;
+        if (!overlay && container) {
+          overlay = document.createElement('div');
+          overlay.className = 'chart-no-data';
+          overlay.style.cssText = 'display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-size:13px; font-weight:500;';
+          overlay.textContent = 'No revenue data available';
+          container.appendChild(overlay);
+        } else if (overlay) {
+          overlay.style.display = 'flex';
         }
         return;
+      }
+
+      canvas.style.display = 'block';
+      if (container) {
+        const overlay = container.querySelector('.chart-no-data');
+        if (overlay) overlay.style.display = 'none';
       }
 
       const totalRev = categories.reduce((sum, c) => sum + c.value, 0);
@@ -3898,7 +3951,7 @@
         return `${c.name} (${pct}% • ${formatCurrencyCompact(c.value)})`;
       });
 
-      chartInstances.revenuePie = new Chart(document.getElementById('chart-revenue-pie'), {
+      chartInstances.revenuePie = new Chart(canvas, {
         type: 'doughnut',
         plugins: [centerTextPlugin],
         data: {
@@ -3942,6 +3995,9 @@
     }
 
     function renderConversionBar(canvasId, dataMap, chartKey) {
+      const canvas = ensureCanvas(canvasId);
+      if (!canvas) return;
+
       let rawEntries = Object.entries(dataMap);
       if (chartKey === 'doctor') {
         rawEntries = rawEntries.filter(([name, data]) => name && data.consultation > 0);
@@ -3965,7 +4021,7 @@
         return c > 0 ? Math.min(100, Math.round((pk / c) * 100)) : 0;
       });
 
-      chartInstances[chartKey] = new Chart(document.getElementById(canvasId), {
+      chartInstances[chartKey] = new Chart(canvas, {
         type: 'bar',
         data: {
           labels,
@@ -4066,8 +4122,9 @@
     function renderSourceChart(m) {
       renderConversionBar('chart-source', m.sourceMap, 'source');
 
-      const ctx = document.getElementById('chart-source-pie');
+      const ctx = ensureCanvas('chart-source-pie');
       if (!ctx) return;
+      const container = ctx.parentElement;
 
       const entries = Object.entries(m.sourceMap || {})
         .filter(([name, data]) => name && (data.consultation > 0 || data.total > 0));
@@ -4091,10 +4148,24 @@
         .sort((a, b) => b.leadCount !== a.leadCount ? b.leadCount - a.leadCount : b.revenue - a.revenue);
 
       if (sources.length === 0) {
-        if (ctx.parentElement) {
-          ctx.parentElement.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">No lead source data available</div>';
+        ctx.style.display = 'none';
+        let overlay = container ? container.querySelector('.chart-no-data') : null;
+        if (!overlay && container) {
+          overlay = document.createElement('div');
+          overlay.className = 'chart-no-data';
+          overlay.style.cssText = 'display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-size:13px; font-weight:500;';
+          overlay.textContent = 'No lead source data available';
+          container.appendChild(overlay);
+        } else if (overlay) {
+          overlay.style.display = 'flex';
         }
         return;
+      }
+
+      ctx.style.display = 'block';
+      if (container) {
+        const overlay = container.querySelector('.chart-no-data');
+        if (overlay) overlay.style.display = 'none';
       }
 
       const topSource = sources[0];
@@ -4145,6 +4216,9 @@
     }
 
     function renderPackageChart(m) {
+      const canvas = ensureCanvas('chart-package');
+      if (!canvas) return;
+
       const entries = Object.entries(m.packageSales)
         .sort((a, b) => b[1].revenue - a[1].revenue)
         .slice(0, 15);
@@ -4152,7 +4226,7 @@
       const revenue = entries.map(e => e[1].revenue);
       const count = entries.map(e => e[1].count);
 
-      chartInstances.package = new Chart(document.getElementById('chart-package'), {
+      chartInstances.package = new Chart(canvas, {
         type: 'bar',
         data: {
           labels,
@@ -4191,13 +4265,16 @@
     }
 
     function renderRevenueChart(m) {
+      const canvas = ensureCanvas('chart-revenue');
+      if (!canvas) return;
+
       const sortedDates = Object.keys(m.revenueByDate).sort();
       const labels = sortedDates.map(d => {
         try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); }
         catch { return d; }
       });
 
-      chartInstances.revenue = new Chart(document.getElementById('chart-revenue'), {
+      chartInstances.revenue = new Chart(canvas, {
         type: 'line',
         data: {
           labels,
