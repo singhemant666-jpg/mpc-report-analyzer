@@ -7445,21 +7445,32 @@
           return data.candidates[0].content.parts[0].text;
         } else if (provider === 'openai' || provider === 'groq') {
           const endpoint = provider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-          const model = provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: [{ role: 'user', content: promptText }]
-            })
-          });
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.message || 'API Error');
-          return data.choices[0].message.content;
+          const modelsToTry = provider === 'groq' ? ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'] : ['gpt-4o', 'gpt-4o-mini'];
+          
+          let lastErr = null;
+          for (const model of modelsToTry) {
+            try {
+              const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                  model: model,
+                  messages: [{ role: 'user', content: promptText }]
+                })
+              });
+              const data = await res.json();
+              if (!data.error && data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content;
+              }
+              lastErr = data.error ? (data.error.message || JSON.stringify(data.error)) : 'Model response error';
+            } catch (e) {
+              lastErr = e.message;
+            }
+          }
+          if (lastErr) throw new Error(lastErr);
         } else if (provider === 'claude') {
           const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',

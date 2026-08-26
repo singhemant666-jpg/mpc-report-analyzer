@@ -15,23 +15,35 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GROQ_API_KEY environment variable is missing' });
   }
 
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+  const requestedModel = req.body.model || 'openai/gpt-oss-120b';
+  const modelsToTry = [requestedModel, 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+  const uniqueModels = [...new Set(modelsToTry)];
 
-    const data = await response.json();
-    if (data.error) return res.status(500).json({ error: data.error.message || 'Groq API Error' });
-    return res.status(200).json({ result: data.choices[0].message.content });
-  } catch (err) {
-    return res.status(500).json({ error: err.message || 'Internal Server Error' });
+  let lastError = null;
+
+  for (const model of uniqueModels) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+      if (!data.error && data.choices && data.choices[0] && data.choices[0].message) {
+        return res.status(200).json({ result: data.choices[0].message.content, modelUsed: model });
+      }
+      lastError = data.error ? (data.error.message || JSON.stringify(data.error)) : 'Model response error';
+    } catch (err) {
+      lastError = err.message || 'Network error';
+    }
   }
+
+  return res.status(500).json({ error: lastError || 'All Groq AI models failed' });
 }
