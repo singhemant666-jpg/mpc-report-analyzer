@@ -3747,7 +3747,7 @@
           ] : [{ label: 'Doctor Data', val: 'No data' }]
         },
         {
-          title: '📦 Portfolio Performance & AOV',
+          title: '📦 Package Performance & Strategy',
           accent: 'accent-blue',
           rows: topPackage ? [
             { label: 'Top Package', val: `<span style="color:var(--purple);">${topPackage[0]}</span>` },
@@ -3757,7 +3757,7 @@
           ] : [{ label: 'Package Data', val: 'No data' }]
         },
         {
-          title: '🛡️ Portfolio Risk & Concentration',
+          title: '🛡️ Package Strategy & Risk Concentration',
           accent: 'accent-rose',
           rows: [
             { label: 'Concentration Risk', val: `<span class="${riskBadgeClass}">${riskLabel}</span>` },
@@ -4116,7 +4116,7 @@
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
               <div style="font-size:16px; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
-                <span>📦 Package Portfolio Strategy & Future Cash Flow Forecaster</span>
+                <span>📦 Package Strategy & Future Cash Flow Forecaster</span>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
                 Model package price optimizations, bundle shifts, discount strategies & forecast 30-day, 60-day, 90-day & 1-Year future cash flows
@@ -4128,7 +4128,7 @@
           <!-- Current Package Breakdown Matrix -->
           <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:20px;">
             <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
-              <span>📊 Active Package Portfolio Performance Matrix:</span>
+              <span>📊 Active Package Strategy & Performance Matrix:</span>
               <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">(Realized prices & sales contribution)</span>
             </div>
             <div style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card-solid);">
@@ -4156,13 +4156,13 @@
             <!-- Left: 4 Package Decision Controls -->
             <div style="display:flex; flex-direction:column; gap:14px;">
               <div style="font-size:0.85rem; font-weight:800; text-transform:uppercase; color:var(--cyan); letter-spacing:0.5px;">
-                🎛️ Package Portfolio Future Decisions
+                🎛️ Package Strategy & Future Decisions
               </div>
 
               <!-- Decision 1 -->
               <div class="sim-slider-group" style="margin-bottom:0;">
                 <div class="sim-slider-header">
-                  <span>🏷️ <strong>Decision 1:</strong> Package Price Optimization (Across Portfolio)</span>
+                  <span>🏷️ <strong>Decision 1:</strong> Package Price Optimization (Across Package Tiers)</span>
                   <span class="sim-slider-val" id="pkg-d1-val">+5% Price</span>
                 </div>
                 <input type="range" min="-15" max="30" step="5" value="5" class="sim-slider" id="pkg-d1-slider" oninput="updatePackagePortfolioForecast()">
@@ -4341,7 +4341,7 @@
 
       if (elNarrative) {
         if (extra90dLift === 0) {
-          elNarrative.innerHTML = `💡 <em>Adjust the package portfolio sliders above to model pricing strategy changes and project your 30/60/90-day future cash flows.</em>`;
+          elNarrative.innerHTML = `💡 <em>Adjust the package strategy sliders above to model pricing strategy changes and project your 30/60/90-day future cash flows.</em>`;
         } else {
           elNarrative.innerHTML = `🔮 <strong>90-Day Package Strategy Forecast:</strong> Implementing these package decisions will generate <strong>+${formatCurrency(extra90dLift)}</strong> in extra cash flow over the next 90 days (expanding annual run-rate by <strong>+${formatCurrency(extra1yLift)}</strong>).`;
         }
