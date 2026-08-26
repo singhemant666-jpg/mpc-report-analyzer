@@ -9,6 +9,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script src="env.js"></script>
   <script>window.ENV = window.ENV || {};</script>
+  <!-- Theme: apply saved preference instantly to prevent flash; default = light -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('mpc_theme');
+      if (!t) { t = 'light'; localStorage.setItem('mpc_theme', 'light'); }
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -1367,20 +1375,14 @@
         <button class="btn btn-sm btn-icon" onclick="closeAIModal()" style="border:none; font-size:16px;">✕</button>
       </div>
 
-      <!-- AI API Key Config Bar -->
-      <div style="background:rgba(15,23,42,0.8); border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
-          🔑 <span>AI Engine:</span>
+      <!-- AI Engine Status Bar (No key needed - powered by Groq server-side) -->
+      <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:10px 14px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:1rem;">🤖</span>
+        <div style="flex:1;">
+          <div style="font-size:0.82rem; font-weight:700; color:var(--emerald);">Powered by Groq AI — 120B Enterprise Reasoning Model</div>
+          <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">No API key required · Runs securely server-side · Auto-fallback enabled</div>
         </div>
-        <select id="ai-provider-select" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px;" onchange="saveAIKeyConfig()">
-          <option value="gemini">Google Gemini (Recommended)</option>
-          <option value="openai">OpenAI (ChatGPT / GPT-4o)</option>
-          <option value="groq">Groq (Llama 3 Fast AI)</option>
-          <option value="claude">Anthropic Claude</option>
-          <option value="builtin">Built-in Math AI Engine (No Key Needed)</option>
-        </select>
-        <input type="password" id="ai-api-key-input" placeholder="Paste your AI API Key here..." style="flex:1; min-width:180px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px;" onchange="saveAIKeyConfig()">
-        <button class="btn btn-sm btn-primary" onclick="saveAIKeyConfig()">💾 Save Key</button>
+        <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
       </div>
 
       <!-- Quick AI Summary Cards -->
@@ -8209,6 +8211,10 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
     // ==================== THEME MANAGEMENT ====================
     function initTheme() {
       const savedTheme = localStorage.getItem('mpc_theme') || 'light';
+      // Always default to light mode unless user explicitly chose dark
+      if (!localStorage.getItem('mpc_theme')) {
+        localStorage.setItem('mpc_theme', 'light');
+      }
       setTheme(savedTheme, false);
     }
 
