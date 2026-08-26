@@ -1747,8 +1747,8 @@
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Rank" onclick="sortPackageRenewalLeaderboard('renewalCount')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="name" data-title="Treatment Package" onclick="sortPackageRenewalLeaderboard('name')">Treatment Package</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="totalPatients" data-title="Total Patients" onclick="sortPackageRenewalLeaderboard('totalPatients')">Total Patients</th>
-                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Sales (1st Pkg)" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Sales (1st Pkg)</th>
-                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Count" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewals Count</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Pkg Patients" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Pkg Patients</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewal Pkg Patients" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewal Pkg Patients</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalRate" data-title="Renewal Conversion %" onclick="sortPackageRenewalLeaderboard('renewalRate')">Renewal Conversion %</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="initialRevenue" data-title="Initial Pkg Revenue (₹)" onclick="sortPackageRenewalLeaderboard('initialRevenue')">Initial Pkg Revenue (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue (₹)" onclick="sortPackageRenewalLeaderboard('renewalRevenue')">Renewal Revenue (₹)</th>
@@ -3120,11 +3120,9 @@
         // Track per-patient per-package whether they have initial/renewal
         const seenInitial = new Set();
         const seenRenewal = new Set();
-        const seenPackageNames = new Set();
         for (const svc of p.services) {
           if (svc.type === 'package') {
             const name = svc.packageName || 'Unknown';
-            seenPackageNames.add(name);
             if (!packageSales[name]) {
               packageSales[name] = {
                 initialCount: 0,
@@ -3134,8 +3132,7 @@
                 totalCount: 0,
                 totalRevenue: 0,
                 count: 0,
-                revenue: 0,
-                _patientSet: new Set()
+                revenue: 0
               };
             }
             packageSales[name].totalCount++;
@@ -3152,10 +3149,6 @@
             }
           }
         }
-        // Count unique patients per package
-        for (const name of seenPackageNames) {
-          if (packageSales[name]) packageSales[name]._patientSet.add(p.patientName);
-        }
         for (const name of seenInitial) {
           if (packageSales[name]) packageSales[name].initialCount++;
         }
@@ -3166,7 +3159,7 @@
 
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
-        item.totalPatients = item._patientSet ? item._patientSet.size : (item.initialCount + item.renewalCount);
+        item.totalPatients = (item.initialCount || 0) + (item.renewalCount || 0);
         item.renewalRate = item.initialCount > 0 ? Math.min(100, Math.round((item.renewalCount / item.initialCount) * 100)) : 0;
       }
 
