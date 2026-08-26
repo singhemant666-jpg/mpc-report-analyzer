@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script>window.ENV = window.ENV || {};</script>
+  <script src="env.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -7267,7 +7268,12 @@
         const saved = localStorage.getItem('mpc_ai_config');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.provider) return parsed;
+          if (parsed && parsed.provider) {
+            if (parsed.provider === 'groq' && !parsed.apiKey) {
+              parsed.apiKey = getEnvGroqKey();
+            }
+            return parsed;
+          }
         }
       } catch(e) {}
       return { provider: 'groq', apiKey: getEnvGroqKey() };
@@ -7374,8 +7380,8 @@
       // Sync state to inputs
       const providerEl = document.getElementById('ai-provider-select');
       const keyEl = document.getElementById('ai-api-key-input');
-      if (providerEl) providerEl.value = aiConfig.provider || 'gemini';
-      if (keyEl) keyEl.value = aiConfig.apiKey || '';
+      if (providerEl) providerEl.value = aiConfig.provider || 'groq';
+      if (keyEl) keyEl.value = aiConfig.apiKey || getEnvGroqKey();
 
       updateAIModalStats();
       renderAIPatientAuditTable();
@@ -7413,7 +7419,10 @@
 
     async function callAIProviderAPI(promptText) {
       const provider = aiConfig.provider || 'groq';
-      const apiKey = aiConfig.apiKey ? aiConfig.apiKey.trim() : '';
+      let apiKey = aiConfig.apiKey ? aiConfig.apiKey.trim() : '';
+      if (!apiKey && provider === 'groq') {
+        apiKey = getEnvGroqKey();
+      }
 
       // Try Vercel Serverless Function first (/api/ai)
       try {
