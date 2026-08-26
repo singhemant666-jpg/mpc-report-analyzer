@@ -1743,6 +1743,7 @@
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Rank" onclick="sortPackageRenewalLeaderboard('renewalCount')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="name" data-title="Treatment Package" onclick="sortPackageRenewalLeaderboard('name')">Treatment Package</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Sales (1st Pkg)" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Sales (1st Pkg)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="initialRevenue" data-title="Initial Pkg Revenue (₹)" onclick="sortPackageRenewalLeaderboard('initialRevenue')">Initial Pkg Revenue (₹)</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Count" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewals Count</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalRate" data-title="Renewal Conversion %" onclick="sortPackageRenewalLeaderboard('renewalRate')">Renewal Conversion %</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue (₹)" onclick="sortPackageRenewalLeaderboard('renewalRevenue')">Renewal Revenue (₹)</th>
@@ -4509,7 +4510,7 @@
       });
 
       if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data">No package renewal data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No package renewal data available</td></tr>';
         return;
       }
 
@@ -4540,6 +4541,7 @@
             </div>
           </td>
           <td style="text-align:center; font-weight:600;">${item.initialCount}</td>
+          <td style="font-weight:700; color:var(--cyan);">${formatCurrency(item.initialRevenue)}</td>
           <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewalCount}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
