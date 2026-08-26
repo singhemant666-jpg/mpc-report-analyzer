@@ -1832,6 +1832,9 @@
       <!-- Interactive What-If Predictive Scenario Simulator -->
       <div id="predictive-scenario-simulator"></div>
 
+      <!-- Package Portfolio Strategy & 30/60/90-Day Predictive Cash Flow Forecaster -->
+      <div id="package-portfolio-forecaster" style="margin-bottom:28px;"></div>
+
       <!-- Charts -->
       <div class="charts-grid">
         <div class="chart-card">
@@ -3664,6 +3667,7 @@
 
       renderExecutiveInsights(m);
       renderScenarioSimulator(m);
+      renderPackagePortfolioForecaster(m);
       renderPieChart(m);
       renderRevenuePieChart(m);
       renderDoctorChart(m);
@@ -4053,6 +4057,305 @@
           elNarrative.innerHTML = `💡 <em>Adjust the scenario sliders above or click a preset to simulate operational business changes and view projected financial growth.</em>`;
         } else {
           elNarrative.innerHTML = `💡 <strong>Strategic Impact Story:</strong> By executing this scenario, your clinic will gain <strong>+${totalNewPatients} new package buyers & renewals</strong> and upgrade <strong>${s4UpsellPatients} patients</strong> to higher-tier programs. This expands total collection by <strong>+${formatCurrency(totalRevenueLift)} (+${pctLift.toFixed(1)}%)</strong> and delivers <strong>+${formatCurrency(netMarginLift)}</strong> in estimated net clinic margin.`;
+        }
+      }
+    }
+
+    // ==================== PACKAGE PORTFOLIO DECISION & CASH FLOW FORECASTER ====================
+    function renderPackagePortfolioForecaster(m) {
+      const container = document.getElementById('package-portfolio-forecaster');
+      if (!container) return;
+
+      // Sample Period Days
+      let daysSpan = 1;
+      if (datasetMinDate && datasetMaxDate) {
+        const d1 = new Date(datasetMinDate);
+        const d2 = new Date(datasetMaxDate);
+        const diffTime = Math.abs(d2 - d1);
+        daysSpan = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+      }
+
+      const dailyRunRate = m.totalRevenue / daysSpan;
+      const base30d = Math.round(dailyRunRate * 30);
+      const base60d = Math.round(dailyRunRate * 60);
+      const base90d = Math.round(dailyRunRate * 90);
+      const base1y = Math.round(dailyRunRate * 365);
+
+      // Package breakdown rows
+      const pkgSales = m.packageSales || {};
+      const pkgEntries = Object.entries(pkgSales).sort((a,b) => b[1].revenue - a[1].revenue);
+
+      let tableRowsHtml = '';
+      if (pkgEntries.length === 0) {
+        tableRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">No package sales data found</td></tr>';
+      } else {
+        tableRowsHtml = pkgEntries.map(([pkgName, data]) => {
+          const avgPrice = data.count > 0 ? (data.revenue / data.count) : 0;
+          const sharePct = m.totalRevenue > 0 ? ((data.revenue / m.totalRevenue) * 100) : 0;
+          let statusBadge = '<span style="color:var(--emerald); background:rgba(16,185,129,0.12); padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700;">🟢 Strong Yield</span>';
+          if (sharePct > 40) {
+            statusBadge = '<span style="color:var(--cyan); background:rgba(6,182,212,0.15); padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700;">💎 Core Anchor</span>';
+          } else if (sharePct < 5) {
+            statusBadge = '<span style="color:var(--amber); background:rgba(245,158,11,0.15); padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:700;">⚡ Under-Realized</span>';
+          }
+          return `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:7px 12px; font-weight:700; color:var(--text-primary);">${pkgName}</td>
+              <td style="padding:7px 12px; text-align:right; font-weight:600; color:var(--text-secondary);">${data.count}</td>
+              <td style="padding:7px 12px; text-align:right; font-weight:700; color:var(--text-primary);">${formatCurrency(data.revenue)}</td>
+              <td style="padding:7px 12px; text-align:right; font-weight:600; color:var(--cyan);">${formatCurrency(avgPrice)}</td>
+              <td style="padding:7px 12px; text-align:right; font-weight:700; color:var(--purple);">${sharePct.toFixed(1)}%</td>
+              <td style="padding:7px 12px; text-align:center;">${statusBadge}</td>
+            </tr>`;
+        }).join('');
+      }
+
+      container._pkgData = {
+        baseRevenue: m.totalRevenue || 0,
+        dailyRunRate: dailyRunRate,
+        daysSpan: daysSpan,
+        base30d: base30d,
+        base60d: base60d,
+        base90d: base90d,
+        base1y: base1y,
+        totalPkgCount: Object.values(pkgSales).reduce((s,p) => s + p.count, 0) || 1,
+        pkgRevenue: m.packageRevenue || 0
+      };
+
+      container.innerHTML = `
+        <div class="scenario-simulator-card" style="background:var(--bg-card); border:1px solid rgba(6,182,212,0.35); border-radius:16px; padding:24px; box-shadow:0 8px 32px rgba(6,182,212,0.08);">
+          <!-- Header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+            <div>
+              <div style="font-size:16px; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                <span>📦 Package Portfolio Strategy & Future Cash Flow Forecaster</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+                Model package price optimizations, bundle shifts, discount strategies & forecast 30-day, 60-day, 90-day & 1-Year future cash flows
+              </div>
+            </div>
+            <span class="badge badge-cyan" style="font-size:11px; padding:4px 12px;">🔮 30/60/90-Day Predictive Cash Flow Model</span>
+          </div>
+
+          <!-- Current Package Breakdown Matrix -->
+          <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:20px;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+              <span>📊 Active Package Portfolio Performance Matrix:</span>
+              <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">(Realized prices & sales contribution)</span>
+            </div>
+            <div style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card-solid);">
+              <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <thead>
+                  <tr style="background:var(--bg-secondary); color:var(--text-secondary); text-align:left; position:sticky; top:0; font-weight:700;">
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border);">Package Tier Name</th>
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:right;">Units Sold</th>
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:right;">Total Revenue</th>
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:right;">Avg Ticket Size</th>
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:right;">Revenue Share</th>
+                    <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:center;">Strategic Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRowsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Interactive Decision Controls + Forecast Outputs -->
+          <div style="display:grid; grid-template-columns: 1fr 420px; gap:24px;" class="sim-responsive-grid">
+
+            <!-- Left: 4 Package Decision Controls -->
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div style="font-size:0.85rem; font-weight:800; text-transform:uppercase; color:var(--cyan); letter-spacing:0.5px;">
+                🎛️ Package Portfolio Future Decisions
+              </div>
+
+              <!-- Decision 1 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
+                <div class="sim-slider-header">
+                  <span>🏷️ <strong>Decision 1:</strong> Package Price Optimization (Across Portfolio)</span>
+                  <span class="sim-slider-val" id="pkg-d1-val">+5% Price</span>
+                </div>
+                <input type="range" min="-15" max="30" step="5" value="5" class="sim-slider" id="pkg-d1-slider" oninput="updatePackagePortfolioForecast()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="pkg-d1-desc">Adjusts realized ticket prices</div>
+              </div>
+
+              <!-- Decision 2 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
+                <div class="sim-slider-header">
+                  <span>📦 <strong>Decision 2:</strong> Bundle Shift (Convert Basic Buyers -> 12-Session PM Tier)</span>
+                  <span class="sim-slider-val" id="pkg-d2-val">20% Shift</span>
+                </div>
+                <input type="range" min="0" max="50" step="5" value="20" class="sim-slider" id="pkg-d2-slider" oninput="updatePackagePortfolioForecast()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="pkg-d2-desc">Shifts lower-tier buyers into high-value bundles</div>
+              </div>
+
+              <!-- Decision 3 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
+                <div class="sim-slider-header">
+                  <span>🔄 <strong>Decision 3:</strong> Renewal Discount Incentive (10% Off @ Session 4)</span>
+                  <span class="sim-slider-val" id="pkg-d3-val">+15% Renewals</span>
+                </div>
+                <input type="range" min="0" max="35" step="5" value="15" class="sim-slider" id="pkg-d3-slider" oninput="updatePackagePortfolioForecast()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="pkg-d3-desc">Boosts repeat package renewal volume</div>
+              </div>
+
+              <!-- Decision 4 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
+                <div class="sim-slider-header">
+                  <span>🚀 <strong>Decision 4:</strong> Launch Annual Maintenance Pass (24-Session Pass @ ₹45,000)</span>
+                  <span class="sim-slider-val" id="pkg-d4-val">10 Sales / Mo</span>
+                </div>
+                <input type="range" min="0" max="40" step="5" value="10" class="sim-slider" id="pkg-d4-slider" oninput="updatePackagePortfolioForecast()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="pkg-d4-desc">Models launching a high-ticket Annual Wellness Maintenance package</div>
+              </div>
+
+            </div>
+
+            <!-- Right: 30 / 60 / 90-Day & 1-Year Cash Flow Projection Cards -->
+            <div style="background:var(--bg-secondary); border:1px solid rgba(6,182,212,0.3); border-radius:14px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
+
+              <div>
+                <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; margin-bottom:12px;">
+                  📈 30/60/90-Day & 1-Year Future Cash Flow Forecast
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+
+                  <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:10px;">
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 30-Day Forecast</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--emerald); margin-top:2px;" id="fc-30d-sim">₹0</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="fc-30d-base">Base: ₹0</div>
+                  </div>
+
+                  <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:10px;">
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 60-Day Forecast</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--emerald); margin-top:2px;" id="fc-60d-sim">₹0</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="fc-60d-base">Base: ₹0</div>
+                  </div>
+
+                  <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:10px;">
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">📅 90-Day Forecast</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--cyan); margin-top:2px;" id="fc-90d-sim">₹0</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="fc-90d-base">Base: ₹0</div>
+                  </div>
+
+                  <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:10px;">
+                    <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">🏆 12-Month Run-Rate</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--purple); margin-top:2px;" id="fc-1y-sim">₹0</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);" id="fc-1y-base">Base: ₹0</div>
+                  </div>
+
+                </div>
+
+                <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:baseline;">
+                  <span style="font-size:0.85rem; font-weight:800; color:var(--text-primary);">90-Day Extra Cash Flow Lift:</span>
+                  <span style="font-size:1.25rem; font-weight:900; color:var(--emerald);" id="fc-90d-lift">+₹0</span>
+                </div>
+              </div>
+
+              <!-- AI Package Decision Story Output -->
+              <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:0.78rem; line-height:1.5; color:var(--text-secondary);" id="fc-narrative-box">
+                Calculating package decision future cash flow projections...
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      updatePackagePortfolioForecast();
+    }
+
+    function updatePackagePortfolioForecast() {
+      const container = document.getElementById('package-portfolio-forecaster');
+      if (!container || !container._pkgData) return;
+
+      const data = container._pkgData;
+
+      const d1 = parseInt(document.getElementById('pkg-d1-slider')?.value || 0, 10);
+      const d2 = parseInt(document.getElementById('pkg-d2-slider')?.value || 0, 10);
+      const d3 = parseInt(document.getElementById('pkg-d3-slider')?.value || 0, 10);
+      const d4 = parseInt(document.getElementById('pkg-d4-slider')?.value || 0, 10);
+
+      // Slider Header Labels
+      const elD1Val = document.getElementById('pkg-d1-val');
+      const elD2Val = document.getElementById('pkg-d2-val');
+      const elD3Val = document.getElementById('pkg-d3-val');
+      const elD4Val = document.getElementById('pkg-d4-val');
+
+      if (elD1Val) elD1Val.textContent = `${d1 >= 0 ? '+' : ''}${d1}% Price`;
+      if (elD2Val) elD2Val.textContent = `${d2}% Shift`;
+      if (elD3Val) elD3Val.textContent = `+${d3}% Renewals`;
+      if (elD4Val) elD4Val.textContent = `${d4} Sales/Mo`;
+
+      // 1. Price Adjustment Impact
+      const priceImpactPct = d1 / 100;
+      const dailyPriceLift = (data.pkgRevenue / data.daysSpan) * priceImpactPct;
+
+      // 2. Bundle Shift Impact (shift to 12-session PM @ +₹15,000 delta)
+      const shiftedPkgCount = Math.round(data.totalPkgCount * (d2 / 100));
+      const totalShiftRev = shiftedPkgCount * 15000;
+      const dailyShiftRev = totalShiftRev / data.daysSpan;
+
+      // 3. Renewal Boost Impact (repeat packages @ ₹10,000 avg)
+      const extraRenewalsCount = Math.round(data.totalPkgCount * (d3 / 100));
+      const totalRenewalRev = extraRenewalsCount * 10000;
+      const dailyRenewalRev = totalRenewalRev / data.daysSpan;
+
+      // 4. Annual Pass Launch Impact (d4 sales per month @ ₹45,000)
+      const monthlyAnnualPassRev = d4 * 45000;
+      const dailyAnnualPassRev = monthlyAnnualPassRev / 30;
+
+      // Total Daily Cash Flow Lift
+      const dailyLiftTotal = dailyPriceLift + dailyShiftRev + dailyRenewalRev + dailyAnnualPassRev;
+
+      // Projected Cash Flows
+      const sim30d = Math.round(data.base30d + (dailyLiftTotal * 30));
+      const sim60d = Math.round(data.base60d + (dailyLiftTotal * 60));
+      const sim90d = Math.round(data.base90d + (dailyLiftTotal * 90));
+      const sim1y = Math.round(data.base1y + (dailyLiftTotal * 365));
+
+      const extra90dLift = Math.round(dailyLiftTotal * 90);
+      const extra1yLift = Math.round(dailyLiftTotal * 365);
+
+      // Update UI Outputs
+      const el30dSim = document.getElementById('fc-30d-sim');
+      const el30dBase = document.getElementById('fc-30d-base');
+
+      const el60dSim = document.getElementById('fc-60d-sim');
+      const el60dBase = document.getElementById('fc-60d-base');
+
+      const el90dSim = document.getElementById('fc-90d-sim');
+      const el90dBase = document.getElementById('fc-90d-base');
+
+      const el1ySim = document.getElementById('fc-1y-sim');
+      const el1yBase = document.getElementById('fc-1y-base');
+
+      const el90dLift = document.getElementById('fc-90d-lift');
+      const elNarrative = document.getElementById('fc-narrative-box');
+
+      if (el30dSim) el30dSim.textContent = formatCurrency(sim30d);
+      if (el30dBase) el30dBase.textContent = `Base: ${formatCurrency(data.base30d)}`;
+
+      if (el60dSim) el60dSim.textContent = formatCurrency(sim60d);
+      if (el60dBase) el60dBase.textContent = `Base: ${formatCurrency(data.base60d)}`;
+
+      if (el90dSim) el90dSim.textContent = formatCurrency(sim90d);
+      if (el90dBase) el90dBase.textContent = `Base: ${formatCurrency(data.base90d)}`;
+
+      if (el1ySim) el1ySim.textContent = formatCurrency(sim1y);
+      if (el1yBase) el1yBase.textContent = `Base: ${formatCurrency(data.base1y)}`;
+
+      if (el90dLift) el90dLift.textContent = `+${formatCurrency(extra90dLift)}`;
+
+      if (elNarrative) {
+        if (extra90dLift === 0) {
+          elNarrative.innerHTML = `💡 <em>Adjust the package portfolio sliders above to model pricing strategy changes and project your 30/60/90-day future cash flows.</em>`;
+        } else {
+          elNarrative.innerHTML = `🔮 <strong>90-Day Package Strategy Forecast:</strong> Implementing these package decisions will generate <strong>+${formatCurrency(extra90dLift)}</strong> in extra cash flow over the next 90 days (expanding annual run-rate by <strong>+${formatCurrency(extra1yLift)}</strong>).`;
         }
       }
     }
