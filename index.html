@@ -3113,75 +3113,95 @@
       }
 
       // Package sales & renewal performance
-      // initialCount = unique patients who have this package as initial (non-renewal)
-      // renewalCount = unique patients who have at least one renewal of this package category
+      // Synchronized cohort tracking matching Package Analysis Modal exactly:
+      // Each package represents the cohort of patients whose 1st Initial Package was that treatment.
       const packageSales = {};
-      const initialCohortMap = {}; // pkgName -> Set of patient identifiers
-      const renewedCohortMap = {}; // pkgName -> Set of patient identifiers who renewed
 
       for (const p of pList) {
-        // Track per-patient per-package whether they have initial/renewal
-        const seenInitial = new Set();
-        const seenRenewal = new Set();
+        if (!p.services) continue;
         const ptId = p.id || p.name || p.patientName;
 
-        for (const svc of p.services) {
-          if (svc.type === 'package') {
-            const name = svc.packageName || 'Unknown';
-            if (!packageSales[name]) {
-              packageSales[name] = {
-                initialCount: 0,
-                initialRevenue: 0,
-                renewalCount: 0,
-                renewalRevenue: 0,
-                totalCount: 0,
-                totalRevenue: 0,
-                count: 0,
-                revenue: 0,
-                renewedPatientsCount: 0,
-                patientConvPct: 0
-              };
-            }
-            packageSales[name].totalCount++;
-            packageSales[name].totalRevenue += (svc.proportionalPaid || 0);
-            packageSales[name].count++;
-            packageSales[name].revenue += (svc.proportionalPaid || 0);
+        // Find initial (non-renewal) package services for this patient
+        const initSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal && s.packageName);
 
-            if (svc.isRenewal) {
-              packageSales[name].renewalRevenue += (svc.proportionalPaid || 0);
-              seenRenewal.add(name);
-            } else {
-              packageSales[name].initialRevenue += (svc.proportionalPaid || 0);
-              seenInitial.add(name);
-            }
-          }
-        }
-        for (const name of seenInitial) {
-          if (packageSales[name]) packageSales[name].initialCount++;
-          if (!initialCohortMap[name]) initialCohortMap[name] = new Set();
-          if (!renewedCohortMap[name]) renewedCohortMap[name] = new Set();
-          initialCohortMap[name].add(ptId);
-
+        for (const isvc of initSvcs) {
+          const name = isvc.packageName;
           const targetCat = getPackageCategory(name);
-          const hasCatRenewal = p.services && p.services.some(s => s.type === 'package' && s.isRenewal && getPackageCategory(s.packageName) === targetCat);
-          if (hasCatRenewal) {
-            renewedCohortMap[name].add(ptId);
+
+          if (!packageSales[name]) {
+            packageSales[name] = {
+              name: name,
+              initialCount: 0,
+              initialRevenue: 0,
+              renewedPatientsCount: 0,
+              renewalCount: 0,
+              renewalRevenue: 0,
+              totalRevenue: 0,
+              patientConvPct: 0,
+              _patients: new Set(),
+              _renewedPatients: new Set()
+            };
+          }
+
+          if (!packageSales[name]._patients.has(ptId)) {
+            packageSales[name]._patients.add(ptId);
+            packageSales[name].initialCount++;
+          }
+          packageSales[name].initialRevenue += (isvc.proportionalPaid || 0);
+
+          // Find renewal packages for this patient belonging to this category
+          const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal && s.packageName && getPackageCategory(s.packageName) === targetCat);
+          if (renSvcs.length > 0) {
+            if (!packageSales[name]._renewedPatients.has(ptId)) {
+              packageSales[name]._renewedPatients.add(ptId);
+              packageSales[name].renewedPatientsCount++;
+            }
           }
         }
-        for (const name of seenRenewal) {
-          if (packageSales[name]) packageSales[name].renewalCount++;
+      }
+
+      // Calculate renewal package count & renewal revenue for each initial package cohort
+      for (const p of pList) {
+        if (!p.services) continue;
+        const initSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal && s.packageName);
+        for (const isvc of initSvcs) {
+          const name = isvc.packageName;
+          const targetCat = getPackageCategory(name);
+          const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal && s.packageName && getPackageCategory(s.packageName) === targetCat);
+          for (const rsvc of renSvcs) {
+            if (packageSales[name]) {
+              packageSales[name].renewalCount++;
+              packageSales[name].renewalRevenue += (rsvc.proportionalPaid || 0);
+            }
+          }
+        }
+      }
+
+      // Ensure any package that only appeared as a standalone renewal is also represented
+      for (const p of pList) {
+        if (!p.services) continue;
+        for (const s of p.services) {
+          if (s.type === 'package' && s.packageName && !packageSales[s.packageName]) {
+            packageSales[s.packageName] = {
+              name: s.packageName,
+              initialCount: 0,
+              initialRevenue: 0,
+              renewedPatientsCount: 0,
+              renewalCount: 0,
+              renewalRevenue: 0,
+              totalRevenue: 0,
+              patientConvPct: 0
+            };
+          }
         }
       }
 
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
-        item.totalPatients = (item.initialCount || 0) + (item.renewalCount || 0);
-        
-        const cohortInitial = initialCohortMap[pkgName] ? initialCohortMap[pkgName].size : item.initialCount;
-        const cohortRenewed = renewedCohortMap[pkgName] ? renewedCohortMap[pkgName].size : 0;
-        item.renewedPatientsCount = cohortRenewed;
-        item.patientConvPct = cohortInitial > 0 ? ((cohortRenewed / cohortInitial) * 100) : 0;
-        item.renewalRate = item.initialCount > 0 ? Math.min(100, Math.round((item.renewalCount / item.initialCount) * 100)) : 0;
+        item.totalPatients = item.initialCount;
+        item.patientConvPct = item.initialCount > 0 ? ((item.renewedPatientsCount / item.initialCount) * 100) : 0;
+        item.renewalRate = item.patientConvPct; // Consistent metric across all charts and displays
+        item.totalRevenue = (item.initialRevenue || 0) + (item.renewalRevenue || 0);
       }
 
       // Revenue by date
