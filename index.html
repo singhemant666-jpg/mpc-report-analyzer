@@ -2072,37 +2072,71 @@
     function parseDate(val) {
       if (!val) return null;
       if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+
+      // Handle Excel numeric serial dates (e.g. 46145)
+      if (typeof val === 'number' && val > 20000 && val < 60000) {
+        const utc_days = Math.floor(val - 25569);
+        const utc_value = utc_days * 86400;
+        const date_info = new Date(utc_value * 1000);
+        const fractional_day = val - Math.floor(val) + 0.0000001;
+        let total_seconds = Math.floor(86400 * fractional_day);
+        const seconds = total_seconds % 60;
+        total_seconds -= seconds;
+        const hours = Math.floor(total_seconds / (60 * 60));
+        const minutes = Math.floor(total_seconds / 60) % 60;
+        return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+      }
+
       const str = String(val).trim();
       if (!str) return null;
 
-      let d = new Date(str);
-      if (!isNaN(d.getTime())) return d;
+      // Check for textual month formats (e.g. "02 May 2026", "29 Apr 2026, 4:18 PM", "09-May-2026")
+      const monthNames = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+      };
+      const textMatch = str.match(/(\d{1,2})[-/\s]+([a-zA-Z]{3,})[-/\s]+(\d{4})/);
+      if (textMatch) {
+        const day = parseInt(textMatch[1], 10);
+        const monKey = textMatch[2].substring(0, 3).toLowerCase();
+        const year = parseInt(textMatch[3], 10);
+        if (monKey in monthNames) {
+          const d = new Date(year, monthNames[monKey], day);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
 
+      // Check standard DD-MM-YYYY or YYYY-MM-DD formats
       const parts = str.split(/[\sT]+/);
       const datePart = parts[0];
       const timePart = parts[1] || '00:00:00';
-      
-      const dParts = datePart.split(/[-/]/);
+      const dParts = datePart.split(/[-/.]/);
+
       if (dParts.length === 3) {
         let year, month, day;
         if (dParts[0].length === 4) {
+          // ISO format: YYYY-MM-DD
           year = parseInt(dParts[0], 10);
           month = parseInt(dParts[1], 10) - 1;
           day = parseInt(dParts[2], 10);
         } else {
+          // Indian & European format: DD-MM-YYYY
           day = parseInt(dParts[0], 10);
           month = parseInt(dParts[1], 10) - 1;
-          year = parseInt(dParts[2], 10);
+          year = parseInt(dParts[2].length === 2 ? ('20' + dParts[2]) : dParts[2], 10);
         }
+
         const tParts = timePart.split(':');
         const hours = parseInt(tParts[0] || 0, 10);
         const mins = parseInt(tParts[1] || 0, 10);
         const secs = parseInt(tParts[2] || 0, 10);
-        d = new Date(year, month, day, hours, mins, secs);
+        const d = new Date(year, month, day, hours, mins, secs);
         if (!isNaN(d.getTime())) return d;
       }
 
-      return null;
+      // Fallback
+      const d = new Date(str);
+      return !isNaN(d.getTime()) ? d : null;
     }
 
     function formatDate(d) {
