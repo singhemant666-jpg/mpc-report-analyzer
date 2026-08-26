@@ -1368,93 +1368,99 @@
 
   <!-- AI Insights & Audit Modal -->
   <div class="modal-overlay" id="ai-modal">
-    <div class="modal" style="max-width:850px; width:92%;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <div class="modal-title" style="margin-bottom:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <div class="modal" style="max-width:96vw; width:96vw; max-height:94vh; height:94vh; display:flex; flex-direction:column; padding:24px; overflow:hidden;">
+      <!-- Modal Header -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0;">
+        <div class="modal-title" style="margin-bottom:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <span style="font-size:1.5rem;">✨</span>
-          <span>AI Audit & Executive Insights</span>
-          <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">🛡️ 100% Data Math Verified</span>
+          <span style="font-size:1.35rem; font-weight:800;">AI Audit & Executive Insights</span>
+          <span style="background:rgba(16,185,129,0.12); color:var(--emerald); border:1px solid rgba(16,185,129,0.25); padding:3px 10px; border-radius:12px; font-size:0.78rem; font-weight:600;">🛡️ 100% Data Math Verified</span>
         </div>
-        <button class="btn btn-sm btn-icon" onclick="closeAIModal()" style="border:none; font-size:16px;">✕</button>
+        <button class="btn btn-sm btn-icon" onclick="closeAIModal()" style="border:none; font-size:18px; cursor:pointer;">✕</button>
       </div>
 
-      <!-- AI Engine Status Bar (No key needed - powered by Groq server-side) -->
-      <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:10px 14px; margin-bottom:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <span style="font-size:1rem;">🤖</span>
-        <div style="flex:1;">
-          <div style="font-size:0.82rem; font-weight:700; color:var(--emerald);">Powered by Groq AI — 120B Enterprise Reasoning Model</div>
-          <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:2px;">No API key required · Runs securely server-side · Auto-fallback enabled</div>
-        </div>
-        <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:600;">✅ Ready</span>
-      </div>
+      <!-- Scrollable Main Container -->
+      <div style="flex:1; overflow-y:auto; padding-right:4px; display:flex; flex-direction:column; gap:16px;">
 
-      <!-- Quick AI Summary Cards -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:20px;">
-        <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Overall Conversion Rate</div>
-          <div style="font-size:1.4rem; font-weight:700; color:var(--emerald);" id="ai-stat-conv">0%</div>
-          <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;" id="ai-stat-conv-desc">Consultation -> Package</div>
-        </div>
-        <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Renewals Growth</div>
-          <div style="font-size:1.4rem; font-weight:700; color:var(--purple);" id="ai-stat-ren-rev">₹0</div>
-          <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;" id="ai-stat-ren-cnt">0 Patients Renewed</div>
-        </div>
-        <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:8px; padding:14px;">
-          <div style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Top Performing Doctor</div>
-          <div style="font-size:1.1rem; font-weight:700; color:var(--cyan); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="ai-stat-doc">-</div>
-          <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;" id="ai-stat-doc-desc">Highest PM Package Sales</div>
-        </div>
-      </div>
-
-      <!-- Patient-by-Patient AI Audit Section -->
-      <div style="background:rgba(15,23,42,0.5); border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-          <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
-            <span>📋 Patient-by-Patient AI Verification Audit:</span>
-            <span style="background:rgba(16,185,129,0.2); color:var(--emerald); padding:2px 8px; border-radius:10px; font-size:0.75rem;" id="ai-audit-count-badge">0 / 0 Verified</span>
+        <!-- AI Engine Status Bar -->
+        <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:10px 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; flex-shrink:0;">
+          <span style="font-size:1.2rem;">🤖</span>
+          <div style="flex:1;">
+            <div style="font-size:0.85rem; font-weight:700; color:var(--emerald);">Powered by Groq AI — 120B Enterprise Reasoning Model</div>
+            <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">No API key required · Runs securely server-side · Auto-fallback enabled</div>
           </div>
-          <input type="text" id="ai-patient-audit-search" placeholder="🔍 Search patient audit..." style="padding:4px 10px; border-radius:4px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px; width:220px; outline:none;" oninput="renderAIPatientAuditTable()">
+          <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:4px 12px; border-radius:12px; font-size:0.78rem; font-weight:700;">✅ System Ready</span>
         </div>
-        <div style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;">
-          <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-            <thead>
-              <tr style="background:rgba(15,23,42,0.9); color:var(--text-secondary); text-align:left; position:sticky; top:0; z-index:1;">
-                <th style="padding:6px 10px; border-bottom:1px solid var(--border);">Patient Name</th>
-                <th style="padding:6px 10px; border-bottom:1px solid var(--border);">Category</th>
-                <th style="padding:6px 10px; border-bottom:1px solid var(--border);">Consult Date</th>
-                <th style="padding:6px 10px; border-bottom:1px solid var(--border);">Package & Amount Bifurcation</th>
-                <th style="padding:6px 10px; border-bottom:1px solid var(--border); text-align:center;">AI Math Audit</th>
-              </tr>
-            </thead>
-            <tbody id="ai-patient-audit-tbody">
-              <tr><td colspan="5" style="text-align:center; padding:10px; color:var(--text-muted);">Run report to view patient-by-patient AI audit log...</td></tr>
-            </tbody>
-          </table>
+
+        <!-- Quick AI Summary Cards (Light Mode Adaptive) -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; flex-shrink:0;">
+          <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:16px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Overall Conversion Rate</div>
+            <div style="font-size:1.6rem; font-weight:800; color:var(--emerald); margin-top:4px;" id="ai-stat-conv">0%</div>
+            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;" id="ai-stat-conv-desc">Consultation -> Package</div>
+          </div>
+          <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:16px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Renewals Growth</div>
+            <div style="font-size:1.6rem; font-weight:800; color:var(--purple); margin-top:4px;" id="ai-stat-ren-rev">₹0</div>
+            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;" id="ai-stat-ren-cnt">0 Patients Renewed</div>
+          </div>
+          <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:16px;">
+            <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Top Performing Doctor</div>
+            <div style="font-size:1.25rem; font-weight:800; color:var(--cyan); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;" id="ai-stat-doc">-</div>
+            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;" id="ai-stat-doc-desc">Highest PM Package Sales</div>
+          </div>
+        </div>
+
+        <!-- Patient-by-Patient AI Audit Section -->
+        <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:14px; flex-shrink:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+              <span>📋 Patient-by-Patient AI Verification Audit:</span>
+              <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:2px 10px; border-radius:12px; font-size:0.75rem; font-weight:700;" id="ai-audit-count-badge">0 / 0 Verified</span>
+            </div>
+            <input type="text" id="ai-patient-audit-search" placeholder="🔍 Search patient audit..." style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px; width:260px; outline:none;" oninput="renderAIPatientAuditTable()">
+          </div>
+          <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-card-solid);">
+            <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+              <thead>
+                <tr style="background:var(--bg-secondary); color:var(--text-secondary); text-align:left; position:sticky; top:0; z-index:1; font-weight:700;">
+                  <th style="padding:8px 12px; border-bottom:2px solid var(--border);">Patient Name</th>
+                  <th style="padding:8px 12px; border-bottom:2px solid var(--border);">Category</th>
+                  <th style="padding:8px 12px; border-bottom:2px solid var(--border);">Consult Date</th>
+                  <th style="padding:8px 12px; border-bottom:2px solid var(--border);">Package & Amount Bifurcation</th>
+                  <th style="padding:8px 12px; border-bottom:2px solid var(--border); text-align:center;">AI Math Audit</th>
+                </tr>
+              </thead>
+              <tbody id="ai-patient-audit-tbody">
+                <tr><td colspan="5" style="text-align:center; padding:14px; color:var(--text-muted);">Run report to view patient-by-patient AI audit log...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- AI Insights Output Box -->
+        <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:10px; padding:18px; min-height:160px; font-size:0.92rem; line-height:1.6; color:var(--text-primary);" id="ai-insights-box">
+          <div style="color:var(--text-muted); text-align:center; padding:20px 0;">Click "✨ Run AI Audit & Analysis" below to generate intelligent executive recommendations...</div>
+        </div>
+
+        <!-- Ask AI Input Box -->
+        <div style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:12px; flex-shrink:0;">
+          <label style="font-size:0.85rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:6px;">💬 Ask AI Custom Question about this report:</label>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="ai-query-input" placeholder="e.g. Which doctor converted most Pain Management packages?" style="flex:1; padding:9px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); outline:none; font-size:13px;" onkeypress="if(event.key==='Enter') runCustomAIQuery()">
+            <button class="btn btn-primary btn-sm" onclick="runCustomAIQuery()" style="padding:0 16px;">🔍 Ask AI</button>
+          </div>
         </div>
       </div>
 
-      <!-- AI Insights Output Box -->
-      <div style="background:var(--bg-card-light); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:20px; max-height:280px; overflow-y:auto; font-size:0.9rem; line-height:1.6;" id="ai-insights-box">
-        <div style="color:var(--text-muted);">Click "Run AI Audit & Analysis" below to generate intelligent executive recommendations...</div>
-      </div>
-
-      <!-- Ask AI Input Box -->
-      <div style="margin-bottom:16px;">
-        <label style="font-size:0.85rem; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">💬 Ask AI Custom Question about this report:</label>
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="ai-query-input" placeholder="e.g. Which doctor converted most Pain Management packages?" style="flex:1; padding:8px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); outline:none; font-size:13px;" onkeypress="if(event.key==='Enter') runCustomAIQuery()">
-          <button class="btn btn-primary btn-sm" onclick="runCustomAIQuery()">🔍 Ask AI</button>
+      <!-- Footer Actions -->
+      <div class="modal-actions" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; padding-top:10px; border-top:1px solid var(--border); flex-shrink:0;">
+        <div style="font-size:0.78rem; color:var(--text-muted); font-weight:600;">
+          <span>⚡ Groq 120B Enterprise AI Engine • 100% Mathematical Accuracy Guaranteed</span>
         </div>
-      </div>
-
-      <div class="modal-actions" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <div style="font-size:0.75rem; color:var(--text-muted);">
-          <span>Gemini AI Engine • Instant Mathematical Accuracy Audit</span>
-        </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:10px;">
           <button class="btn btn-sm" onclick="closeAIModal()">Close</button>
-          <button class="btn btn-purple btn-sm" onclick="generateAIExecutiveReport()">✨ Run AI Audit & Analysis</button>
+          <button class="btn btn-purple btn-sm" onclick="generateAIExecutiveReport()" style="padding:8px 18px; font-weight:700;">✨ Run AI Audit & Analysis</button>
         </div>
       </div>
     </div>
@@ -7368,7 +7374,7 @@
       }
 
       tbody.innerHTML = records.map(r => `
-        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:6px 10px; font-weight:600; color:var(--text-primary);">${r.name}</td>
           <td style="padding:6px 10px; color:var(--text-secondary);">${r.status}</td>
           <td style="padding:6px 10px; color:var(--cyan);">${r.consultDate}</td>
