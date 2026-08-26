@@ -5111,33 +5111,45 @@
 
       currentPRMPatients = [];
 
-      const targetCat = getPackageCategory(pkgName);
+      let totalInitialRevSum = 0;
+      let totalRenewalRevSum = 0;
+      let totalRenewalPkgCount = 0;
 
       for (const p of Object.values(filteredPatients || {})) {
         if (!p.services || p.services.length === 0) continue;
 
-        // Check if patient has this package as Initial OR as Renewal
-        const hasPkg = p.services.some(s => s.type === 'package' && s.packageName === pkgName);
-        if (!hasPkg) continue;
+        // Get all package services sorted chronologically
+        const pkgServices = p.services
+          .filter(s => s.type === 'package' && s.packageName)
+          .sort((a, b) => {
+            const d1 = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+            const d2 = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+            return d1 - d2;
+          });
 
-        const initSvc = p.services.find(s => s.type === 'package' && !s.isRenewal);
-        const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal && s.packageName);
-        
-        const isThisPkgInitial = initSvc && initSvc.packageName === pkgName;
-        const thisPkgRenSvcs = renSvcs.filter(s => s.packageName === pkgName);
+        if (pkgServices.length === 0) continue;
 
-        const initRevenue = isThisPkgInitial ? (initSvc.proportionalPaid || 0) : 0;
-        const renRevenue = thisPkgRenSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        // Find the FIRST occurrence of pkgName in patient's package services
+        const anchorIndex = pkgServices.findIndex(s => s.packageName && s.packageName.toLowerCase() === pkgName.toLowerCase());
+        if (anchorIndex === -1) continue; // Patient did not purchase target package
+
+        const initSvc = pkgServices[anchorIndex];
+        const renSvcs = pkgServices.slice(anchorIndex + 1);
+
+        const initRevenue = initSvc.proportionalPaid || 0;
+        const renRevenue = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const pkgTotalPaid = initRevenue + renRevenue;
-        
-        const initDateStr = initSvc && initSvc.paymentDate ? formatDate(initSvc.paymentDate) : '-';
+
+        totalInitialRevSum += initRevenue;
+        totalRenewalRevSum += renRevenue;
+        totalRenewalPkgCount += renSvcs.length;
+
+        const initDateStr = initSvc.paymentDate ? formatDate(initSvc.paymentDate) : '-';
         const renDatesStr = renSvcs.length > 0 ? renSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').join('<br>') : '-';
         const renNamesStr = renSvcs.length > 0 ? renSvcs.map(s => s.packageName).join('<br>') : '-';
 
         let stageBadge = '<span class="badge badge-cyan">Initial 1st Pkg Only</span>';
-        if (!isThisPkgInitial && thisPkgRenSvcs.length > 0) {
-          stageBadge = '<span class="badge badge-purple">🔄 Renewal Package Buyer</span>';
-        } else if (renSvcs.length === 1) {
+        if (renSvcs.length === 1) {
           stageBadge = '<span class="badge badge-purple">🔄 2nd Pkg Renewal</span>';
         } else if (renSvcs.length === 2) {
           stageBadge = '<span class="badge badge-emerald">🔥 3rd Pkg Renewal</span>';
@@ -5169,14 +5181,14 @@
           patientName: p.name,
           doctor: getDoctorStr(p),
           agent: getAgentStr(p),
-          initialPkg: initSvc ? initSvc.packageName : (p.services[0] ? p.services[0].packageName : pkgName),
+          initialPkg: initSvc.packageName,
           initialDateStr: initDateStr,
           initialRevenue: initRevenue,
           renNamesStr: renNamesStr,
           renDatesStr: renDatesStr,
           renewalRevenue: renRevenue,
           totalPaid: pkgTotalPaid,
-          hasRenewal: isThisPkgInitial ? renSvcs.length > 0 : true,
+          hasRenewal: renSvcs.length > 0,
           stageBadge: stageBadge,
           rawPatient: p
         });
@@ -5185,31 +5197,6 @@
       document.getElementById('prm-title').textContent = `🔄 Package Analysis: ${pkgName}`;
       document.getElementById('prm-subtitle').textContent = `Showing exact patient breakdown for ${pkgName} (${currentPRMPatients.length} total patients)`;
 
-      let initialPkgRevenue = 0;
-      let renewalPkgRevenue = 0;
-      let initialPkgTxnCount = 0;
-      let renewalPkgTxnCount = 0;
-      const targetCatForCount = getPackageCategory(pkgName);
-
-      for (const p of currentPRMPatients) {
-        const rawP = p.rawPatient;
-        if (!rawP || !rawP.services) continue;
-        for (const s of rawP.services) {
-          if (s.type === 'package') {
-            const amt = s.proportionalPaid || 0;
-            if (s.isRenewal) {
-              if (getPackageCategory(s.packageName || '') === targetCatForCount) {
-                renewalPkgRevenue += amt;
-                renewalPkgTxnCount++;
-              }
-            } else if (s.packageName === pkgName) {
-              initialPkgRevenue += amt;
-              initialPkgTxnCount++;
-            }
-          }
-        }
-      }
-
       const renewalCount = currentPRMPatients.filter(p => p.hasRenewal).length;
       const initialCount = currentPRMPatients.filter(p => !p.hasRenewal).length;
 
@@ -5217,7 +5204,7 @@
       document.getElementById('prm-count-renewals').textContent = renewalCount;
       document.getElementById('prm-count-initial').textContent = initialCount;
 
-      const totalRev = initialPkgRevenue + renewalPkgRevenue;
+      const totalRev = totalInitialRevSum + totalRenewalRevSum;
       const convRate = currentPRMPatients.length > 0 ? ((renewalCount / currentPRMPatients.length) * 100).toFixed(1) : 0;
 
       const ribbon = document.getElementById('prm-metrics-ribbon');
@@ -5229,8 +5216,8 @@
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">INITIAL PKG REVENUE</div>
-          <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(initialPkgRevenue)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialCount} Patients &nbsp;|&nbsp; ${initialPkgTxnCount} Pkg(s)</div>
+          <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalInitialRevSum)}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${currentPRMPatients.length} Patients &nbsp;|&nbsp; ${currentPRMPatients.length} Pkg(s)</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWED PATIENTS</div>
@@ -5239,13 +5226,13 @@
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">RENEWAL REVENUE</div>
-          <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(renewalPkgRevenue)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${renewalCount} Patients &nbsp;|&nbsp; ${renewalPkgTxnCount} Pkg(s)</div>
+          <div style="font-size:18px; font-weight:700; color:var(--purple);">${formatCurrency(totalRenewalRevSum)}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${renewalCount} Patients &nbsp;|&nbsp; ${totalRenewalPkgCount} Renewal Pkg(s)</div>
         </div>
         <div style="background:var(--bg-card-light); border:1px solid var(--border); padding:10px; border-radius:8px;">
           <div style="font-size:11px; color:var(--text-muted); font-weight:600;">TOTAL REVENUE</div>
           <div style="font-size:18px; font-weight:700; color:var(--emerald);">${formatCurrency(totalRev)}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${initialPkgTxnCount + renewalPkgTxnCount} Total Pkg(s) Sold</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${currentPRMPatients.length + totalRenewalPkgCount} Total Pkg(s) Sold</div>
         </div>
       `;
 
