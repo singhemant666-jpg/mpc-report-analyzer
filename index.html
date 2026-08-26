@@ -3162,81 +3162,69 @@
       }
 
       // Package sales & renewal performance
-      // Package sales & renewal performance
-      // Complete dual-attribution model: Captures 100% of package transactions (initial & renewals) + cohort retention
+      // Package sales & renewal performance: Unified Chronological Anchor Model
+      // Ensures 100% mathematical parity between Leaderboard Table and Package Analysis Modal
       const packageSales = {};
 
-      // 1. Direct transaction capture: Ensure every single package transaction is accounted for
       for (const p of pList) {
-        if (!p.services) continue;
-        const ptId = p.id || p.name || p.patientName;
+        if (!p.services || p.services.length === 0) continue;
 
-        for (const svc of p.services) {
-          if (svc.type === 'package' && svc.packageName) {
-            const name = svc.packageName;
-            if (!packageSales[name]) {
-              packageSales[name] = {
-                name: name,
-                initialCount: 0,
-                initialRevenue: 0,
-                renewedPatientsCount: 0,
-                renewalCount: 0,
-                renewalRevenue: 0,
-                totalRevenue: 0,
-                count: 0,
-                revenue: 0,
-                patientConvPct: 0,
-                _initialPatients: new Set(),
-                _renewalPatients: new Set(),
-                _cohortRenewed: new Set()
-              };
-            }
+        // Get all package services for this patient sorted chronologically
+        const pkgServices = p.services
+          .filter(s => s.type === 'package' && s.packageName)
+          .sort((a, b) => {
+            const d1 = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+            const d2 = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+            return d1 - d2;
+          });
 
-            const amt = svc.proportionalPaid || 0;
-            packageSales[name].count++;
-            packageSales[name].revenue += amt;
+        if (pkgServices.length === 0) continue;
 
-            if (svc.isRenewal) {
-              packageSales[name].renewalRevenue += amt;
-              if (!packageSales[name]._renewalPatients.has(ptId)) {
-                packageSales[name]._renewalPatients.add(ptId);
-                packageSales[name].renewalCount++;
-              }
-            } else {
-              packageSales[name].initialRevenue += amt;
-              if (!packageSales[name]._initialPatients.has(ptId)) {
-                packageSales[name]._initialPatients.add(ptId);
-                packageSales[name].initialCount++;
-              }
-            }
+        const distinctPkgNames = [...new Set(pkgServices.map(s => s.packageName))];
+
+        for (const targetPkg of distinctPkgNames) {
+          if (!packageSales[targetPkg]) {
+            packageSales[targetPkg] = {
+              name: targetPkg,
+              initialCount: 0,
+              initialRevenue: 0,
+              renewedPatientsCount: 0,
+              renewalCount: 0,
+              renewalRevenue: 0,
+              totalRevenue: 0,
+              count: 0,
+              revenue: 0,
+              patientConvPct: 0
+            };
           }
-        }
-      }
 
-      // 2. Cohort Retention Calculation: Track how many initial buyers of this package renewed treatment
-      for (const p of pList) {
-        if (!p.services) continue;
-        const ptId = p.id || p.name || p.patientName;
-        const initSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal && s.packageName);
-        const renSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal && s.packageName);
+          // Find the FIRST occurrence of targetPkg in patient's package services as anchor
+          const anchorIndex = pkgServices.findIndex(s => s.packageName && s.packageName.toLowerCase() === targetPkg.toLowerCase());
+          if (anchorIndex === -1) continue;
 
-        for (const isvc of initSvcs) {
-          const name = isvc.packageName;
-          const targetCat = getPackageCategory(name);
-          const hasCatRenewal = renSvcs.some(s => getPackageCategory(s.packageName) === targetCat || isPainManagementPackage(s.packageName) && isPainManagementPackage(name));
-          
-          if (packageSales[name] && hasCatRenewal) {
-            if (!packageSales[name]._cohortRenewed.has(ptId)) {
-              packageSales[name]._cohortRenewed.add(ptId);
-              packageSales[name].renewedPatientsCount++;
-            }
+          const anchorSvc = pkgServices[anchorIndex];
+          const renSvcs = pkgServices.slice(anchorIndex + 1);
+
+          const initAmt = anchorSvc.proportionalPaid || 0;
+          const renAmt = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+
+          packageSales[targetPkg].initialCount++;
+          packageSales[targetPkg].initialRevenue += initAmt;
+
+          if (renSvcs.length > 0) {
+            packageSales[targetPkg].renewedPatientsCount++;
+            packageSales[targetPkg].renewalCount += renSvcs.length;
+            packageSales[targetPkg].renewalRevenue += renAmt;
           }
+
+          packageSales[targetPkg].count += (1 + renSvcs.length);
+          packageSales[targetPkg].revenue += (initAmt + renAmt);
         }
       }
 
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
-        item.totalPatients = item.initialCount + item.renewalCount;
+        item.totalPatients = item.initialCount;
         item.patientConvPct = item.initialCount > 0 ? ((item.renewedPatientsCount / item.initialCount) * 100) : 0;
         item.renewalRate = item.patientConvPct;
         item.totalRevenue = item.initialRevenue + item.renewalRevenue;
