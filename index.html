@@ -1713,6 +1713,7 @@
                   <th style="cursor:pointer; user-select:none;" data-sort="doctor" data-title="Consulting Doctor" onclick="sortDoctorLeaderboard('doctor')">Consulting Doctor</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="consultation" data-title="Consultations" onclick="sortDoctorLeaderboard('consultation')">Consultations</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="1st Pkg Converted" onclick="sortDoctorLeaderboard('totalPackages')">1st Pkg Converted</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="nonConverted" data-title="Non Converted" onclick="sortDoctorLeaderboard('nonConverted')">Non Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Pain Mgmt Pkgs" onclick="sortDoctorLeaderboard('painMgmtCount')">Pain Mgmt Pkgs</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtConvPct" data-title="Pain Mgmt Conv %" onclick="sortDoctorLeaderboard('painMgmtConvPct')">Pain Mgmt Conv %</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortDoctorLeaderboard('renewalCount')">Renewals Sold</th>
@@ -3063,9 +3064,10 @@
         }
       }
 
-      // Calculate conversion percentages for each doctor
+      // Calculate conversion percentages & non-converted counts for each doctor
       for (const doc of Object.keys(doctorMap)) {
         const d = doctorMap[doc];
+        d.nonConverted = Math.max(0, d.consultation - d.totalPackages);
         d.overallConvPct = d.consultation > 0 ? Math.min(100, (d.totalPackages / d.consultation * 100)) : 0;
         d.painMgmtConvPct = d.consultation > 0 ? Math.min(100, (d.painMgmtCount / d.consultation * 100)) : 0;
         d.renewalConvPct = d.totalPackages > 0 ? (d.renewalCount / d.totalPackages * 100) : 0;
@@ -4392,7 +4394,7 @@
       });
 
       if (doctors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="no-data">No doctor data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" class="no-data">No doctor data available</td></tr>';
         return;
       }
 
@@ -4433,7 +4435,8 @@
             </div>
           </td>
           <td>${d.consultation}</td>
-          <td>${d.totalPackages}</td>
+          <td style="font-weight:700; color:var(--emerald);">${d.totalPackages}</td>
+          <td style="font-weight:700; color:var(--rose);">${d.nonConverted}</td>
           <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
