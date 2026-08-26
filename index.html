@@ -140,6 +140,9 @@
     .ai-audit-icon { font-size: 18px; }
     .ai-audit-icon.spin { animation: auditSpin 1s linear infinite; }
     @keyframes auditSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes slideInRight { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+    @keyframes livePulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .ai-monitor-live-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--emerald); animation:livePulse 1.5s ease-in-out infinite; margin-right:4px; }
     .ai-audit-text { font-size: 12px; font-weight: 700; color: var(--text-primary); }
     .ai-audit-stats {
       display: flex; gap: 16px; flex: 1; flex-wrap: wrap;
@@ -3504,6 +3507,8 @@
       renderDoctorIncentiveTable(metrics);
       renderPackageRenewalLeaderboard(metrics);
       renderTables(patients, metrics);
+      // Start continuous AI background monitor after dashboard loads
+      setTimeout(() => startAIBackgroundMonitor(patients, metrics), 1500);
     }
 
     function renderMetricCards(m) {
@@ -7764,33 +7769,126 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
         .replace(/\n\n/g, '<br>');
     }
 
-    // ==================== AI BACKGROUND AUDIT WATCHDOG ENGINE ====================
+    // ==================== AI BACKGROUND MONITORING SYSTEM ====================
     let auditResults = null;
+    let _bgMonitorTimer = null;
+    let _bgMonitorRunning = false;
+    let _auditCycleCount = 0;
+    const BG_MONITOR_INTERVAL_MS = 60000; // Re-audit every 60 seconds
 
     function toggleAuditDetails() {
       const details = document.getElementById('ai-audit-details');
       if (details) details.classList.toggle('hidden');
     }
 
+    function startAIBackgroundMonitor(patients, metrics) {
+      // Clear any existing monitor timer
+      if (_bgMonitorTimer) clearInterval(_bgMonitorTimer);
+      _bgMonitorRunning = true;
+      _auditCycleCount = 0;
+
+      // Run immediately
+      runBackgroundAudit(patients, metrics);
+
+      // Then re-run every BG_MONITOR_INTERVAL_MS
+      _bgMonitorTimer = setInterval(() => {
+        if (!_bgMonitorRunning || !filteredPatients || !currentMetrics) return;
+        _auditCycleCount++;
+        runBackgroundAudit(filteredPatients, currentMetrics);
+      }, BG_MONITOR_INTERVAL_MS);
+    }
+
+    function stopAIBackgroundMonitor() {
+      _bgMonitorRunning = false;
+      if (_bgMonitorTimer) { clearInterval(_bgMonitorTimer); _bgMonitorTimer = null; }
+    }
+
     function runBackgroundAudit(patients, metrics) {
       const bar = document.getElementById('ai-audit-bar');
       const icon = document.getElementById('ai-audit-icon');
       const text = document.getElementById('ai-audit-text');
-      const stats = document.getElementById('ai-audit-stats');
-      const details = document.getElementById('ai-audit-details');
       if (!bar) return;
 
-      // Show running state
+      // Show scanning pulse
       bar.classList.remove('hidden', 'all-clear', 'has-issues');
       bar.classList.add('running');
       if (icon) { icon.textContent = '🔄'; icon.classList.add('spin'); }
-      if (text) text.textContent = 'AI Watchdog auditing all data...';
+      if (text) text.textContent = _auditCycleCount > 0
+        ? `AI Monitor: Re-scanning (cycle #${_auditCycleCount + 1})...`
+        : 'AI Monitor: Running full integrity audit...';
 
-      // Run audit asynchronously
-      setTimeout(() => {
+      // Run audit asynchronously so UI doesn't block
+      setTimeout(async () => {
         auditResults = performFullAudit(patients, metrics);
         renderAuditResults(auditResults);
+
+        // If there are real errors (not just warnings), escalate to Groq AI for diagnosis
+        if (auditResults.errors > 0) {
+          await escalateToGroqAI(auditResults, metrics);
+        }
       }, 300);
+    }
+
+    async function escalateToGroqAI(auditRes, m) {
+      // Build a concise error summary for AI
+      const errorIssues = auditRes.issues.filter(i => i.type === 'error').map(i => `- ${i.title}: ${i.desc}`).join('\n');
+      const warnIssues = auditRes.issues.filter(i => i.type === 'warning').slice(0, 5).map(i => `- ${i.title}`).join('\n');
+      const prompt = `You are an expert healthcare data auditor. The MPC Clinic dashboard has ${auditRes.errors} data error(s) and ${auditRes.warnings} warning(s):
+
+ERRORS:
+${errorIssues}
+
+TOP WARNINGS:
+${warnIssues}
+
+Dashboard summary: ${m.totalPatients} patients, ₹${(m.totalRevenue||0).toLocaleString('en-IN')} total revenue.
+
+In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact corrective action for the clinic administrator.`;
+
+      try {
+        const aiDiagnosis = await callAIProviderAPI(prompt);
+        if (aiDiagnosis) {
+          // Show a prominent AI diagnosis notification
+          showAIMonitorAlert(aiDiagnosis, auditRes.errors, auditRes.autoFixes);
+        }
+      } catch(e) {}
+    }
+
+    function showAIMonitorAlert(diagnosis, errors, fixes) {
+      // Remove any existing alert
+      const existingAlert = document.getElementById('ai-monitor-alert');
+      if (existingAlert) existingAlert.remove();
+
+      const alert = document.createElement('div');
+      alert.id = 'ai-monitor-alert';
+      alert.style.cssText = `
+        position:fixed; bottom:80px; right:20px; z-index:9999;
+        background:var(--bg-card-solid); border:1px solid rgba(244,63,94,0.4);
+        border-radius:12px; padding:16px 18px; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.3);
+        animation:slideInRight 0.3s ease;
+      `;
+      alert.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <span style="font-size:1.2rem;">🤖</span>
+          <strong style="color:var(--rose); font-size:0.85rem;">AI Monitor — ${errors} Error${errors>1?'s':''} Detected${fixes>0?` · ${fixes} Auto-Fixed`:''}</strong>
+          <button onclick="this.closest('#ai-monitor-alert').remove()" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:14px;">✕</button>
+        </div>
+        <div style="font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
+          ${diagnosis.replace(/^- (.*$)/gim, '<div style="margin:3px 0 3px 8px; color:var(--text-primary);">• $1</div>')}
+        </div>
+        <div style="margin-top:10px; display:flex; gap:8px;">
+          <button onclick="openAIModal()" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); color:var(--purple); border-radius:6px; padding:5px 12px; font-size:0.75rem; cursor:pointer; font-weight:600;">
+            📊 View Full Audit
+          </button>
+          <button onclick="this.closest('#ai-monitor-alert').remove()" style="background:rgba(148,163,184,0.1); border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:5px 12px; font-size:0.75rem; cursor:pointer;">
+            Dismiss
+          </button>
+        </div>
+      `;
+      document.body.appendChild(alert);
+
+      // Auto-dismiss after 30 seconds
+      setTimeout(() => { if (alert.parentNode) alert.remove(); }, 30000);
     }
 
     function performFullAudit(patients, m) {
@@ -8133,15 +8231,16 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
       bar.classList.remove('running');
 
       const hasProblems = results.errors > 0 || results.warnings > 0;
+      const cycleLabel = _auditCycleCount > 0 ? ` · Scan #${_auditCycleCount + 1}` : '';
 
       if (hasProblems) {
         bar.classList.add('has-issues');
         icon.textContent = results.errors > 0 ? '⚠️' : '🔶';
-        text.textContent = `AI Audit: ${results.errors + results.warnings} issue(s) found${results.autoFixes > 0 ? `, ${results.autoFixes} auto-fixed` : ''}`;
+        text.innerHTML = `AI Monitor: ${results.errors + results.warnings} issue(s) found${results.autoFixes > 0 ? ` · ${results.autoFixes} auto-fixed` : ''}${cycleLabel}`;
       } else {
         bar.classList.add('all-clear');
         icon.textContent = '✅';
-        text.textContent = 'AI Audit: All Checks Passed — Data 100% Verified';
+        text.innerHTML = `<span class="ai-monitor-live-dot"></span>AI Monitor: All ${results.checksRun} Checks Passed — Data 100% Verified${cycleLabel}`;
       }
 
       stats.innerHTML = `
