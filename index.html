@@ -2747,14 +2747,7 @@
               categoryPaidSum[cat] = 0;
               row.isInstallment = false;
               row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
-              
-              const isSameCategoryAsFirst = cat === initialPkgCategory;
-              if (isLaterDate && isSameCategoryAsFirst) {
-                row.isRenewal = true;
-              } else {
-                row.isRenewal = false;
-              }
-              
+              row.isRenewal = index > 0;
               categoryActivePurchase[cat] = row;
             } else {
               const prevPaid = categoryPaidSum[cat];
@@ -2767,14 +2760,7 @@
               } else {
                 row.isInstallment = false;
                 row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
-                
-                const isSameCategoryAsFirst = cat === initialPkgCategory;
-                if (isLaterDate && isSameCategoryAsFirst) {
-                  row.isRenewal = true;
-                } else {
-                  row.isRenewal = false;
-                }
-                
+                row.isRenewal = index > 0;
                 categoryActivePurchase[cat] = row;
                 const pkgCost = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
                 categoryCostSum[cat] += pkgCost;
@@ -2982,6 +2968,19 @@
           const da = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
           const db = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
           return da - db;
+        });
+
+        // Strict chronological package ordinal labeling:
+        // Index 0 is ALWAYS 1st Package (isRenewal = false). Index 1 is ALWAYS 2nd Package, Index 2 is ALWAYS 3rd Package, etc.
+        const pkgSvcsOnly = finalServices.filter(s => s.type === 'package');
+        pkgSvcsOnly.forEach((s, idx) => {
+          if (idx === 0) {
+            s.isRenewal = false;
+            s.packageStageLabel = '1st Package';
+          } else {
+            s.isRenewal = true;
+            s.packageStageLabel = getOrdinalLabel(idx + 1);
+          }
         });
 
         // Determine final status & preserve complete global patient profile if filtering
@@ -5940,6 +5939,7 @@
 
     function getPackageStageLabel(s, allServices) {
       if (!s) return '1st Package';
+      if (s.packageStageLabel) return s.packageStageLabel;
       
       const categoryOfS = getPackageCategory(s.packageName);
       
