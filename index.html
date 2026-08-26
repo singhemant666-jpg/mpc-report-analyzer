@@ -895,7 +895,7 @@
       gap: 28px;
       margin-top: 18px;
     }
-    @media (max-width: 900px) { .scenario-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .scenario-grid, .sim-responsive-grid { grid-template-columns: 1fr !important; } }
     
     .sim-slider-group {
       display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
@@ -3796,111 +3796,265 @@
       if (!container) return;
 
       const totalConsults = m.totalConsultationPatients || 0;
-      const currentConversions = (m.statusCounts['Consultation + Package'] || 0) + (m.statusCounts['Consultation + Package + Single Session'] || 0);
-      const currentRenewals = m.renewalCount || 0;
-      const avgPkgPrice = (currentConversions + currentRenewals) > 0 ? (m.packageRevenue / (currentConversions + currentRenewals)) : 5000;
+      const convertedCount = m.converted || 0;
+      const unconvertedCount = Math.max(0, totalConsults - convertedCount);
+
+      // Top doctor benchmark rate
+      const docList = Object.values(m.doctorMap || {});
+      const topDoc = docList.sort((a,b) => b.painMgmtConvPct - a.painMgmtConvPct)[0];
+      const topDocRate = topDoc ? topDoc.painMgmtConvPct : 70;
+
+      // Avg prices
+      const pmCount = m.painMgmtCount || 1;
+      const avgPMPkgPrice = m.painMgmtRevenue > 0 ? (m.painMgmtRevenue / pmCount) : 12000;
+
+      const initialPkgPatients = (m.statusCounts['Consultation + Package'] || 0) + (m.statusCounts['Consultation + Package + Single Session'] || 0) + (m.statusCounts['Only Package'] || 0);
+      const renewalCount = m.renewalCount || 0;
+      const avgRenewalPrice = (renewalCount > 0 && m.renewalTotalRevenue > 0) ? (m.renewalTotalRevenue / renewalCount) : 10000;
+
+      // PM-3 vs PM-12 price gap estimate
+      const pm12Price = 25000;
+      const pm3Price = 10000;
+      const pmShortBuyers = initialPkgPatients;
+
+      container._simData = {
+        baseRevenue: m.totalRevenue || 0,
+        unconvertedCount: unconvertedCount,
+        docList: docList,
+        topDocRate: topDocRate,
+        avgPMPkgPrice: avgPMPkgPrice,
+        initialPkgPatients: initialPkgPatients,
+        avgRenewalPrice: avgRenewalPrice,
+        pmShortBuyers: pmShortBuyers,
+        priceGap: pm12Price - pm3Price
+      };
 
       container.innerHTML = `
-        <div class="scenario-simulator-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div class="scenario-simulator-card" style="background:var(--bg-card); border:1px solid rgba(139,92,246,0.3); border-radius:16px; padding:24px; box-shadow:0 8px 32px rgba(139,92,246,0.08);">
+          <!-- Header -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
             <div>
-              <div style="font-size:15px; font-weight:800; color:var(--text-primary);">🎛️ What-If Executive Revenue Scenario Modeling</div>
-              <div style="font-size:12px; color:var(--text-muted);">Simulate revenue growth by boosting conversion rates, renewal rates, and ticket size realization</div>
+              <div style="font-size:16px; font-weight:800; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                <span>🎛️ Executive Scenario-Based Decision & Financial Impact Simulator</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+                Model real-world operational changes: Lead conversion, doctor performance alignment, renewal retention & package upsells
+              </div>
             </div>
-            <span class="badge badge-purple" style="font-size:11px;">🔮 Interactive CA / MBA Simulator</span>
+            <span class="badge badge-purple" style="font-size:11px; padding:4px 12px;">🔮 Strategic Decision Engine</span>
           </div>
 
-          <div class="scenario-grid">
-            <div style="display:flex; flex-direction:column; justify-content:center;">
-              <div class="sim-slider-group">
+          <!-- Quick Scenario Presets -->
+          <div style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <span style="font-size:0.78rem; font-weight:700; color:var(--text-secondary); margin-right:4px;">⚡ Quick Presets:</span>
+            <button class="btn btn-sm" onclick="applySimPreset('unconverted')" style="font-size:11px; padding:4px 10px;">🎯 Convert Unconverted Leads</button>
+            <button class="btn btn-sm" onclick="applySimPreset('doctors')" style="font-size:11px; padding:4px 10px;">👨‍⚕️ Doctor Alignment</button>
+            <button class="btn btn-sm" onclick="applySimPreset('renewals')" style="font-size:11px; padding:4px 10px;">🔄 Renewal Drive</button>
+            <button class="btn btn-sm" onclick="applySimPreset('upsell')" style="font-size:11px; padding:4px 10px;">💎 High-Tier Upsell</button>
+            <button class="btn btn-sm btn-purple" onclick="applySimPreset('growth')" style="font-size:11px; padding:4px 10px; font-weight:700;">🚀 Balanced High Growth</button>
+          </div>
+
+          <!-- Main Simulator Layout -->
+          <div style="display:grid; grid-template-columns: 1fr 380px; gap:24px;" class="sim-responsive-grid">
+
+            <!-- Left: 4 Concrete Operational Sliders -->
+            <div style="display:flex; flex-direction:column; gap:14px;">
+
+              <!-- Scenario 1 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
                 <div class="sim-slider-header">
-                  <span>📈 Target Conversion Rate Boost</span>
-                  <span class="sim-slider-val" id="sim-conv-val">+5%</span>
+                  <span>🎯 <strong>Scenario 1:</strong> Convert Unconverted Consultations (${unconvertedCount} Leads Available)</span>
+                  <span class="sim-slider-val" id="sim-s1-val">20% converted</span>
                 </div>
-                <input type="range" min="0" max="30" value="5" class="sim-slider" id="sim-conv-slider" oninput="updateScenarioSimulation()">
+                <input type="range" min="0" max="50" step="5" value="20" class="sim-slider" id="sim-s1-slider" oninput="updateScenarioSimulation()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="sim-s1-desc">Converts 0 leads</div>
               </div>
 
-              <div class="sim-slider-group">
+              <!-- Scenario 2 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
                 <div class="sim-slider-header">
-                  <span>🔄 Target Package Renewal Boost</span>
-                  <span class="sim-slider-val" id="sim-ren-val">+10%</span>
+                  <span>👨‍⚕️ <strong>Scenario 2:</strong> Align Doctor Performance to Benchmark (${topDocRate.toFixed(1)}% Top Doctor)</span>
+                  <span class="sim-slider-val" id="sim-s2-val">50% gap closed</span>
                 </div>
-                <input type="range" min="0" max="30" value="10" class="sim-slider" id="sim-ren-slider" oninput="updateScenarioSimulation()">
+                <input type="range" min="0" max="100" step="10" value="50" class="sim-slider" id="sim-s2-slider" oninput="updateScenarioSimulation()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="sim-s2-desc">Closes performance gap for lower converting doctors</div>
               </div>
 
-              <div class="sim-slider-group">
+              <!-- Scenario 3 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
                 <div class="sim-slider-header">
-                  <span>💵 Average Package Ticket Price Boost</span>
-                  <span class="sim-slider-val" id="sim-price-val">+5%</span>
+                  <span>🔄 <strong>Scenario 3:</strong> Proactive 2nd Package Renewal Retention Campaign</span>
+                  <span class="sim-slider-val" id="sim-s3-val">+10% renewal lift</span>
                 </div>
-                <input type="range" min="0" max="25" value="5" class="sim-slider" id="sim-price-slider" oninput="updateScenarioSimulation()">
+                <input type="range" min="0" max="30" step="5" value="10" class="sim-slider" id="sim-s3-slider" oninput="updateScenarioSimulation()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="sim-s3-desc">Proactive check-ins at session 4 to lock in 2nd packages early</div>
               </div>
+
+              <!-- Scenario 4 -->
+              <div class="sim-slider-group" style="margin-bottom:0;">
+                <div class="sim-slider-header">
+                  <span>💎 <strong>Scenario 4:</strong> Upsell Short Packages to High-Tier (PM 6 / PM 12)</span>
+                  <span class="sim-slider-val" id="sim-s4-val">15% upselled</span>
+                </div>
+                <input type="range" min="0" max="40" step="5" value="15" class="sim-slider" id="sim-s4-slider" oninput="updateScenarioSimulation()">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;" id="sim-s4-desc">Upgrades patients from basic to comprehensive treatment packages</div>
+              </div>
+
             </div>
 
-            <div class="sim-result-card">
-              <div class="sim-result-item">
-                <span class="sim-result-label">Base Period Collection</span>
-                <span class="sim-result-val" style="color:var(--text-secondary);">${formatCurrency(m.totalRevenue)}</span>
+            <!-- Right: Real-time Financial Impact Output -->
+            <div style="background:var(--bg-secondary); border:1px solid rgba(139,92,246,0.3); border-radius:14px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; gap:14px;">
+
+              <div>
+                <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px; margin-bottom:12px;">
+                  📊 Financial Impact & Return Projection
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                  <span style="color:var(--text-secondary);">Base Period Collection:</span>
+                  <span style="font-weight:700; color:var(--text-primary);">${formatCurrency(m.totalRevenue)}</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                  <span style="color:var(--text-secondary);">Simulated Revenue Lift:</span>
+                  <span style="font-weight:800; color:var(--emerald);" id="sim-revenue-lift">+₹0 (+0%)</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                  <span style="color:var(--text-secondary);">Estimated Net Margin (+75%):</span>
+                  <span style="font-weight:700; color:var(--purple);" id="sim-net-margin">+₹0</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:0.85rem;">
+                  <span style="color:var(--text-secondary);">New Package Patients / Upsells:</span>
+                  <span style="font-weight:700; color:var(--cyan);" id="sim-new-patients">+0 Patients</span>
+                </div>
+
+                <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; align-items:baseline;">
+                  <span style="font-size:0.9rem; font-weight:800; color:var(--text-primary);">Projected Total Collection:</span>
+                  <span style="font-size:1.4rem; font-weight:900; color:var(--cyan);" id="sim-projected-total">${formatCurrency(m.totalRevenue)}</span>
+                </div>
               </div>
-              <div class="sim-result-item">
-                <span class="sim-result-label">Simulated Additional Revenue</span>
-                <span class="sim-result-val" id="sim-additional-rev" style="color:var(--emerald);">+₹0</span>
+
+              <!-- AI Narrative Story Output -->
+              <div style="background:var(--bg-card-solid); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:0.78rem; line-height:1.5; color:var(--text-secondary);" id="sim-narrative-box">
+                Calculating scenario financial impact...
               </div>
-              <div class="sim-result-item" style="border-bottom:none; padding-bottom:0;">
-                <span class="sim-result-label">Projected Total Collection</span>
-                <span class="sim-result-val" id="sim-projected-total" style="color:var(--cyan); font-size:22px; font-weight:900;">${formatCurrency(m.totalRevenue)}</span>
-              </div>
+
             </div>
+
           </div>
         </div>
       `;
 
-      container._totalConsults = totalConsults;
-      container._currentConversions = currentConversions;
-      container._currentRenewals = currentRenewals;
-      container._baseRevenue = m.totalRevenue;
-      container._avgPkgPrice = avgPkgPrice;
+      updateScenarioSimulation();
+    }
+
+    function applySimPreset(presetType) {
+      const s1 = document.getElementById('sim-s1-slider');
+      const s2 = document.getElementById('sim-s2-slider');
+      const s3 = document.getElementById('sim-s3-slider');
+      const s4 = document.getElementById('sim-s4-slider');
+
+      if (!s1 || !s2 || !s3 || !s4) return;
+
+      if (presetType === 'unconverted') {
+        s1.value = 25; s2.value = 0; s3.value = 0; s4.value = 0;
+      } else if (presetType === 'doctors') {
+        s1.value = 0; s2.value = 70; s3.value = 0; s4.value = 0;
+      } else if (presetType === 'renewals') {
+        s1.value = 0; s2.value = 0; s3.value = 15; s4.value = 0;
+      } else if (presetType === 'upsell') {
+        s1.value = 0; s2.value = 0; s3.value = 0; s4.value = 20;
+      } else if (presetType === 'growth') {
+        s1.value = 20; s2.value = 50; s3.value = 10; s4.value = 15;
+      }
 
       updateScenarioSimulation();
     }
 
     function updateScenarioSimulation() {
       const container = document.getElementById('predictive-scenario-simulator');
-      if (!container) return;
+      if (!container || !container._simData) return;
 
-      const convBoost = parseInt(document.getElementById('sim-conv-slider')?.value || 0, 10);
-      const renBoost = parseInt(document.getElementById('sim-ren-slider')?.value || 0, 10);
-      const priceBoost = parseInt(document.getElementById('sim-price-slider')?.value || 0, 10);
+      const data = container._simData;
 
-      const convValEl = document.getElementById('sim-conv-val');
-      const renValEl = document.getElementById('sim-ren-val');
-      const priceValEl = document.getElementById('sim-price-val');
+      const v1 = parseInt(document.getElementById('sim-s1-slider')?.value || 0, 10);
+      const v2 = parseInt(document.getElementById('sim-s2-slider')?.value || 0, 10);
+      const v3 = parseInt(document.getElementById('sim-s3-slider')?.value || 0, 10);
+      const v4 = parseInt(document.getElementById('sim-s4-slider')?.value || 0, 10);
 
-      if (convValEl) convValEl.textContent = `+${convBoost}%`;
-      if (renValEl) renValEl.textContent = `+${renBoost}%`;
-      if (priceValEl) priceValEl.textContent = `+${priceBoost}%`;
+      // Update Slider Header Labels & Sub-descriptions
+      const elS1Val = document.getElementById('sim-s1-val');
+      const elS2Val = document.getElementById('sim-s2-val');
+      const elS3Val = document.getElementById('sim-s3-val');
+      const elS4Val = document.getElementById('sim-s4-val');
 
-      const totalConsults = container._totalConsults || 0;
-      const baseRev = container._baseRevenue || 0;
-      const avgPrice = container._avgPkgPrice || 5000;
+      if (elS1Val) elS1Val.textContent = `${v1}% converted`;
+      if (elS2Val) elS2Val.textContent = `${v2}% gap closed`;
+      if (elS3Val) elS3Val.textContent = `+${v3}% renewal lift`;
+      if (elS4Val) elS4Val.textContent = `${v4}% upselled`;
 
-      const extraConversions = Math.round(totalConsults * (convBoost / 100));
-      const extraRenewals = Math.round(totalConsults * (renBoost / 100));
+      // Scenario 1 Math: Unconverted Leads
+      const s1NewConversions = Math.round(data.unconvertedCount * (v1 / 100));
+      const s1RevenueLift = s1NewConversions * data.avgPMPkgPrice;
+      const elS1Desc = document.getElementById('sim-s1-desc');
+      if (elS1Desc) elS1Desc.textContent = `Converts +${s1NewConversions} unconverted patients -> +${formatCurrency(s1RevenueLift)}`;
 
-      const boostedPrice = avgPrice * (1 + (priceBoost / 100));
-      
-      const extraRevFromConversions = extraConversions * boostedPrice;
-      const extraRevFromRenewals = extraRenewals * boostedPrice;
-      const priceUpliftOnExisting = (container._currentConversions + container._currentRenewals) * (boostedPrice - avgPrice);
+      // Scenario 2 Math: Doctor Performance Alignment
+      let s2RevenueLift = 0;
+      let s2ExtraPkgCount = 0;
+      data.docList.forEach(d => {
+        if (d.painMgmtConvPct < data.topDocRate && d.consultation > 0) {
+          const gap = (data.topDocRate - d.painMgmtConvPct) * (v2 / 100);
+          const extraPkgs = (d.consultation * (gap / 100));
+          s2ExtraPkgCount += extraPkgs;
+          s2RevenueLift += extraPkgs * data.avgPMPkgPrice;
+        }
+      });
+      s2ExtraPkgCount = Math.round(s2ExtraPkgCount);
+      s2RevenueLift = Math.round(s2RevenueLift);
+      const elS2Desc = document.getElementById('sim-s2-desc');
+      if (elS2Desc) elS2Desc.textContent = `Aligns lower-converting doctors -> +${s2ExtraPkgCount} packages -> +${formatCurrency(s2RevenueLift)}`;
 
-      const totalAdditionalRev = Math.round(extraRevFromConversions + extraRevFromRenewals + priceUpliftOnExisting);
-      const projectedTotal = Math.round(baseRev + totalAdditionalRev);
+      // Scenario 3 Math: Renewal Boost
+      const s3ExtraRenewals = Math.round(data.initialPkgPatients * (v3 / 100));
+      const s3RevenueLift = Math.round(s3ExtraRenewals * data.avgRenewalPrice);
+      const elS3Desc = document.getElementById('sim-s3-desc');
+      if (elS3Desc) elS3Desc.textContent = `Proactive check-ins -> +${s3ExtraRenewals} repeat renewals -> +${formatCurrency(s3RevenueLift)}`;
 
-      const addEl = document.getElementById('sim-additional-rev');
-      const projEl = document.getElementById('sim-projected-total');
+      // Scenario 4 Math: Package Upsell
+      const s4UpsellPatients = Math.round(data.pmShortBuyers * (v4 / 100));
+      const s4RevenueLift = Math.round(s4UpsellPatients * data.priceGap);
+      const elS4Desc = document.getElementById('sim-s4-desc');
+      if (elS4Desc) elS4Desc.textContent = `Upgrades +${s4UpsellPatients} buyers to 12-Session Tier -> +${formatCurrency(s4RevenueLift)}`;
 
-      if (addEl) addEl.textContent = `+${formatCurrency(totalAdditionalRev)}`;
-      if (projEl) projEl.textContent = formatCurrency(projectedTotal);
+      // Total Calculations
+      const totalRevenueLift = s1RevenueLift + s2RevenueLift + s3RevenueLift + s4RevenueLift;
+      const totalProjected = data.baseRevenue + totalRevenueLift;
+      const pctLift = data.baseRevenue > 0 ? ((totalRevenueLift / data.baseRevenue) * 100) : 0;
+      const netMarginLift = Math.round(totalRevenueLift * 0.75); // 75% gross margin
+      const totalNewPatients = s1NewConversions + s2ExtraPkgCount + s3ExtraRenewals;
+
+      // Update UI Outputs
+      const elLift = document.getElementById('sim-revenue-lift');
+      const elNet = document.getElementById('sim-net-margin');
+      const elPatients = document.getElementById('sim-new-patients');
+      const elTotal = document.getElementById('sim-projected-total');
+      const elNarrative = document.getElementById('sim-narrative-box');
+
+      if (elLift) elLift.textContent = `+${formatCurrency(totalRevenueLift)} (+${pctLift.toFixed(1)}%)`;
+      if (elNet) elNet.textContent = `+${formatCurrency(netMarginLift)}`;
+      if (elPatients) elPatients.textContent = `+${totalNewPatients} Patients (${s4UpsellPatients} Upselled)`;
+      if (elTotal) elTotal.textContent = formatCurrency(totalProjected);
+
+      if (elNarrative) {
+        if (totalRevenueLift === 0) {
+          elNarrative.innerHTML = `💡 <em>Adjust the scenario sliders above or click a preset to simulate operational business changes and view projected financial growth.</em>`;
+        } else {
+          elNarrative.innerHTML = `💡 <strong>Strategic Impact Story:</strong> By executing this scenario, your clinic will gain <strong>+${totalNewPatients} new package buyers & renewals</strong> and upgrade <strong>${s4UpsellPatients} patients</strong> to higher-tier programs. This expands total collection by <strong>+${formatCurrency(totalRevenueLift)} (+${pctLift.toFixed(1)}%)</strong> and delivers <strong>+${formatCurrency(netMarginLift)}</strong> in estimated net clinic margin.`;
+        }
+      }
     }
 
     function ensureCanvas(id) {
