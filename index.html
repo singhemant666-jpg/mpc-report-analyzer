@@ -1747,8 +1747,9 @@
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Rank" onclick="sortPackageRenewalLeaderboard('renewalCount')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="name" data-title="Treatment Package" onclick="sortPackageRenewalLeaderboard('name')">Treatment Package</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Pkg Patients" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Pkg Patients</th>
-                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewal Pkg Patients" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewal Pkg Patients</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRate" data-title="Renewal Conversion %" onclick="sortPackageRenewalLeaderboard('renewalRate')">Renewal Conversion %</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewedPatientsCount" data-title="Renewed Patients" onclick="sortPackageRenewalLeaderboard('renewedPatientsCount')">Renewed Patients</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="patientConvPct" data-title="Patient Conversion %" onclick="sortPackageRenewalLeaderboard('patientConvPct')">Patient Conversion %</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewals Sold</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="initialRevenue" data-title="Initial Pkg Revenue (₹)" onclick="sortPackageRenewalLeaderboard('initialRevenue')">Initial Pkg Revenue (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue (₹)" onclick="sortPackageRenewalLeaderboard('renewalRevenue')">Renewal Revenue (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="totalRevenue" data-title="Total Package Revenue (₹)" onclick="sortPackageRenewalLeaderboard('totalRevenue')">Total Package Revenue (₹)</th>
@@ -3115,10 +3116,15 @@
       // initialCount = unique patients who have this package as initial (non-renewal)
       // renewalCount = unique patients who have at least one renewal of this package category
       const packageSales = {};
+      const initialCohortMap = {}; // pkgName -> Set of patient identifiers
+      const renewedCohortMap = {}; // pkgName -> Set of patient identifiers who renewed
+
       for (const p of pList) {
         // Track per-patient per-package whether they have initial/renewal
         const seenInitial = new Set();
         const seenRenewal = new Set();
+        const ptId = p.id || p.name || p.patientName;
+
         for (const svc of p.services) {
           if (svc.type === 'package') {
             const name = svc.packageName || 'Unknown';
@@ -3131,7 +3137,9 @@
                 totalCount: 0,
                 totalRevenue: 0,
                 count: 0,
-                revenue: 0
+                revenue: 0,
+                renewedPatientsCount: 0,
+                patientConvPct: 0
               };
             }
             packageSales[name].totalCount++;
@@ -3150,6 +3158,15 @@
         }
         for (const name of seenInitial) {
           if (packageSales[name]) packageSales[name].initialCount++;
+          if (!initialCohortMap[name]) initialCohortMap[name] = new Set();
+          if (!renewedCohortMap[name]) renewedCohortMap[name] = new Set();
+          initialCohortMap[name].add(ptId);
+
+          const targetCat = getPackageCategory(name);
+          const hasCatRenewal = p.services && p.services.some(s => s.type === 'package' && s.isRenewal && getPackageCategory(s.packageName) === targetCat);
+          if (hasCatRenewal) {
+            renewedCohortMap[name].add(ptId);
+          }
         }
         for (const name of seenRenewal) {
           if (packageSales[name]) packageSales[name].renewalCount++;
@@ -3159,6 +3176,11 @@
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
         item.totalPatients = (item.initialCount || 0) + (item.renewalCount || 0);
+        
+        const cohortInitial = initialCohortMap[pkgName] ? initialCohortMap[pkgName].size : item.initialCount;
+        const cohortRenewed = renewedCohortMap[pkgName] ? renewedCohortMap[pkgName].size : 0;
+        item.renewedPatientsCount = cohortRenewed;
+        item.patientConvPct = cohortInitial > 0 ? ((cohortRenewed / cohortInitial) * 100) : 0;
         item.renewalRate = item.initialCount > 0 ? Math.min(100, Math.round((item.renewalCount / item.initialCount) * 100)) : 0;
       }
 
@@ -4514,7 +4536,7 @@
       });
 
       if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">No package renewal data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">No package renewal data available</td></tr>';
         return;
       }
 
@@ -4533,7 +4555,7 @@
           badgeLabel = '🔥 High Retention';
         }
 
-        const gaugeWidth = Math.min(item.renewalRate, 100);
+        const gaugeWidth = Math.min(item.patientConvPct || 0, 100);
         const safeName = item.name.replace(/'/g, "\\'");
 
         return `<tr onclick="openPackageRenewalModal('${safeName}')" style="cursor:pointer;" title="Click to view detailed patient analysis for ${item.name}">
@@ -4545,13 +4567,14 @@
             </div>
           </td>
           <td style="text-align:center; font-weight:600;">${item.initialCount}</td>
-          <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewalCount}</td>
+          <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewedPatientsCount || 0}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:700; min-width:45px;">${item.renewalRate}%</span>
-              <div class="gauge" style="width:80px;"><div class="gauge-fill" style="width:${gaugeWidth}%"></div></div>
+              <span style="font-weight:700; color:var(--emerald); min-width:45px;">${(item.patientConvPct || 0).toFixed(1)}%</span>
+              <div class="gauge" style="width:70px;"><div class="gauge-fill" style="width:${gaugeWidth}%; background:linear-gradient(90deg, #10b981, #34d399);"></div></div>
             </div>
           </td>
+          <td style="text-align:center; font-weight:600; color:var(--purple);">${item.renewalCount}</td>
           <td style="font-weight:700; color:var(--cyan);">${formatCurrency(item.initialRevenue)}</td>
           <td style="font-weight:700; color:var(--purple);">${formatCurrency(item.renewalRevenue)}</td>
           <td style="font-weight:700; color:var(--emerald);">${formatCurrency(item.totalRevenue)}</td>
