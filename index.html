@@ -3089,7 +3089,7 @@
         ? (converted / totalConsultationPatients * 100) : 0;
 
       // Doctor-wise metrics & Pain Management Incentive Breakdown
-      // Rule: Attribute consultation directly to the consulting doctor; count package conversions accurately
+      // Rule: ONLY count patients who had a Consultation with this doctor for Consultation & Conversion metrics
       const doctorMap = {};
       for (const p of pList) {
         const consultSvcs = (p.services || []).filter(s => s.type === 'consultation');
@@ -3104,6 +3104,7 @@
               doctorMap[doc] = {
                 doctor: doc,
                 consultation: 0,
+                convertedAfterConsult: 0,
                 totalPackages: 0,
                 painMgmtCount: 0,
                 renewalCount: 0,
@@ -3121,6 +3122,7 @@
             dMap.totalRevenue += p.totalPaid;
 
             if (isConverted) {
+              dMap.convertedAfterConsult++;
               dMap.totalPackages++;
               const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
               if (initialPmSvcs.length > 0) {
@@ -3143,47 +3145,18 @@
               }
             }
           }
-        } else if (p.doctors && p.doctors.length > 0) {
-          for (const doc of p.doctors) {
-            if (!doc) continue;
-            if (!doctorMap[doc]) {
-              doctorMap[doc] = {
-                doctor: doc,
-                consultation: 0,
-                totalPackages: 0,
-                painMgmtCount: 0,
-                renewalCount: 0,
-                renewalRevenue: 0,
-                otherPackageCount: 0,
-                singleSessionCount: 0,
-                painMgmtRevenue: 0,
-                totalRevenue: 0,
-                pmBreakdown: {}
-              };
-            }
-            const dMap = doctorMap[doc];
-            dMap.totalRevenue += p.totalPaid;
-            if (initialPkgSvcs.length > 0) {
-              dMap.totalPackages += initialPkgSvcs.length;
-              const pmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
-              dMap.painMgmtCount += pmSvcs.length;
-              for (const svc of pmSvcs) {
-                dMap.painMgmtRevenue += (svc.proportionalPaid || 0);
-              }
-            }
-            dMap.renewalCount += renPkgSvcs.length;
-            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
-          }
         }
       }
 
       // Calculate conversion percentages & non-converted counts for each doctor
       for (const doc of Object.keys(doctorMap)) {
         const d = doctorMap[doc];
-        d.nonConverted = Math.max(0, d.consultation - d.totalPackages);
-        d.overallConvPct = d.consultation > 0 ? Math.min(100, (d.totalPackages / d.consultation * 100)) : 0;
-        d.painMgmtConvPct = d.consultation > 0 ? Math.min(100, (d.painMgmtCount / d.consultation * 100)) : 0;
-        d.renewalConvPct = d.totalPackages > 0 ? (d.renewalCount / d.totalPackages * 100) : 0;
+        d.convertedAfterConsult = d.convertedAfterConsult || 0;
+        d.totalPackages = d.convertedAfterConsult;
+        d.nonConverted = Math.max(0, d.consultation - d.convertedAfterConsult);
+        d.overallConvPct = d.consultation > 0 ? (d.convertedAfterConsult / d.consultation * 100) : 0;
+        d.painMgmtConvPct = d.consultation > 0 ? (d.painMgmtCount / d.consultation * 100) : 0;
+        d.renewalConvPct = d.convertedAfterConsult > 0 ? (d.renewalCount / d.convertedAfterConsult * 100) : 0;
       }
 
       // Agent-wise metrics
