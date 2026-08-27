@@ -3073,57 +3073,90 @@
         ? (converted / totalConsultationPatients * 100) : 0;
 
       // Doctor-wise metrics & Pain Management Incentive Breakdown
-      // Rule: ONLY count initial (first package after consultation) for Doctor Incentive & Conversion %
+      // Rule: Attribute consultation directly to the consulting doctor; count package conversions accurately
       const doctorMap = {};
       for (const p of pList) {
-        for (const doc of p.doctors) {
-          if (!doc) continue;
-          if (!doctorMap[doc]) {
-            doctorMap[doc] = {
-              doctor: doc,
-              consultation: 0,
-              totalPackages: 0,
-              painMgmtCount: 0,
-              renewalCount: 0,
-              renewalRevenue: 0,
-              otherPackageCount: 0,
-              singleSessionCount: 0,
-              painMgmtRevenue: 0,
-              totalRevenue: 0,
-              pmBreakdown: {}
-            };
-          }
+        const consultSvcs = (p.services || []).filter(s => s.type === 'consultation');
+        const initialPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !s.isRenewal);
+        const renPkgSvcs = (p.services || []).filter(s => s.type === 'package' && s.isRenewal);
+        const isConverted = initialPkgSvcs.length > 0;
 
-          const dMap = doctorMap[doc];
-          if (p.hasConsultation) {
+        if (consultSvcs.length > 0) {
+          const docSet = new Set(consultSvcs.map(s => s.doctor).filter(Boolean));
+          for (const doc of docSet) {
+            if (!doctorMap[doc]) {
+              doctorMap[doc] = {
+                doctor: doc,
+                consultation: 0,
+                totalPackages: 0,
+                painMgmtCount: 0,
+                renewalCount: 0,
+                renewalRevenue: 0,
+                otherPackageCount: 0,
+                singleSessionCount: 0,
+                painMgmtRevenue: 0,
+                totalRevenue: 0,
+                pmBreakdown: {}
+              };
+            }
+
+            const dMap = doctorMap[doc];
             dMap.consultation++;
             dMap.totalRevenue += p.totalPaid;
 
-            const initialPkgSvcs = p.services.filter(s => s.type === 'package' && !s.isRenewal);
-            if (initialPkgSvcs.length > 0) dMap.totalPackages++;
-
-            const renPkgSvcs = p.services.filter(s => s.type === 'package' && s.isRenewal);
-            dMap.renewalCount += renPkgSvcs.length;
-            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
-
-            const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
-            if (initialPmSvcs.length > 0) {
-              dMap.painMgmtCount++; // Increment by 1 for this converted patient
-              for (const svc of initialPmSvcs) {
-                dMap.painMgmtRevenue += svc.proportionalPaid;
-                const pkgName = svc.packageName || 'Unknown';
-                dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+            if (isConverted) {
+              dMap.totalPackages++;
+              const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
+              if (initialPmSvcs.length > 0) {
+                dMap.painMgmtCount++;
+                for (const svc of initialPmSvcs) {
+                  dMap.painMgmtRevenue += (svc.proportionalPaid || 0);
+                  const pkgName = svc.packageName || 'Unknown';
+                  dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+                }
               }
+              dMap.otherPackageCount += initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName)).length;
             }
 
-            const initialOtherSvcs = initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName));
-            dMap.otherPackageCount += initialOtherSvcs.length;
+            dMap.renewalCount += renPkgSvcs.length;
+            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
 
             for (const svc of p.services) {
               if (svc.type === 'single_session') {
                 dMap.singleSessionCount++;
               }
             }
+          }
+        } else if (p.doctors && p.doctors.length > 0) {
+          for (const doc of p.doctors) {
+            if (!doc) continue;
+            if (!doctorMap[doc]) {
+              doctorMap[doc] = {
+                doctor: doc,
+                consultation: 0,
+                totalPackages: 0,
+                painMgmtCount: 0,
+                renewalCount: 0,
+                renewalRevenue: 0,
+                otherPackageCount: 0,
+                singleSessionCount: 0,
+                painMgmtRevenue: 0,
+                totalRevenue: 0,
+                pmBreakdown: {}
+              };
+            }
+            const dMap = doctorMap[doc];
+            dMap.totalRevenue += p.totalPaid;
+            if (initialPkgSvcs.length > 0) {
+              dMap.totalPackages += initialPkgSvcs.length;
+              const pmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
+              dMap.painMgmtCount += pmSvcs.length;
+              for (const svc of pmSvcs) {
+                dMap.painMgmtRevenue += (svc.proportionalPaid || 0);
+              }
+            }
+            dMap.renewalCount += renPkgSvcs.length;
+            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
           }
         }
       }
@@ -6178,22 +6211,22 @@
         let renewedPkgHTML = '-';
 
         if (isRenewalsTab) {
-          const pkgSvcs = p.services.filter(s => s.type === 'package');
-          const initialSvcs = pkgSvcs.filter(s => !s.isRenewal);
-          const renewalSvcs = pkgSvcs.filter(s => s.isRenewal);
+          const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
+          const firstPkg = pkgSvcs[0];
+          const subsequentPkgs = pkgSvcs.slice(1);
 
-          if (initialSvcs.length > 0) {
-            initialPkgHTML = initialSvcs.map(s => `
+          if (firstPkg) {
+            initialPkgHTML = `
               <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
                 <span style="background:rgba(6,182,212,0.2); color:var(--cyan); border:1px solid rgba(6,182,212,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">1st Package</span>
-                <span style="color:var(--text-primary); font-weight:600;">${s.packageName}</span>
+                <span style="color:var(--text-primary); font-weight:600;">${firstPkg.packageName}</span>
               </div>
-            `).join('');
+            `;
           }
 
-          if (renewalSvcs.length > 0) {
-            renewedPkgHTML = renewalSvcs.map(s => {
-              const label = getPackageStageLabel(s, p.services);
+          if (subsequentPkgs.length > 0) {
+            renewedPkgHTML = subsequentPkgs.map((s, idx) => {
+              const label = getOrdinalLabel(idx + 2); // 2nd Package, 3rd Package, 4th Package, etc.
               return `
                 <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px;">
                   <span style="background:rgba(139,92,246,0.2); color:var(--purple); border:1px solid rgba(139,92,246,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">${label}</span>
@@ -7751,6 +7784,8 @@
       const patientList = Object.values(patients || {});
       const auditRecords = [];
       let totalVerified = 0;
+      let totalInstallmentsAudited = 0;
+      let totalRenewalsAudited = 0;
 
       for (const p of patientList) {
         const consultDate = getPatientConsultingDate(p);
@@ -7758,11 +7793,29 @@
 
         const pkgSvcs = services.filter(s => s.type !== 'consultation');
         const pkgChain = pkgSvcs.map((s, idx) => {
-          const label = s.isRenewal ? getOrdinalLabel(idx + 1) : '1st Package';
+          const isInitial = idx === 0;
+          const label = isInitial ? '1st Package' : getOrdinalLabel(idx + 1);
           const paidStr = formatCurrency(s.proportionalPaid || 0);
           const dateStr = formatDate(s.paymentDate) || '-';
-          return `<span class="badge ${s.isRenewal ? 'badge-purple' : 'badge-cyan'}" style="margin:2px; font-size:0.7rem;">${label}: ${s.packageName} (${paidStr}, ${dateStr})</span>`;
-        }).join(' ');
+          const planStr = s.userplanId ? `Plan #${s.userplanId}` : (s.cartId ? `Cart #${s.cartId}` : '');
+          
+          const isMergedInstallment = (s.invoiceNos && s.invoiceNos.length > 1) || (s.invoiceNo && s.invoiceNo.includes(','));
+          if (isMergedInstallment) totalInstallmentsAudited++;
+          if (!isInitial) totalRenewalsAudited++;
+
+          let auditBadge = '';
+          if (isMergedInstallment) {
+            auditBadge = `<span style="background:rgba(234,179,8,0.18); color:var(--amber); border:1px solid rgba(234,179,8,0.4); padding:1px 5px; border-radius:3px; font-size:0.65rem; margin-left:4px;">⚡ ${s.invoiceNos ? s.invoiceNos.length : 'Multi'}-Part Installment Merged</span>`;
+          } else if (!isInitial) {
+            auditBadge = `<span style="background:rgba(139,92,246,0.18); color:var(--purple); border:1px solid rgba(139,92,246,0.4); padding:1px 5px; border-radius:3px; font-size:0.65rem; margin-left:4px;">🔄 Proper Renewal</span>`;
+          }
+
+          return `<div style="margin:3px 0; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+            <span class="badge ${isInitial ? 'badge-cyan' : 'badge-purple'}" style="font-size:0.7rem;">${label}: ${s.packageName}</span>
+            <span style="font-size:0.72rem; color:var(--text-secondary); font-weight:600;">(${paidStr}, ${dateStr}${planStr ? ' • ' + planStr : ''})</span>
+            ${auditBadge}
+          </div>`;
+        }).join('');
 
         const totalPkgPaid = pkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const totalPaid = (p.consultationRevenue || 0) + totalPkgPaid;
@@ -7770,20 +7823,39 @@
         const isMathValid = Math.abs(totalPaid - (p.consultationRevenue + totalPkgPaid)) < 0.01;
         if (isMathValid) totalVerified++;
 
+        const hasInstallments = pkgSvcs.some(s => (s.invoiceNos && s.invoiceNos.length > 1) || (s.invoiceNo && s.invoiceNo.includes(',')));
+        const hasRenewals = pkgSvcs.length > 1;
+
+        let statusAuditTag = '✅ Reconciled';
+        if (hasRenewals && hasInstallments) {
+          statusAuditTag = '🟣 Renewal + ⚡ Installment Verified';
+        } else if (hasRenewals) {
+          statusAuditTag = '🟣 Verified Renewal';
+        } else if (hasInstallments) {
+          statusAuditTag = '⚡ Installment Reconciled';
+        } else if (pkgSvcs.length === 1) {
+          statusAuditTag = '🔵 1st Package Enrolled';
+        } else {
+          statusAuditTag = '⚪ Consult Only';
+        }
+
         auditRecords.push({
           name: p.name,
           status: p.status,
           consultDate: consultDate,
-          pkgChain: pkgChain || '<span style="color:var(--text-muted)">Consultation Only</span>',
+          pkgChain: pkgChain || '<span style="color:var(--text-muted); font-size:0.75rem;">Consultation Only (Unconverted Lead)</span>',
           totalPaid: totalPaid,
-          isVerified: isMathValid
+          isVerified: isMathValid,
+          auditTag: statusAuditTag
         });
       }
 
       cachedAIPatientAudit = {
         records: auditRecords,
         totalPatients: patientList.length,
-        totalVerified: totalVerified
+        totalVerified: totalVerified,
+        totalInstallmentsAudited: totalInstallmentsAudited,
+        totalRenewalsAudited: totalRenewalsAudited
       };
       return cachedAIPatientAudit;
     }
@@ -7820,7 +7892,7 @@
           <td style="padding:6px 10px; color:var(--cyan);">${r.consultDate}</td>
           <td style="padding:6px 10px;">${r.pkgChain}</td>
           <td style="padding:6px 10px; text-align:center;">
-            <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:600;">✅ 100% Reconciled</span>
+            <span style="background:rgba(16,185,129,0.15); color:var(--emerald); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:600; white-space:nowrap;">${r.auditTag || '✅ Reconciled'}</span>
           </td>
         </tr>
       `).join('');
