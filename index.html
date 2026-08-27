@@ -1998,7 +1998,7 @@
             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true, cellDates: true });
 
             // Find header row dynamically
             let headerRowIdx = -1;
@@ -2051,7 +2051,7 @@
                 doctor:         getVal(row, colMap.doctor),
                 agent:          getVal(row, colMap.agent),
                 leadSource:     cleanLeadSource(getVal(row, colMap.leadSource)),
-                paymentDate:    parseDate(getVal(row, colMap.paymentDate)),
+                paymentDate:    parseDate(row[colMap.paymentDate] !== undefined ? row[colMap.paymentDate] : getVal(row, colMap.paymentDate)),
                 packageCost:    parseNumber(getVal(row, colMap.packageCost)),
                 amountPaid:     parseNumber(getVal(row, colMap.amountPaid)),
                 totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost)),
@@ -2088,7 +2088,7 @@
       if (!val) return null;
       if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
 
-      // Handle Excel numeric serial dates (e.g. 46145)
+      // Handle Excel numeric serial dates (e.g. 46260.7468)
       if (typeof val === 'number' && val > 20000 && val < 60000) {
         const utc_days = Math.floor(val - 25569);
         const utc_value = utc_days * 86400;
@@ -2097,7 +2097,7 @@
         let total_seconds = Math.floor(86400 * fractional_day);
         const seconds = total_seconds % 60;
         total_seconds -= seconds;
-        const hours = Math.floor(total_seconds / (60 * 60));
+        const hours = Math.floor(total_seconds / 3600);
         const minutes = Math.floor(total_seconds / 60) % 60;
         return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
       }
@@ -2121,7 +2121,7 @@
         }
       }
 
-      // Check standard DD-MM-YYYY or YYYY-MM-DD formats
+      // Check standard DD-MM-YYYY, M/D/YYYY, or YYYY-MM-DD formats
       const parts = str.split(/[\sT]+/);
       const datePart = parts[0];
       const timePart = parts[1] || '00:00:00';
@@ -2134,8 +2134,22 @@
           year = parseInt(dParts[0], 10);
           month = parseInt(dParts[1], 10) - 1;
           day = parseInt(dParts[2], 10);
+        } else if (datePart.includes('/')) {
+          // Slash format from Excel/CRM: M/D/YYYY or M/D/YY (unless first part > 12)
+          const p0 = parseInt(dParts[0], 10);
+          const p1 = parseInt(dParts[1], 10);
+          const p2 = parseInt(dParts[2].length === 2 ? ('20' + dParts[2]) : dParts[2], 10);
+          if (p0 > 12 && p1 <= 12) {
+            day = p0;
+            month = p1 - 1;
+            year = p2;
+          } else {
+            month = p0 - 1;
+            day = p1;
+            year = p2;
+          }
         } else {
-          // Indian & European format: DD-MM-YYYY
+          // Dash or dot format: DD-MM-YYYY
           day = parseInt(dParts[0], 10);
           month = parseInt(dParts[1], 10) - 1;
           year = parseInt(dParts[2].length === 2 ? ('20' + dParts[2]) : dParts[2], 10);
