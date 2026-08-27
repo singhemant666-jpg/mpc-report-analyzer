@@ -1968,8 +1968,8 @@
        totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i, /gross/i],
        paymentMode:     [/payment\s*mode/i, /mode/i, /payment\s*method/i, /type/i],
        invoiceNo:       [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i, /receipt/i],
-       userplanId:      [/userplan\s*id/i, /user\s*plan\s*id/i, /plan\s*id/i],
-       cartId:          [/cart\s*id/i]
+       userplanId:      [/userplan\s*id/i, /user\s*plan\s*id/i, /user_plan_id/i, /userplan/i, /user\s*plan/i, /plan\s*id/i, /package\s*id/i, /pkg\s*id/i, /treatment\s*plan\s*id/i, /enrollment\s*id/i],
+       cartId:          [/cart\s*id/i, /cart_id/i, /cart\s*no/i, /cart/i, /order\s*id/i, /order_id/i, /order\s*no/i, /booking\s*id/i]
      };
 
     function detectColumns(headers) {
@@ -2737,37 +2737,41 @@
           allPkgRows.forEach((row, index) => {
             const cat = getPackageCategory(row.packageName);
             const rowDateStr = getRowDateStr(row);
-            const isLaterDate = firstDateStr && rowDateStr > firstDateStr;
+            const userplan = (row.userplanId || '').trim();
+            const cart = (row.cartId || '').trim();
 
-            const dateStrForId = getRowDateStr(row);
-            const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : dateStrForId;
-
-            if (!(cat in categoryCostSum)) {
-              categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
-              categoryPaidSum[cat] = 0;
-              row.isInstallment = false;
-              row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
-              row.isRenewal = index > 0;
-              categoryActivePurchase[cat] = row;
+            if (userplan) {
+              // Primary EMR Identifier: Identical User Plan ID represents partial installments of the SAME package
+              row.purchaseId = `plan_${userplan.toLowerCase()}`;
+            } else if (cart) {
+              // Secondary EMR Identifier: Identical Cart ID + Package Name represents partial installments of the SAME package
+              row.purchaseId = `cart_${cart.toLowerCase()}_${row.packageName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
             } else {
-              const prevPaid = categoryPaidSum[cat];
-              const prevCost = categoryCostSum[cat];
-
-              if (prevPaid < prevCost - 0.01) {
-                row.isInstallment = true;
-                row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
-                row.isRenewal = categoryActivePurchase[cat] ? categoryActivePurchase[cat].isRenewal : false;
-              } else {
+              // Fallback when Userplan ID / Cart ID not present: timeline cost fulfillment tracking
+              const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : dateStrForId;
+              if (!(cat in categoryCostSum)) {
+                categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+                categoryPaidSum[cat] = 0;
                 row.isInstallment = false;
                 row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
-                row.isRenewal = index > 0;
                 categoryActivePurchase[cat] = row;
-                const pkgCost = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
-                categoryCostSum[cat] += pkgCost;
-              }
-            }
+              } else {
+                const prevPaid = categoryPaidSum[cat];
+                const prevCost = categoryCostSum[cat];
 
-            categoryPaidSum[cat] += (row.proportionalPaid || 0);
+                if (prevPaid < prevCost - 0.01) {
+                  row.isInstallment = true;
+                  row.purchaseId = categoryActivePurchase[cat] ? categoryActivePurchase[cat].purchaseId : `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
+                } else {
+                  row.isInstallment = false;
+                  row.purchaseId = `pkg_${cat.toLowerCase().replace(/[^a-z0-9]/g, '')}_${invOrDate}`;
+                  categoryActivePurchase[cat] = row;
+                  const pkgCost = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
+                  categoryCostSum[cat] += pkgCost;
+                }
+              }
+              categoryPaidSum[cat] += (row.proportionalPaid || 0);
+            }
           });
 
           // Track the first purchase date of each package name
@@ -2786,24 +2790,25 @@
         // ══════════════════════════════════════════════════════════════════
         // Pass 3: Aggregate per-package results for display
         //
-        // Merge rows with same packageName+type+isRenewal → sum proportionalPaid.
-        // Detect multiple purchases: if proportionalPaid > packageCost → multiple packages.
+        // Merge rows with same userplanId/cartId/purchaseId -> combine installments & sum proportionalPaid.
         // ══════════════════════════════════════════════════════════════════
         const pkgMap = {};
         for (const row of p._rawRows) {
           const dateStrKey = row.paymentDate ? formatDate(row.paymentDate) : 'no_date';
-          let groupKey = dateStrKey;
+          let groupKey = '';
           if (row.type === 'package') {
-            groupKey = row.purchaseId || dateStrKey;
+            groupKey = row.purchaseId || `${row.packageName}_${dateStrKey}`;
+          } else {
+            groupKey = `${row.packageName}_${dateStrKey}_${row.invoiceNo || ''}`;
           }
 
-          const svcKey = `${row.packageName}_${row.type}_${row.isRenewal ? 'renewal' : 'initial'}_${groupKey}`.toLowerCase();
+          const svcKey = `${row.packageName}_${row.type}_${groupKey}`.toLowerCase();
 
           if (!pkgMap[svcKey]) {
             pkgMap[svcKey] = {
               packageName: row.packageName,
               type: row.type,
-              isRenewal: row.isRenewal,
+              isRenewal: false,
               purchaseId: row.purchaseId || groupKey,
               doctor: row.doctor,
               agent: row.agent,
@@ -2823,6 +2828,9 @@
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
             pkgMap[svcKey].proportionalPaid += row.proportionalPaid;
+            if (row.paymentDate && (!pkgMap[svcKey].paymentDate || new Date(row.paymentDate) < new Date(pkgMap[svcKey].paymentDate))) {
+              pkgMap[svcKey].paymentDate = row.paymentDate;
+            }
             if (row.effectiveTotalPkgCost && row.effectiveTotalPkgCost > pkgMap[svcKey].effectiveTotalPkgCost) {
               pkgMap[svcKey].effectiveTotalPkgCost = row.effectiveTotalPkgCost;
             }
