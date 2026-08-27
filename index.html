@@ -3172,34 +3172,43 @@
         d.renewalConvPct = d.convertedAfterConsult > 0 ? (d.renewalCount / d.convertedAfterConsult * 100) : 0;
       }
 
-      // Agent-wise metrics
+      // Agent-wise metrics: attribute proportional revenue per service
       const agentMap = {};
       for (const p of pList) {
-        const isConverted = p.hasConsultation && (p.services || []).some(s => s.type === 'package' && !s.isRenewal);
-        for (const agent of p.agents) {
-          if (!agent) continue;
+        for (const s of (p.services || [])) {
+          const agent = s.agent || 'Unknown';
           if (!agentMap[agent]) agentMap[agent] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           agentMap[agent].total++;
-          agentMap[agent].revenue += p.totalPaid;
-          if (p.hasConsultation) agentMap[agent].consultation++;
-          if (isConverted) agentMap[agent].package++;
+          agentMap[agent].revenue += (s.proportionalPaid || 0);
+          if (s.type === 'consultation') agentMap[agent].consultation++;
+          else if (s.type === 'package') agentMap[agent].package++;
         }
       }
 
-      // Lead source-wise metrics
+      // Lead source-wise metrics: attribute proportional revenue per service
       const sourceMap = {};
       for (const p of pList) {
-        const isConverted = p.hasConsultation && (p.services || []).some(s => s.type === 'package' && !s.isRenewal);
-        for (let src of p.leadSources) {
-          if (!src) continue;
+        for (const s of (p.services || [])) {
+          let src = s.leadSource || 'Unknown';
           if (src.toLowerCase().includes('referral') || src.toLowerCase().includes('word of mouth')) {
             src = 'Referral & Word of Mouth';
           }
           if (!sourceMap[src]) sourceMap[src] = { consultation: 0, package: 0, total: 0, revenue: 0 };
           sourceMap[src].total++;
-          sourceMap[src].revenue += p.totalPaid;
-          if (p.hasConsultation) sourceMap[src].consultation++;
-          if (isConverted) sourceMap[src].package++;
+          sourceMap[src].revenue += (s.proportionalPaid || 0);
+          if (s.type === 'consultation') sourceMap[src].consultation++;
+          else if (s.type === 'package') sourceMap[src].package++;
+        }
+      }
+
+      // Payment mode revenue breakdown: attribute proportional revenue per service
+      const paymentModeRevenue = {};
+      const paymentModeCounts = {};
+      for (const p of pList) {
+        for (const s of (p.services || [])) {
+          const mode = (s.paymentMode && s.paymentMode !== '-') ? s.paymentMode : ((s.paymentModes && s.paymentModes[0]) || 'Other');
+          paymentModeRevenue[mode] = (paymentModeRevenue[mode] || 0) + (s.proportionalPaid || 0);
+          paymentModeCounts[mode] = (paymentModeCounts[mode] || 0) + 1;
         }
       }
 
@@ -3336,6 +3345,8 @@
         sourceMap,
         packageSales,
         revenueByDate,
+        paymentModeRevenue,
+        paymentModeCounts,
         renewalCount,
         renewalTotalRevenue,
         painMgmtCount,
