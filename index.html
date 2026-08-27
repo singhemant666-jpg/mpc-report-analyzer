@@ -2753,13 +2753,15 @@
             const rowDateStr = getRowDateStr(row);
             const userplan = (row.userplanId || '').trim();
             const cart = (row.cartId || '').trim();
+            const pkgClean = row.packageName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            if (userplan) {
-              // Primary EMR Identifier: Identical User Plan ID represents partial installments of the SAME package
-              row.purchaseId = `plan_${userplan.toLowerCase()}`;
+            if (userplan && cart) {
+              // Both Cart ID & Userplan ID verified together: identical Cart ID + Userplan ID represents partial installments of the SAME package
+              row.purchaseId = `cart_${cart.toLowerCase()}_plan_${userplan.toLowerCase()}_${pkgClean}`;
+            } else if (userplan) {
+              row.purchaseId = `plan_${userplan.toLowerCase()}_${pkgClean}`;
             } else if (cart) {
-              // Secondary EMR Identifier: Identical Cart ID + Package Name represents partial installments of the SAME package
-              row.purchaseId = `cart_${cart.toLowerCase()}_${row.packageName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+              row.purchaseId = `cart_${cart.toLowerCase()}_${pkgClean}`;
             } else {
               // Fallback when Userplan ID / Cart ID not present: timeline cost fulfillment tracking
               const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : dateStrForId;
@@ -7811,7 +7813,11 @@
           const label = isInitial ? '1st Package' : getOrdinalLabel(idx + 1);
           const paidStr = formatCurrency(s.proportionalPaid || 0);
           const dateStr = formatDate(s.paymentDate) || '-';
-          const planStr = s.userplanId ? `Plan #${s.userplanId}` : (s.cartId ? `Cart #${s.cartId}` : '');
+          
+          const idParts = [];
+          if (s.cartId) idParts.push(`Cart #${s.cartId}`);
+          if (s.userplanId) idParts.push(`Plan #${s.userplanId}`);
+          const idStr = idParts.join(' • ');
           
           const isMergedInstallment = (s.invoiceNos && s.invoiceNos.length > 1) || (s.invoiceNo && s.invoiceNo.includes(','));
           if (isMergedInstallment) totalInstallmentsAudited++;
@@ -7826,7 +7832,7 @@
 
           return `<div style="margin:3px 0; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
             <span class="badge ${isInitial ? 'badge-cyan' : 'badge-purple'}" style="font-size:0.7rem;">${label}: ${s.packageName}</span>
-            <span style="font-size:0.72rem; color:var(--text-secondary); font-weight:600;">(${paidStr}, ${dateStr}${planStr ? ' • ' + planStr : ''})</span>
+            <span style="font-size:0.72rem; color:var(--text-secondary); font-weight:600;">(${paidStr}, ${dateStr}${idStr ? ' • ' + idStr : ''})</span>
             ${auditBadge}
           </div>`;
         }).join('');
