@@ -6634,8 +6634,8 @@
           }
 
           // Format amount columns
-          const numFmtStart = isRenewals ? 9 : 8;
-          const numFmtEnd = isRenewals ? 17 : 16;
+          const numFmtStart = isRenewals ? 12 : 10;
+          const numFmtEnd = isRenewals ? 20 : 18;
           for (let c = numFmtStart; c <= numFmtEnd; c++) ws.getColumn(c).numFmt = '#,##0.00';
         }
 
