@@ -3336,30 +3336,20 @@
       }
 
       // Package sales & renewal performance
-      // Package sales & renewal performance: Unified Chronological Anchor Model
-      // Ensures 100% mathematical parity between Leaderboard Table and Package Analysis Modal
+      // Package sales & renewal performance: Exact Proportional Service Attribution
+      // Ensures 100% mathematical parity with packageRevenue (no double counting)
       const packageSales = {};
 
       for (const p of pList) {
         if (!p.services || p.services.length === 0) continue;
 
-        // Get all package services for this patient sorted chronologically
-        const pkgServices = p.services
-          .filter(s => s.type === 'package' && s.packageName)
-          .sort((a, b) => {
-            const d1 = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
-            const d2 = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
-            return d1 - d2;
-          });
+        for (const s of p.services) {
+          if (s.type !== 'package' || !s.packageName) continue;
+          const pkgName = s.packageName;
 
-        if (pkgServices.length === 0) continue;
-
-        const distinctPkgNames = [...new Set(pkgServices.map(s => s.packageName))];
-
-        for (const targetPkg of distinctPkgNames) {
-          if (!packageSales[targetPkg]) {
-            packageSales[targetPkg] = {
-              name: targetPkg,
+          if (!packageSales[pkgName]) {
+            packageSales[pkgName] = {
+              name: pkgName,
               initialCount: 0,
               initialRevenue: 0,
               renewedPatientsCount: 0,
@@ -3368,40 +3358,39 @@
               totalRevenue: 0,
               count: 0,
               revenue: 0,
-              patientConvPct: 0
+              patientConvPct: 0,
+              _initialPatients: new Set(),
+              _renewalPatients: new Set()
             };
           }
 
-          // Find the FIRST occurrence of targetPkg in patient's package services as anchor
-          const anchorIndex = pkgServices.findIndex(s => s.packageName && s.packageName.toLowerCase() === targetPkg.toLowerCase());
-          if (anchorIndex === -1) continue;
-
-          const anchorSvc = pkgServices[anchorIndex];
-          const renSvcs = pkgServices.slice(anchorIndex + 1);
-
-          const initAmt = anchorSvc.proportionalPaid || 0;
-          const renAmt = renSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
-
-          packageSales[targetPkg].initialCount++;
-          packageSales[targetPkg].initialRevenue += initAmt;
-
-          if (renSvcs.length > 0) {
-            packageSales[targetPkg].renewedPatientsCount++;
-            packageSales[targetPkg].renewalCount += renSvcs.length;
-            packageSales[targetPkg].renewalRevenue += renAmt;
+          const amt = s.proportionalPaid || 0;
+          if (s.isRenewal) {
+            packageSales[pkgName].renewalCount++;
+            packageSales[pkgName].renewalRevenue += amt;
+            packageSales[pkgName]._renewalPatients.add(p.patientName);
+          } else {
+            packageSales[pkgName].initialCount++;
+            packageSales[pkgName].initialRevenue += amt;
+            packageSales[pkgName]._initialPatients.add(p.patientName);
           }
 
-          packageSales[targetPkg].count += (1 + renSvcs.length);
-          packageSales[targetPkg].revenue += (initAmt + renAmt);
+          packageSales[pkgName].count++;
+          packageSales[pkgName].revenue += amt;
+          packageSales[pkgName].totalRevenue += amt;
         }
       }
 
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
         item.totalPatients = item.initialCount;
-        item.patientConvPct = item.initialCount > 0 ? ((item.renewedPatientsCount / item.initialCount) * 100) : 0;
+        let renewedCount = 0;
+        for (const pat of item._initialPatients) {
+          if (item._renewalPatients.has(pat)) renewedCount++;
+        }
+        item.renewedPatientsCount = renewedCount;
+        item.patientConvPct = item.initialCount > 0 ? ((renewedCount / item.initialCount) * 100) : 0;
         item.renewalRate = item.patientConvPct;
-        item.totalRevenue = item.initialRevenue + item.renewalRevenue;
       }
 
       // Revenue by date
@@ -3436,21 +3425,36 @@
         }
       }
 
-      const painMgmtPkgs = Object.entries(packageSales).filter(([name]) => isPainManagementPackage(name));
-      const painMgmtCount = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
-      const painMgmtRevenue = painMgmtPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+      // Service-level Category Revenue Aggregations (Zero Overlap & Exact Parity)
+      let painMgmtCount = 0, painMgmtRevenue = 0;
+      let wellnessCount = 0, wellnessRevenue = 0;
+      let roboticSpineCount = 0, roboticSpineRevenue = 0;
+      let bmskCount = 0, bmskRevenue = 0;
+      let otherPackageCount = 0, otherPackageRevenue = 0;
 
-      const wellnessPkgs = Object.entries(packageSales).filter(([name]) => isWellnessPackage(name));
-      const wellnessCount = wellnessPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
-      const wellnessRevenue = wellnessPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
-
-      const roboticPkgs = Object.entries(packageSales).filter(([name]) => isRoboticSpinePackage(name));
-      const roboticSpineCount = roboticPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
-      const roboticSpineRevenue = roboticPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
-
-      const bmskPkgs = Object.entries(packageSales).filter(([name]) => isBMSKPackage(name));
-      const bmskCount = bmskPkgs.reduce((sum, [_, d]) => sum + d.count, 0);
-      const bmskRevenue = bmskPkgs.reduce((sum, [_, d]) => sum + d.revenue, 0);
+      for (const p of pList) {
+        for (const s of (p.services || [])) {
+          if (s.type === 'package' && s.packageName) {
+            const amt = s.proportionalPaid || 0;
+            if (isPainManagementPackage(s.packageName)) {
+              painMgmtCount++;
+              painMgmtRevenue += amt;
+            } else if (isWellnessPackage(s.packageName)) {
+              wellnessCount++;
+              wellnessRevenue += amt;
+            } else if (isRoboticSpinePackage(s.packageName)) {
+              roboticSpineCount++;
+              roboticSpineRevenue += amt;
+            } else if (isBMSKPackage(s.packageName)) {
+              bmskCount++;
+              bmskRevenue += amt;
+            } else {
+              otherPackageCount++;
+              otherPackageRevenue += amt;
+            }
+          }
+        }
+      }
 
       return {
         totalPatients,
@@ -3480,6 +3484,8 @@
         roboticSpineRevenue,
         bmskCount,
         bmskRevenue,
+        otherPackageCount,
+        otherPackageRevenue,
         STATUSES: [...STATUSES, 'Package Renewal']
       };
     }
@@ -3881,7 +3887,12 @@
       const container = document.getElementById('chart-pie');
       if (!container) return;
 
-      const statuses = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
+      const baseStatuses = [
+        'Only Consultation', 'Consultation + Package', 'Consultation + Single Session',
+        'Consultation + Package + Single Session', 'Only Package',
+        'Only Single Session', 'Package + Single Session'
+      ];
+      const statuses = baseStatuses.filter(s => (m.statusCounts[s] || 0) > 0);
       const palette = ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e', '#3b82f6', '#ec4899', '#14b8a6'];
 
       const data = statuses.map((s, idx) => ({
@@ -3945,6 +3956,7 @@
         { name: 'Wellness', y: m.wellnessRevenue || 0, color: '#06b6d4' },
         { name: 'Robotic Spine', y: m.roboticSpineRevenue || 0, color: '#f43f5e' },
         { name: 'BMSK', y: m.bmskRevenue || 0, color: '#fb923c' },
+        { name: 'Other Packages', y: m.otherPackageRevenue || 0, color: '#ec4899' },
         { name: 'Consultation', y: m.consultationRevenue || 0, color: '#10b981' },
         { name: 'Single Session', y: m.ssRevenue || 0, color: '#f59e0b' }
       ].filter(c => c.y > 0);
@@ -4017,13 +4029,13 @@
           return convB - convA;
         }).slice(0, 10);
       } else {
-        entries = rawEntries.sort((a, b) => (b[1].painMgmtRevenue || b[1].revenue || 0) - (a[1].painMgmtRevenue || a[1].revenue || 0)).slice(0, 10);
+        entries = rawEntries.sort((a, b) => (b[1].totalRevenue || b[1].revenue || b[1].painMgmtRevenue || 0) - (a[1].totalRevenue || a[1].revenue || a[1].painMgmtRevenue || 0)).slice(0, 10);
       }
 
       const categories = entries.map(e => e[0]);
       const consultData = entries.map(e => e[1].consultation || 0);
       const packageData = entries.map(e => e[1].convertedAfterConsult || e[1].totalPackages || 0);
-      const revenueData = entries.map(e => e[1].painMgmtRevenue || e[1].revenue || 0);
+      const revenueData = entries.map(e => e[1].totalRevenue || e[1].revenue || e[1].painMgmtRevenue || 0);
 
       const theme = getHighchartsThemeOptions();
 
