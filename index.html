@@ -3170,30 +3170,38 @@
         // 1. Group package services by distinct purchase transaction (Cart ID / Invoice / Date)
         // 2. Identify the earliest purchase transaction: ALL packages bought in this initial purchase (including bundles) have isRenewal = false and stage = "1st Package"
         // 3. Packages bought in SUBSEQUENT distinct purchase transactions are renewals (isRenewal = true, stage = "2nd Package", "3rd Package", etc.)
+        // ── Transaction-Based Ordinal & Renewal Determination ──
+        // 1. Group package services by purchase date (Earliest date = Initial Package / Bundle)
+        // 2. ALL packages bought together on the initial purchase date (including bundles like Pain Mgmt + Wellness) have isRenewal = false and stage = "1st Package"
+        // 3. Only packages bought on SUBSEQUENT separate dates/transactions are renewals (isRenewal = true, stage = "2nd Package", "3rd Package", etc.)
         const pkgSvcsOnly = finalServices.filter(s => s.type === 'package');
         if (pkgSvcsOnly.length > 0) {
           const parseTs = (s) => s.paymentDate ? new Date(s.paymentDate).getTime() : 0;
-          
-          const purchaseGroups = {};
+          const getDayKey = (s) => {
+            const d = parseDate(s.paymentDate);
+            if (!d) return 'no_date';
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          };
+
+          const dateGroups = {};
           for (const s of pkgSvcsOnly) {
-            const dStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
-            const groupKey = s.cartId ? `cart_${s.cartId}` : (s.invoiceNo && s.invoiceNo !== '-' ? `inv_${s.invoiceNo}` : `date_${dStr}`);
-            if (!purchaseGroups[groupKey]) {
-              purchaseGroups[groupKey] = {
-                key: groupKey,
+            const dayKey = getDayKey(s);
+            if (!dateGroups[dayKey]) {
+              dateGroups[dayKey] = {
+                key: dayKey,
                 earliestDate: parseTs(s),
                 services: []
               };
             }
-            purchaseGroups[groupKey].services.push(s);
-            if (parseTs(s) < purchaseGroups[groupKey].earliestDate) {
-              purchaseGroups[groupKey].earliestDate = parseTs(s);
+            dateGroups[dayKey].services.push(s);
+            if (parseTs(s) < dateGroups[dayKey].earliestDate) {
+              dateGroups[dayKey].earliestDate = parseTs(s);
             }
           }
 
-          const sortedGroups = Object.values(purchaseGroups).sort((a, b) => a.earliestDate - b.earliestDate);
+          const sortedDateGroups = Object.values(dateGroups).sort((a, b) => a.earliestDate - b.earliestDate);
 
-          sortedGroups.forEach((grp, grpIdx) => {
+          sortedDateGroups.forEach((grp, grpIdx) => {
             const isInitial = (grpIdx === 0);
             const stageLabel = isInitial ? '1st Package' : getOrdinalLabel(grpIdx + 1);
             
