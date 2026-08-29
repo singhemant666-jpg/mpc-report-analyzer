@@ -2902,6 +2902,8 @@
           const initialPkgCategory = getPackageCategory(allPkgRows[0].packageName);
 
           // Track category-based cost and paid sums to identify installments and renewals
+          // Track unique package purchases by Userplan ID + Cart ID composite key
+          const seenPurchaseIds = new Set();
           const categoryCostSum = {};
           const categoryPaidSum = {};
           const categoryActivePurchase = {};
@@ -2909,20 +2911,22 @@
           allPkgRows.forEach((row, index) => {
             const cat = getPackageCategory(row.packageName);
             const rowDateStr = getRowDateStr(row);
-            const userplan = (row.userplanId || '').trim();
-            const cart = (row.cartId || '').trim();
-            const pkgClean = row.packageName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const userplan = (row.userplanId || '').toString().trim();
+            const cart = (row.cartId || '').toString().trim();
+            const pkgClean = (row.packageName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
             if (userplan && cart) {
-              // Both Cart ID & Userplan ID verified together: identical Cart ID + Userplan ID represents partial installments of the SAME package
-              row.purchaseId = `cart_${cart.toLowerCase()}_plan_${userplan.toLowerCase()}_${pkgClean}`;
+              // Both Cart ID & Userplan ID verified:
+              // - Identical Cart ID + Userplan ID represents partial payment installment of the SAME package
+              // - Different Userplan ID or Cart ID represents a NEW package bought
+              row.purchaseId = `cart_${cart.toLowerCase()}_plan_${userplan.toLowerCase()}`;
             } else if (userplan) {
-              row.purchaseId = `plan_${userplan.toLowerCase()}_${pkgClean}`;
+              row.purchaseId = `plan_${userplan.toLowerCase()}`;
             } else if (cart) {
               row.purchaseId = `cart_${cart.toLowerCase()}_${pkgClean}`;
             } else {
-              // Fallback when Userplan ID / Cart ID not present: timeline cost fulfillment tracking
-              const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : dateStrForId;
+              // Fallback when neither Userplan ID nor Cart ID is present: timeline cost fulfillment tracking
+              const invOrDate = (row.invoiceNo && row.invoiceNo !== '-') ? row.invoiceNo : rowDateStr;
               if (!(cat in categoryCostSum)) {
                 categoryCostSum[cat] = row.packageCost > 0 ? row.packageCost : getPackagePrice(row.packageName, 0);
                 categoryPaidSum[cat] = 0;
@@ -2945,6 +2949,16 @@
                 }
               }
               categoryPaidSum[cat] += (row.proportionalPaid || 0);
+            }
+
+            // Mark installment vs new package based on purchaseId uniqueness
+            if (row.purchaseId) {
+              if (seenPurchaseIds.has(row.purchaseId)) {
+                row.isInstallment = true; // Partial payment / installment for the existing package
+              } else {
+                seenPurchaseIds.add(row.purchaseId);
+                row.isInstallment = false; // New package purchase
+              }
             }
           });
 
