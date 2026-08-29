@@ -3411,6 +3411,8 @@
 
       for (const p of pList) {
         if (!p.services || p.services.length === 0) continue;
+        const patKey = p.id || p.name;
+        const hasAnyRenewal = p.services.some(s => s.isRenewal);
 
         for (const s of p.services) {
           if (s.type !== 'package' || !s.packageName) continue;
@@ -3429,19 +3431,26 @@
               revenue: 0,
               patientConvPct: 0,
               _initialPatients: new Set(),
-              _renewalPatients: new Set()
+              _renewalPatients: new Set(),
+              _renewedPatients: new Set(),
+              _allPatients: new Set()
             };
           }
 
           const amt = s.proportionalPaid || 0;
+          packageSales[pkgName]._allPatients.add(patKey);
+
           if (s.isRenewal) {
             packageSales[pkgName].renewalCount++;
             packageSales[pkgName].renewalRevenue += amt;
-            packageSales[pkgName]._renewalPatients.add(p.patientName);
+            packageSales[pkgName]._renewalPatients.add(patKey);
           } else {
             packageSales[pkgName].initialCount++;
             packageSales[pkgName].initialRevenue += amt;
-            packageSales[pkgName]._initialPatients.add(p.patientName);
+            packageSales[pkgName]._initialPatients.add(patKey);
+            if (hasAnyRenewal) {
+              packageSales[pkgName]._renewedPatients.add(patKey);
+            }
           }
 
           packageSales[pkgName].count++;
@@ -3452,13 +3461,9 @@
 
       for (const pkgName of Object.keys(packageSales)) {
         const item = packageSales[pkgName];
-        item.totalPatients = item.initialCount;
-        let renewedCount = 0;
-        for (const pat of item._initialPatients) {
-          if (item._renewalPatients.has(pat)) renewedCount++;
-        }
-        item.renewedPatientsCount = renewedCount;
-        item.patientConvPct = item.initialCount > 0 ? ((renewedCount / item.initialCount) * 100) : 0;
+        item.totalPatients = item._initialPatients.size || item.initialCount;
+        item.renewedPatientsCount = item._renewedPatients.size;
+        item.patientConvPct = item.totalPatients > 0 ? ((item.renewedPatientsCount / item.totalPatients) * 100) : 0;
         item.renewalRate = item.patientConvPct;
       }
 
@@ -4981,10 +4986,12 @@
         if (initSvc.cartId) initIdParts.push(`Cart #${initSvc.cartId}`);
         if (initSvc.userplanId) initIdParts.push(`Plan #${initSvc.userplanId}`);
         const initIdTag = initIdParts.length > 0 ? ` <span style="font-size:10px; color:var(--text-muted);">(${initIdParts.join(' • ')})</span>` : '';
-        const initialPkgStr = `<div><span class="badge badge-cyan" style="font-size:0.65rem; padding:1px 5px;">1st Package</span> ${initSvc.packageName}${initIdTag}</div>`;
+        const initBadgeLabel = initSvc.packageStageLabel || '1st Package';
+        const initBadgeClass = initSvc.isRenewal ? 'badge-purple' : 'badge-cyan';
+        const initialPkgStr = `<div><span class="badge ${initBadgeClass}" style="font-size:0.65rem; padding:1px 5px;">${initBadgeLabel}</span> ${initSvc.packageName}${initIdTag}</div>`;
 
         const renNamesStr = renSvcs.length > 0 ? renSvcs.map((s, i) => {
-          const label = getOrdinalLabel(anchorIndex + i + 2);
+          const label = s.packageStageLabel || getOrdinalLabel(anchorIndex + i + 2);
           const idParts = [];
           if (s.cartId) idParts.push(`Cart #${s.cartId}`);
           if (s.userplanId) idParts.push(`Plan #${s.userplanId}`);
