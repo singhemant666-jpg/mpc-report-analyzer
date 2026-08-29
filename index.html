@@ -902,11 +902,11 @@
     .chart-container {
       position: relative;
       width: 100%;
-      height: 350px;
+      height: 380px;
     }
 
-    .chart-container.pie-container { height: 350px; }
-    .chart-card.full-width .chart-container { height: 390px; }
+    .chart-container.pie-container { height: 390px; }
+    .chart-card.full-width .chart-container { height: 410px; }
 
     /* ==================== ANALYTICS INSIGHTS & EXECUTIVE SUITE ==================== */
     .insight-card {
@@ -3906,28 +3906,38 @@
       highchartsInstances.pie = Highcharts.chart('chart-pie', Highcharts.merge(theme, {
         chart: {
           type: 'pie',
-          options3d: { enabled: true, alpha: 45, beta: 0 }
+          spacingTop: 10,
+          spacingBottom: 15
         },
         plotOptions: {
           pie: {
-            innerSize: '60%',
-            depth: 35,
+            innerSize: '65%',
+            size: '76%',
+            center: ['50%', '42%'],
             allowPointSelect: true,
             cursor: 'pointer',
             borderRadius: 4,
             dataLabels: {
               enabled: true,
-              format: '<b>{point.name}</b>: {point.y} ({point.percentage:.1f}%)',
-              style: { fontSize: '10px', textOutline: 'none' }
+              distance: 14,
+              format: '<b>{point.name}</b><br/>{point.y} ({point.percentage:.1f}%)',
+              style: { fontSize: '10.5px', textOutline: 'none', fontWeight: '500' }
             },
             showInLegend: true
           }
         },
-        subtitle: {
-          text: `<div style="text-align:center;"><span style="font-size:22px; font-weight:800; color:var(--cyan);">${m.totalPatients}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Patients</span></div>`,
+        legend: {
+          layout: 'horizontal',
+          align: 'center',
+          verticalAlign: 'bottom',
+          itemMarginTop: 4,
+          itemMarginBottom: 4
+        },
+        title: {
+          text: `<div style="text-align:center; transform: translateY(-5px);"><span style="font-size:24px; font-weight:800; color:var(--cyan); line-height:1;">${m.totalPatients}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Patients</span></div>`,
           align: 'center',
           verticalAlign: 'middle',
-          y: 5,
+          y: -26,
           useHTML: true
         },
         tooltip: {
@@ -3967,28 +3977,38 @@
       highchartsInstances.revenuePie = Highcharts.chart('chart-revenue-pie', Highcharts.merge(theme, {
         chart: {
           type: 'pie',
-          options3d: { enabled: true, alpha: 45, beta: 0 }
+          spacingTop: 10,
+          spacingBottom: 15
         },
         plotOptions: {
           pie: {
-            innerSize: '60%',
-            depth: 35,
+            innerSize: '65%',
+            size: '76%',
+            center: ['50%', '42%'],
             allowPointSelect: true,
             cursor: 'pointer',
             borderRadius: 4,
             dataLabels: {
               enabled: true,
-              format: '<b>{point.name}</b>: {point.percentage:.1f}%',
-              style: { fontSize: '10px', textOutline: 'none' }
+              distance: 14,
+              format: '<b>{point.name}</b><br/>{point.percentage:.1f}%',
+              style: { fontSize: '10.5px', textOutline: 'none', fontWeight: '500' }
             },
             showInLegend: true
           }
         },
-        subtitle: {
-          text: `<div style="text-align:center;"><span style="font-size:18px; font-weight:800; color:var(--emerald);">${formatCurrencyCompact(totalRev)}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Revenue</span></div>`,
+        legend: {
+          layout: 'horizontal',
+          align: 'center',
+          verticalAlign: 'bottom',
+          itemMarginTop: 4,
+          itemMarginBottom: 4
+        },
+        title: {
+          text: `<div style="text-align:center; transform: translateY(-5px);"><span style="font-size:22px; font-weight:800; color:var(--emerald); line-height:1;">${formatCurrencyCompact(totalRev)}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Revenue</span></div>`,
           align: 'center',
           verticalAlign: 'middle',
-          y: 5,
+          y: -26,
           useHTML: true
         },
         tooltip: {
@@ -4040,11 +4060,11 @@
       const theme = getHighchartsThemeOptions();
 
       highchartsInstances.doctor = Highcharts.chart('chart-doctor', Highcharts.merge(theme, {
-        chart: { type: 'column' },
+        chart: { type: 'column', spacingBottom: 25, spacingTop: 15 },
         xAxis: {
           categories: categories,
           crosshair: true,
-          labels: { rotation: -20, style: { fontSize: '10px' } }
+          labels: { rotation: -25, style: { fontSize: '10.5px', fontWeight: '500' } }
         },
         yAxis: [
           {
@@ -4137,11 +4157,11 @@
       const theme = getHighchartsThemeOptions();
 
       highchartsInstances.agent = Highcharts.chart('chart-agent', Highcharts.merge(theme, {
-        chart: { type: 'column' },
+        chart: { type: 'column', spacingBottom: 25, spacingTop: 15 },
         xAxis: {
           categories: categories,
           crosshair: true,
-          labels: { rotation: -20, style: { fontSize: '10px' } }
+          labels: { rotation: -25, style: { fontSize: '10.5px', fontWeight: '500' } }
         },
         yAxis: [
           {
@@ -4228,28 +4248,38 @@
         highchartsInstances.sourcePie = Highcharts.chart('chart-source-pie', Highcharts.merge(theme, {
           chart: {
             type: 'pie',
-            options3d: { enabled: true, alpha: 45, beta: 0 }
+            spacingTop: 10,
+            spacingBottom: 15
           },
           plotOptions: {
             pie: {
-              innerSize: '60%',
-              depth: 35,
+              innerSize: '65%',
+              size: '76%',
+              center: ['50%', '42%'],
               allowPointSelect: true,
               cursor: 'pointer',
               borderRadius: 4,
               dataLabels: {
                 enabled: true,
-                format: '<b>{point.name}</b>: {point.percentage:.1f}%',
-                style: { fontSize: '10px', textOutline: 'none' }
+                distance: 14,
+                format: '<b>{point.name}</b><br/>{point.percentage:.1f}%',
+                style: { fontSize: '10.5px', textOutline: 'none', fontWeight: '500' }
               },
               showInLegend: true
             }
           },
-          subtitle: {
-            text: `<div style="text-align:center;"><span style="font-size:18px; font-weight:800; color:var(--cyan);">${totalLeads}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Total Leads</span></div>`,
+          legend: {
+            layout: 'horizontal',
+            align: 'center',
+            verticalAlign: 'bottom',
+            itemMarginTop: 4,
+            itemMarginBottom: 4
+          },
+          title: {
+            text: `<div style="text-align:center; transform: translateY(-5px);"><span style="font-size:22px; font-weight:800; color:var(--cyan); line-height:1;">${totalLeads}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Total Leads</span></div>`,
             align: 'center',
             verticalAlign: 'middle',
-            y: 5,
+            y: -26,
             useHTML: true
           },
           tooltip: {
@@ -4286,11 +4316,11 @@
         const theme = getHighchartsThemeOptions();
 
         highchartsInstances.source = Highcharts.chart('chart-source', Highcharts.merge(theme, {
-          chart: { type: 'column' },
+          chart: { type: 'column', spacingBottom: 25, spacingTop: 15 },
           xAxis: {
             categories: categories,
             crosshair: true,
-            labels: { rotation: -20, style: { fontSize: '10px' } }
+            labels: { rotation: -25, style: { fontSize: '10.5px', fontWeight: '500' } }
           },
           yAxis: [
             {
@@ -4373,10 +4403,10 @@
       const theme = getHighchartsThemeOptions();
 
       highchartsInstances.package = Highcharts.chart('chart-package', Highcharts.merge(theme, {
-        chart: { type: 'bar' },
+        chart: { type: 'bar', marginLeft: 175, spacingRight: 40, spacingTop: 10 },
         xAxis: {
           categories: categories,
-          labels: { style: { fontSize: '11px', fontWeight: '500' } }
+          labels: { style: { fontSize: '11px', fontWeight: '600', color: 'var(--text-primary)' } }
         },
         yAxis: {
           min: 0,
@@ -4388,8 +4418,10 @@
             borderRadius: 5,
             dataLabels: {
               enabled: true,
+              inside: false,
+              align: 'left',
               formatter: function() { return formatCurrencyCompact(this.y); },
-              style: { fontSize: '10px', fontWeight: '700', color: 'var(--text-primary)', textOutline: 'none' }
+              style: { fontSize: '10.5px', fontWeight: '700', color: 'var(--text-primary)', textOutline: 'none' }
             }
           }
         },
@@ -4445,11 +4477,11 @@
       const theme = getHighchartsThemeOptions();
 
       highchartsInstances.revenue = Highcharts.chart('chart-revenue', Highcharts.merge(theme, {
-        chart: { type: 'areaspline', zoomType: 'x' },
+        chart: { type: 'areaspline', zoomType: 'x', spacingBottom: 20 },
         xAxis: {
           categories: categories,
           crosshair: true,
-          labels: { style: { fontSize: '10px' } }
+          labels: { style: { fontSize: '10.5px', fontWeight: '500' } }
         },
         yAxis: {
           min: 0,
