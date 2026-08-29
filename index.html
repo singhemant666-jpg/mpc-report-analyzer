@@ -18,6 +18,13 @@
     })();
   </script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Highcharts Suite & Modules -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/export-data.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
@@ -815,10 +822,11 @@
     .chart-container {
       position: relative;
       width: 100%;
-      height: 300px;
+      height: 340px;
     }
 
-    .chart-container.pie-container { height: 320px; }
+    .chart-container.pie-container { height: 340px; }
+    .chart-card.full-width .chart-container { height: 380px; }
 
     /* ==================== ANALYTICS INSIGHTS & EXECUTIVE SUITE ==================== */
     .insight-card {
@@ -1832,35 +1840,35 @@
       <div class="charts-grid">
         <div class="chart-card">
           <div class="chart-title"><div class="dot"></div>Patient Distribution by Status</div>
-          <div class="chart-container pie-container"><canvas id="chart-pie"></canvas></div>
+          <div class="chart-container pie-container"><div id="chart-pie" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
           <div class="chart-title"><div class="dot"></div>Revenue Breakdown by Category</div>
-          <div class="chart-container pie-container"><canvas id="chart-revenue-pie"></canvas></div>
+          <div class="chart-container pie-container"><div id="chart-revenue-pie" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card full-width">
           <div class="chart-title"><div class="dot"></div>Revenue Trend Over Time</div>
-          <div class="chart-container"><canvas id="chart-revenue"></canvas></div>
+          <div class="chart-container" style="min-height:360px;"><div id="chart-revenue" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Top Doctors by Consultations</div>
-          <div class="chart-container"><canvas id="chart-doctor"></canvas></div>
+          <div class="chart-title"><div class="dot"></div>Top Doctors by Performance & Revenue</div>
+          <div class="chart-container"><div id="chart-doctor" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Top Agents by Conversions</div>
-          <div class="chart-container"><canvas id="chart-agent"></canvas></div>
+          <div class="chart-title"><div class="dot"></div>Top Agents by Conversions & Revenue</div>
+          <div class="chart-container"><div id="chart-agent" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
           <div class="chart-title"><div class="dot"></div>Lead Source Conversion Share (%)</div>
-          <div class="chart-container pie-container"><canvas id="chart-source-pie"></canvas></div>
+          <div class="chart-container pie-container"><div id="chart-source-pie" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
           <div class="chart-title"><div class="dot"></div>Lead Source Conversion Performance</div>
-          <div class="chart-container"><canvas id="chart-source"></canvas></div>
+          <div class="chart-container"><div id="chart-source" style="width:100%; height:100%;"></div></div>
         </div>
         <div class="chart-card">
-          <div class="chart-title"><div class="dot"></div>Package Sales (Top 15)</div>
-          <div class="chart-container"><canvas id="chart-package"></canvas></div>
+          <div class="chart-title"><div class="dot"></div>Package Sales Leaderboard (Top 15)</div>
+          <div class="chart-container"><div id="chart-package" style="width:100%; height:100%;"></div></div>
         </div>
       </div>
 
@@ -3662,42 +3670,54 @@
       return formatCurrency(value);
     }
 
-    const centerTextPlugin = {
-      id: 'centerText',
-      beforeDraw(chart) {
-        const { ctx } = chart;
-        const opts = chart.config.options.plugins.centerText;
-        if (!opts || !opts.text) return;
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
-        const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
-        
-        ctx.font = '800 1.25rem Inter, sans-serif';
-        ctx.fillStyle = '#f8fafc';
-        if (opts.subtext) {
-          ctx.fillText(opts.text, centerX, centerY - 9);
-          ctx.font = '600 0.65rem Inter, sans-serif';
-          ctx.fillStyle = '#94a3b8';
-          ctx.fillText(opts.subtext.toUpperCase(), centerX, centerY + 11);
-        } else {
-          ctx.fillText(opts.text, centerX, centerY);
-        }
-        ctx.restore();
-      }
-    };
+    // ==================== HIGHCHARTS VISUALIZATION SUITE ====================
+    let highchartsInstances = {};
 
     function destroyCharts() {
-      Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
-      chartInstances = {};
+      Object.values(highchartsInstances).forEach(c => {
+        try { if (c && typeof c.destroy === 'function') c.destroy(); } catch(e) {}
+      });
+      highchartsInstances = {};
+    }
+
+    function getHighchartsThemeOptions() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return {
+        chart: {
+          backgroundColor: 'transparent',
+          style: { fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+          animation: { duration: 600 }
+        },
+        credits: { enabled: false },
+        exporting: {
+          enabled: true,
+          buttons: {
+            contextButton: {
+              symbolStroke: isDark ? '#94a3b8' : '#64748b',
+              theme: { fill: 'transparent', states: { hover: { fill: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' } } }
+            }
+          }
+        },
+        title: { text: null },
+        subtitle: { text: null },
+        tooltip: {
+          useHTML: true,
+          backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+          borderColor: isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(203, 213, 225, 0.8)',
+          borderRadius: 8,
+          shadow: true,
+          style: { color: isDark ? '#f1f5f9' : '#0f172a', fontSize: '12px' }
+        },
+        legend: {
+          itemStyle: { color: isDark ? '#cbd5e1' : '#334155', fontWeight: '500', fontSize: '11px' },
+          itemHoverStyle: { color: isDark ? '#38bdf8' : '#0284c7' }
+        }
+      };
     }
 
     function renderCharts(m) {
       destroyCharts();
-      Chart.defaults.color = '#94a3b8';
-      Chart.defaults.font.family = 'Inter';
-      Chart.defaults.font.size = 11;
+      if (!window.Highcharts) return;
 
       renderPieChart(m);
       renderRevenuePieChart(m);
@@ -3708,529 +3728,575 @@
       renderRevenueChart(m);
     }
 
-    function ensureCanvas(id) {
-      let canvas = document.getElementById(id);
-      if (!canvas) {
-        const cardTitleMap = {
-          'chart-pie': 'Patient Distribution by Status',
-          'chart-revenue-pie': 'Revenue Breakdown by Category',
-          'chart-revenue': 'Revenue Trend Over Time',
-          'chart-doctor': 'Top Doctors by Consultations',
-          'chart-agent': 'Top Agents by Conversions',
-          'chart-source-pie': 'Lead Source Conversion Share (%)',
-          'chart-source': 'Lead Source Conversion Performance',
-          'chart-package': 'Package Sales (Top 15)'
-        };
-        const titleText = cardTitleMap[id];
-        const cards = document.querySelectorAll('.chart-card');
-        for (const card of cards) {
-          const t = card.querySelector('.chart-title');
-          if (t && t.textContent.trim().includes(titleText)) {
-            let container = card.querySelector('.chart-container');
-            if (!container) {
-              container = document.createElement('div');
-              container.className = 'chart-container' + (id.includes('pie') ? ' pie-container' : '');
-              card.appendChild(container);
-            }
-            container.innerHTML = `<canvas id="${id}"></canvas>`;
-            canvas = document.getElementById(id);
-            break;
-          }
-        }
-      }
-      return canvas;
-    }
-
     function renderPieChart(m) {
-      const canvas = ensureCanvas('chart-pie');
-      if (!canvas) return;
+      const container = document.getElementById('chart-pie');
+      if (!container) return;
 
       const statuses = m.STATUSES.filter(s => (m.statusCounts[s] || 0) > 0);
-      const counts = statuses.map(s => m.statusCounts[s] || 0);
-      const total = counts.reduce((a, b) => a + b, 0);
+      const palette = ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e', '#3b82f6', '#ec4899', '#14b8a6'];
 
-      const labels = statuses.map(s => {
-        const c = m.statusCounts[s] || 0;
-        const pct = total > 0 ? ((c / total) * 100).toFixed(1) : '0';
-        return `${s} (${pct}% • ${c})`;
-      });
+      const data = statuses.map((s, idx) => ({
+        name: s,
+        y: m.statusCounts[s] || 0,
+        color: palette[idx % palette.length]
+      }));
 
-      chartInstances.pie = new Chart(canvas, {
-        type: 'doughnut',
-        plugins: [centerTextPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data: counts,
-            backgroundColor: CHART_COLORS.slice(0, statuses.length),
-            borderWidth: 0,
-            hoverOffset: 8
-          }]
+      const theme = getHighchartsThemeOptions();
+
+      highchartsInstances.pie = Highcharts.chart('chart-pie', Highcharts.merge(theme, {
+        chart: { type: 'pie' },
+        plotOptions: {
+          pie: {
+            innerSize: '65%',
+            allowPointSelect: true,
+            cursor: 'pointer',
+            borderRadius: 5,
+            dataLabels: {
+              enabled: true,
+              format: '<b>{point.name}</b>: {point.y} ({point.percentage:.1f}%)',
+              style: { fontSize: '10px', textOutline: 'none' }
+            },
+            showInLegend: true
+          }
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: '600' } }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: {
-                label: (ctx) => {
-                  const statusName = statuses[ctx.dataIndex];
-                  const c = counts[ctx.dataIndex];
-                  const pct = total > 0 ? ((c / total) * 100).toFixed(1) : '0';
-                  return [
-                    ` 👥 ${statusName}: ${c} Patients (${pct}%)`,
-                    ` 📊 Distribution Share: ${pct}% of Total Patients`
-                  ];
-                }
-              }
-            },
-            centerText: {
-              text: m.totalPatients.toString(),
-              subtext: 'Patients'
-            }
-          },
-          cutout: '70%'
-        }
-      });
+        subtitle: {
+          text: `<div style="text-align:center;"><span style="font-size:22px; font-weight:800; color:var(--cyan);">${m.totalPatients}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Patients</span></div>`,
+          align: 'center',
+          verticalAlign: 'middle',
+          y: 5,
+          useHTML: true
+        },
+        tooltip: {
+          formatter: function() {
+            return `<div style="padding:4px 6px;">
+              <strong style="color:${this.point.color}; font-size:13px;">👥 ${this.point.name}</strong><br/>
+              <span style="color:var(--text-muted);">Patient Count:</span> <strong>${this.point.y} Patients</strong><br/>
+              <span style="color:var(--text-muted);">Distribution Share:</span> <strong>${this.percentage.toFixed(1)}% of Total</strong>
+            </div>`;
+          }
+        },
+        series: [{
+          name: 'Patients',
+          colorByPoint: true,
+          data: data
+        }]
+      }));
     }
 
     function renderRevenuePieChart(m) {
-      const canvas = ensureCanvas('chart-revenue-pie');
-      if (!canvas) return;
-      const container = canvas.parentElement;
+      const container = document.getElementById('chart-revenue-pie');
+      if (!container) return;
 
       const categories = [
-        { name: 'Pain Management', value: m.painMgmtRevenue || 0, color: '#8b5cf6' },
-        { name: 'Wellness', value: m.wellnessRevenue || 0, color: '#06b6d4' },
-        { name: 'Robotic Spine', value: m.roboticSpineRevenue || 0, color: '#f43f5e' },
-        { name: 'BMSK', value: m.bmskRevenue || 0, color: '#fb923c' },
-        { name: 'Consultation', value: m.consultationRevenue || 0, color: '#10b981' },
-        { name: 'Single Session', value: m.ssRevenue || 0, color: '#f59e0b' }
-      ].filter(c => c.value > 0);
+        { name: 'Pain Management', y: m.painMgmtRevenue || 0, color: '#8b5cf6' },
+        { name: 'Wellness', y: m.wellnessRevenue || 0, color: '#06b6d4' },
+        { name: 'Robotic Spine', y: m.roboticSpineRevenue || 0, color: '#f43f5e' },
+        { name: 'BMSK', y: m.bmskRevenue || 0, color: '#fb923c' },
+        { name: 'Consultation', y: m.consultationRevenue || 0, color: '#10b981' },
+        { name: 'Single Session', y: m.ssRevenue || 0, color: '#f59e0b' }
+      ].filter(c => c.y > 0);
 
-      if (categories.length === 0) {
-        canvas.style.display = 'none';
-        let overlay = container ? container.querySelector('.chart-no-data') : null;
-        if (!overlay && container) {
-          overlay = document.createElement('div');
-          overlay.className = 'chart-no-data';
-          overlay.style.cssText = 'display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-size:13px; font-weight:500;';
-          overlay.textContent = 'No revenue data available';
-          container.appendChild(overlay);
-        } else if (overlay) {
-          overlay.style.display = 'flex';
-        }
-        return;
-      }
+      const totalRev = categories.reduce((sum, c) => sum + c.y, 0);
+      const theme = getHighchartsThemeOptions();
 
-      canvas.style.display = 'block';
-      if (container) {
-        const overlay = container.querySelector('.chart-no-data');
-        if (overlay) overlay.style.display = 'none';
-      }
-
-      const totalRev = categories.reduce((sum, c) => sum + c.value, 0);
-
-      const labels = categories.map(c => {
-        const pct = totalRev > 0 ? ((c.value / totalRev) * 100).toFixed(1) : '0';
-        return `${c.name} (${pct}% • ${formatCurrencyCompact(c.value)})`;
-      });
-
-      chartInstances.revenuePie = new Chart(canvas, {
-        type: 'doughnut',
-        plugins: [centerTextPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data: categories.map(c => c.value),
-            backgroundColor: categories.map(c => c.color),
-            borderWidth: 0,
-            hoverOffset: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: {
-                label: (ctx) => {
-                  const cat = categories[ctx.dataIndex];
-                  const pct = totalRev > 0 ? ((cat.value / totalRev) * 100).toFixed(1) : '0';
-                  return [
-                    ` 💰 ${cat.name}: ${formatCurrency(cat.value)}`,
-                    ` 📈 Revenue Share: ${pct}% of Total Collection`
-                  ];
-                }
-              }
+      highchartsInstances.revenuePie = Highcharts.chart('chart-revenue-pie', Highcharts.merge(theme, {
+        chart: { type: 'pie' },
+        plotOptions: {
+          pie: {
+            innerSize: '65%',
+            allowPointSelect: true,
+            cursor: 'pointer',
+            borderRadius: 5,
+            dataLabels: {
+              enabled: true,
+              format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+              style: { fontSize: '10px', textOutline: 'none' }
             },
-            centerText: {
-              text: formatCurrencyCompact(m.totalRevenue),
-              subtext: 'Revenue'
-            }
-          },
-          cutout: '70%'
-        }
-      });
+            showInLegend: true
+          }
+        },
+        subtitle: {
+          text: `<div style="text-align:center;"><span style="font-size:18px; font-weight:800; color:var(--emerald);">${formatCurrencyCompact(totalRev)}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Revenue</span></div>`,
+          align: 'center',
+          verticalAlign: 'middle',
+          y: 5,
+          useHTML: true
+        },
+        tooltip: {
+          formatter: function() {
+            return `<div style="padding:4px 6px;">
+              <strong style="color:${this.point.color}; font-size:13px;">💰 ${this.point.name}</strong><br/>
+              <span style="color:var(--text-muted);">Total Revenue:</span> <strong>${formatCurrency(this.point.y)}</strong><br/>
+              <span style="color:var(--text-muted);">Revenue Contribution:</span> <strong>${this.percentage.toFixed(1)}%</strong>
+            </div>`;
+          }
+        },
+        series: [{
+          name: 'Revenue',
+          colorByPoint: true,
+          data: categories
+        }]
+      }));
     }
 
-    function renderConversionBar(canvasId, dataMap, chartKey) {
-      const canvas = ensureCanvas(canvasId);
-      if (!canvas) return;
+    function renderDoctorChart(m) {
+      const container = document.getElementById('chart-doctor');
+      if (!container) return;
 
-      let rawEntries = Object.entries(dataMap);
-      if (chartKey === 'doctor') {
-        rawEntries = rawEntries.filter(([name, data]) => name && data.consultation > 0);
+      const rawEntries = Object.entries(m.doctorMap || {}).filter(([name, data]) => name && (data.consultation > 0 || data.totalPackages > 0));
+      const entries = rawEntries.sort((a, b) => (b[1].painMgmtRevenue || b[1].revenue || 0) - (a[1].painMgmtRevenue || a[1].revenue || 0)).slice(0, 10);
+
+      const categories = entries.map(e => e[0]);
+      const consultData = entries.map(e => e[1].consultation || 0);
+      const packageData = entries.map(e => e[1].convertedAfterConsult || e[1].totalPackages || 0);
+      const revenueData = entries.map(e => e[1].painMgmtRevenue || e[1].revenue || 0);
+
+      const theme = getHighchartsThemeOptions();
+
+      highchartsInstances.doctor = Highcharts.chart('chart-doctor', Highcharts.merge(theme, {
+        chart: { type: 'column' },
+        xAxis: {
+          categories: categories,
+          crosshair: true,
+          labels: { rotation: -20, style: { fontSize: '10px' } }
+        },
+        yAxis: [
+          {
+            title: { text: 'Patient Count', style: { color: '#06b6d4', fontWeight: '600' } },
+            labels: { format: '{value}' },
+            min: 0
+          },
+          {
+            title: { text: 'Revenue (₹)', style: { color: '#10b981', fontWeight: '600' } },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } },
+            opposite: true,
+            min: 0
+          }
+        ],
+        plotOptions: {
+          column: {
+            borderRadius: 4,
+            pointPadding: 0.1,
+            groupPadding: 0.15
+          }
+        },
+        tooltip: {
+          shared: true,
+          formatter: function() {
+            let s = `<div style="padding:4px 6px;"><strong style="font-size:13px; color:var(--text-primary);">🩺 ${this.x}</strong><br/>`;
+            this.points.forEach(point => {
+              if (point.series.name === 'Total Revenue (₹)') {
+                s += `<span style="color:${point.color}; font-weight:700;">● ${point.series.name}:</span> <strong>${formatCurrency(point.y)}</strong><br/>`;
+              } else {
+                s += `<span style="color:${point.color}; font-weight:600;">● ${point.series.name}:</span> <strong>${point.y} Patients</strong><br/>`;
+              }
+            });
+            const c = consultData[this.points[0].point.index];
+            const p = packageData[this.points[0].point.index];
+            const conv = c > 0 ? ((p / c) * 100).toFixed(1) : '0';
+            s += `<div style="border-top:1px solid var(--border); margin-top:4px; padding-top:4px; font-size:11px; color:var(--emerald); font-weight:700;">🎯 Conversion Rate: ${conv}%</div></div>`;
+            return s;
+          }
+        },
+        series: [
+          {
+            name: 'Consultations',
+            data: consultData,
+            color: '#06b6d4',
+            yAxis: 0
+          },
+          {
+            name: 'Packages Converted',
+            data: packageData,
+            color: '#8b5cf6',
+            yAxis: 0
+          },
+          {
+            name: 'Total Revenue (₹)',
+            type: 'spline',
+            data: revenueData,
+            color: '#10b981',
+            yAxis: 1,
+            lineWidth: 3,
+            marker: { radius: 5, symbol: 'circle', fillColor: '#10b981', lineWidth: 2, lineColor: '#ffffff' }
+          }
+        ]
+      }));
+    }
+
+    function renderAgentChart(m) {
+      const container = document.getElementById('chart-agent');
+      if (!container) return;
+
+      const entries = Object.entries(m.agentMap || {})
+        .filter(([name]) => name && name !== 'Unknown' && name !== '-')
+        .sort((a, b) => (b[1].revenue || 0) - (a[1].revenue || 0))
+        .slice(0, 10);
+
+      const categories = entries.map(e => e[0]);
+      const consultData = entries.map(e => e[1].consultation || 0);
+      const packageData = entries.map(e => e[1].package || 0);
+      const revenueData = entries.map(e => e[1].revenue || 0);
+
+      const theme = getHighchartsThemeOptions();
+
+      highchartsInstances.agent = Highcharts.chart('chart-agent', Highcharts.merge(theme, {
+        chart: { type: 'column' },
+        xAxis: {
+          categories: categories,
+          crosshair: true,
+          labels: { rotation: -20, style: { fontSize: '10px' } }
+        },
+        yAxis: [
+          {
+            title: { text: 'Patient Volume', style: { color: '#06b6d4', fontWeight: '600' } },
+            labels: { format: '{value}' },
+            min: 0
+          },
+          {
+            title: { text: 'Revenue (₹)', style: { color: '#10b981', fontWeight: '600' } },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } },
+            opposite: true,
+            min: 0
+          }
+        ],
+        plotOptions: {
+          column: {
+            borderRadius: 4,
+            pointPadding: 0.1,
+            groupPadding: 0.15
+          }
+        },
+        tooltip: {
+          shared: true,
+          formatter: function() {
+            let s = `<div style="padding:4px 6px;"><strong style="font-size:13px; color:var(--text-primary);">👤 ${this.x}</strong><br/>`;
+            this.points.forEach(point => {
+              if (point.series.name === 'Agent Revenue (₹)') {
+                s += `<span style="color:${point.color}; font-weight:700;">● ${point.series.name}:</span> <strong>${formatCurrency(point.y)}</strong><br/>`;
+              } else {
+                s += `<span style="color:${point.color}; font-weight:600;">● ${point.series.name}:</span> <strong>${point.y} Records</strong><br/>`;
+              }
+            });
+            return s + `</div>`;
+          }
+        },
+        series: [
+          {
+            name: 'Consultations',
+            data: consultData,
+            color: '#06b6d4',
+            yAxis: 0
+          },
+          {
+            name: 'Packages Sold',
+            data: packageData,
+            color: '#8b5cf6',
+            yAxis: 0
+          },
+          {
+            name: 'Agent Revenue (₹)',
+            type: 'spline',
+            data: revenueData,
+            color: '#10b981',
+            yAxis: 1,
+            lineWidth: 3,
+            marker: { radius: 5, symbol: 'circle', fillColor: '#10b981', lineWidth: 2, lineColor: '#ffffff' }
+          }
+        ]
+      }));
+    }
+
+    function renderSourceChart(m) {
+      // 1. Lead Source Donut Share
+      const pieContainer = document.getElementById('chart-source-pie');
+      if (pieContainer) {
+        const entries = Object.entries(m.sourceMap || {}).filter(([name, data]) => name && (data.consultation > 0 || data.total > 0));
+        const totalLeads = entries.reduce((sum, [_, d]) => sum + (d.consultation || d.total || 0), 0);
+        const palette = ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e', '#3b82f6', '#ec4899', '#14b8a6', '#a855f7', '#6366f1'];
+
+        const data = entries.map(([name, data], idx) => {
+          const count = data.consultation || data.total || 0;
+          const convRate = data.consultation > 0 ? ((data.package / data.consultation) * 100).toFixed(1) : 0;
+          return {
+            name: name,
+            y: count,
+            revenue: data.revenue || 0,
+            convRate: convRate,
+            color: palette[idx % palette.length]
+          };
+        }).sort((a, b) => b.y - a.y);
+
+        const theme = getHighchartsThemeOptions();
+
+        highchartsInstances.sourcePie = Highcharts.chart('chart-source-pie', Highcharts.merge(theme, {
+          chart: { type: 'pie' },
+          plotOptions: {
+            pie: {
+              innerSize: '65%',
+              allowPointSelect: true,
+              cursor: 'pointer',
+              borderRadius: 5,
+              dataLabels: {
+                enabled: true,
+                format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                style: { fontSize: '10px', textOutline: 'none' }
+              },
+              showInLegend: true
+            }
+          },
+          subtitle: {
+            text: `<div style="text-align:center;"><span style="font-size:18px; font-weight:800; color:var(--cyan);">${totalLeads}</span><br/><span style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Total Leads</span></div>`,
+            align: 'center',
+            verticalAlign: 'middle',
+            y: 5,
+            useHTML: true
+          },
+          tooltip: {
+            formatter: function() {
+              return `<div style="padding:4px 6px;">
+                <strong style="color:${this.point.color}; font-size:13px;">🎯 ${this.point.name}</strong><br/>
+                <span style="color:var(--text-muted);">Lead Volume:</span> <strong>${this.point.y} Leads (${this.percentage.toFixed(1)}%)</strong><br/>
+                <span style="color:var(--text-muted);">Conversion to Pkg:</span> <strong>${this.point.convRate}%</strong><br/>
+                <span style="color:var(--text-muted);">Revenue Generated:</span> <strong>${formatCurrency(this.point.revenue)}</strong>
+              </div>`;
+            }
+          },
+          series: [{
+            name: 'Leads',
+            colorByPoint: true,
+            data: data
+          }]
+        }));
       }
 
-      // Sort by Revenue (falling back to total patient count)
-      const entries = rawEntries.sort((a, b) => {
-        const revA = a[1].revenue || a[1].totalRevenue || 0;
-        const revB = b[1].revenue || b[1].totalRevenue || 0;
-        if (revB !== revA) return revB - revA;
-        return (b[1].total || 0) - (a[1].total || 0);
-      }).slice(0, 10);
+      // 2. Lead Source Column Performance
+      const colContainer = document.getElementById('chart-source');
+      if (colContainer) {
+        const entries = Object.entries(m.sourceMap || {})
+          .filter(([name, data]) => name && (data.consultation > 0 || data.total > 0))
+          .sort((a, b) => (b[1].revenue || 0) - (a[1].revenue || 0))
+          .slice(0, 10);
 
-      const labels = entries.map(e => e[0].length > 20 ? e[0].substring(0, 18) + '...' : e[0]);
-      const consultData = entries.map(e => e[1].consultation || 0);
-      const packageData = entries.map(e => e[1].package || e[1].totalPackages || 0);
-      const revenueData = entries.map(e => e[1].revenue || e[1].totalRevenue || 0);
-      const convData = entries.map(e => {
-        const c = e[1].consultation || 0;
-        const pk = e[1].package || e[1].totalPackages || 0;
-        return c > 0 ? Math.min(100, Math.round((pk / c) * 100)) : 0;
-      });
+        const categories = entries.map(e => e[0]);
+        const consultData = entries.map(e => e[1].consultation || 0);
+        const packageData = entries.map(e => e[1].package || 0);
+        const revenueData = entries.map(e => e[1].revenue || 0);
 
-      chartInstances[chartKey] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
+        const theme = getHighchartsThemeOptions();
+
+        highchartsInstances.source = Highcharts.chart('chart-source', Highcharts.merge(theme, {
+          chart: { type: 'column' },
+          xAxis: {
+            categories: categories,
+            crosshair: true,
+            labels: { rotation: -20, style: { fontSize: '10px' } }
+          },
+          yAxis: [
             {
-              label: 'Consultation',
+              title: { text: 'Inquiries / Leads', style: { color: '#06b6d4', fontWeight: '600' } },
+              labels: { format: '{value}' },
+              min: 0
+            },
+            {
+              title: { text: 'Channel Revenue (₹)', style: { color: '#10b981', fontWeight: '600' } },
+              labels: { formatter: function() { return formatCurrencyCompact(this.value); } },
+              opposite: true,
+              min: 0
+            }
+          ],
+          plotOptions: {
+            column: {
+              borderRadius: 4,
+              pointPadding: 0.1,
+              groupPadding: 0.15
+            }
+          },
+          tooltip: {
+            shared: true,
+            formatter: function() {
+              let s = `<div style="padding:4px 6px;"><strong style="font-size:13px; color:var(--text-primary);">🎯 ${this.x}</strong><br/>`;
+              this.points.forEach(point => {
+                if (point.series.name === 'Total Revenue (₹)') {
+                  s += `<span style="color:${point.color}; font-weight:700;">● ${point.series.name}:</span> <strong>${formatCurrency(point.y)}</strong><br/>`;
+                } else {
+                  s += `<span style="color:${point.color}; font-weight:600;">● ${point.series.name}:</span> <strong>${point.y} Leads</strong><br/>`;
+                }
+              });
+              return s + `</div>`;
+            }
+          },
+          series: [
+            {
+              name: 'Consultations',
               data: consultData,
-              backgroundColor: 'rgba(6,182,212,0.85)',
-              borderRadius: 6,
-              barPercentage: 0.65,
-              categoryPercentage: 0.8
+              color: '#06b6d4',
+              yAxis: 0
             },
             {
-              label: 'Package',
+              name: 'Packages Converted',
               data: packageData,
-              backgroundColor: 'rgba(139,92,246,0.85)',
-              borderRadius: 6,
-              barPercentage: 0.65,
-              categoryPercentage: 0.8
+              color: '#8b5cf6',
+              yAxis: 0
             },
             {
-              label: 'Total Revenue (₹)',
+              name: 'Total Revenue (₹)',
+              type: 'spline',
               data: revenueData,
-              type: 'line',
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16,185,129,0.15)',
-              pointBackgroundColor: '#10b981',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-              borderWidth: 3,
-              tension: 0.3,
-              yAxisID: 'y1',
-              fill: false
+              color: '#10b981',
+              yAxis: 1,
+              lineWidth: 3,
+              marker: { radius: 5, symbol: 'circle', fillColor: '#10b981', lineWidth: 2, lineColor: '#ffffff' }
             }
           ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: {
-              position: 'top',
-              align: 'end',
-              labels: { padding: 12, usePointStyle: true, pointStyleWidth: 8, font: { size: 11, weight: '600' } }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.2)',
-              borderWidth: 1,
-              padding: 12,
-              titleFont: { size: 13, weight: '700' },
-              callbacks: {
-                label: (ctx) => {
-                  if (ctx.dataset.label === 'Total Revenue (₹)') {
-                    const idx = ctx.dataIndex;
-                    const c = consultData[idx];
-                    const pk = packageData[idx];
-                    const conv = convData[idx];
-                    return [
-                      ` 💰 Total Revenue: ${formatCurrency(ctx.parsed.y)}`,
-                      ` 📈 Conversion Rate: ${conv}% (${pk}/${c})`
-                    ];
-                  }
-                  return ` ${ctx.dataset.label}: ${ctx.parsed.y} patients`;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(148,163,184,0.06)' },
-              ticks: { font: { size: 10 }, maxRotation: 30 }
-            },
-            y: {
-              grid: { color: 'rgba(148,163,184,0.06)' },
-              beginAtZero: true,
-              grace: '10%',
-              title: { display: true, text: 'Patient Count', font: { size: 10, weight: '600' } }
-            },
-            y1: {
-              position: 'right',
-              grid: { display: false },
-              beginAtZero: true,
-              grace: '20%',
-              title: { display: true, text: 'Revenue (₹)', font: { size: 10, weight: '600' } },
-              ticks: { callback: v => formatCurrencyCompact(v) }
-            }
-          }
-        }
-      });
-    }
-
-    function renderDoctorChart(m) { renderConversionBar('chart-doctor', m.doctorMap, 'doctor'); }
-    function renderAgentChart(m) { renderConversionBar('chart-agent', m.agentMap, 'agent'); }
-    function renderSourceChart(m) {
-      renderConversionBar('chart-source', m.sourceMap, 'source');
-
-      const ctx = ensureCanvas('chart-source-pie');
-      if (!ctx) return;
-      const container = ctx.parentElement;
-
-      const entries = Object.entries(m.sourceMap || {})
-        .filter(([name, data]) => name && (data.consultation > 0 || data.total > 0));
-
-      const totalLeads = entries.reduce((sum, [_, d]) => sum + (d.consultation || d.total || 0), 0);
-
-      const sources = entries
-        .map(([name, data]) => {
-          const leadCount = data.consultation || data.total || 0;
-          const sharePct = totalLeads > 0 ? ((leadCount / totalLeads) * 100).toFixed(1) : '0';
-          const convPct = data.consultation > 0 ? Math.min(100, Math.round(((data.package || 0) / data.consultation) * 100)) : 0;
-          return {
-            name,
-            leadCount,
-            package: data.package || 0,
-            revenue: data.revenue || 0,
-            sharePct,
-            convPct
-          };
-        })
-        .sort((a, b) => b.leadCount !== a.leadCount ? b.leadCount - a.leadCount : b.revenue - a.revenue);
-
-      if (sources.length === 0) {
-        ctx.style.display = 'none';
-        let overlay = container ? container.querySelector('.chart-no-data') : null;
-        if (!overlay && container) {
-          overlay = document.createElement('div');
-          overlay.className = 'chart-no-data';
-          overlay.style.cssText = 'display:flex; align-items:center; justify-content:center; height:100%; color:var(--text-muted); font-size:13px; font-weight:500;';
-          overlay.textContent = 'No lead source data available';
-          container.appendChild(overlay);
-        } else if (overlay) {
-          overlay.style.display = 'flex';
-        }
-        return;
+        }));
       }
-
-      ctx.style.display = 'block';
-      if (container) {
-        const overlay = container.querySelector('.chart-no-data');
-        if (overlay) overlay.style.display = 'none';
-      }
-
-      const topSource = sources[0];
-      const labels = sources.map(s => `${s.name} (${s.sharePct}% Share • ${s.convPct}% Conv)`);
-      const data = sources.map(s => s.leadCount);
-
-      chartInstances.sourcePie = new Chart(ctx, {
-        type: 'doughnut',
-        plugins: [centerTextPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: CHART_COLORS.slice(0, sources.length),
-            borderWidth: 0,
-            hoverOffset: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right', labels: { padding: 12, usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } } },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: {
-                label: (ctx) => {
-                  const s = sources[ctx.dataIndex];
-                  return [
-                    ` 📊 ${s.name}: ${s.sharePct}% Share of Total Leads (${s.leadCount} of ${totalLeads})`,
-                    ` 🎯 Conversion Rate: ${s.convPct}% (${s.package} Packages / ${s.leadCount} Consultations)`,
-                    ` 💰 Total Revenue: ${formatCurrency(s.revenue)}`
-                  ];
-                }
-              }
-            },
-            centerText: {
-              text: `${topSource.sharePct}%`,
-              subtext: `Top: ${topSource.name.length > 14 ? topSource.name.substring(0, 12) + '...' : topSource.name}`
-            }
-          },
-          cutout: '70%'
-        }
-      });
     }
 
     function renderPackageChart(m) {
-      const canvas = ensureCanvas('chart-package');
-      if (!canvas) return;
+      const container = document.getElementById('chart-package');
+      if (!container) return;
 
-      const entries = Object.entries(m.packageSales)
-        .sort((a, b) => b[1].revenue - a[1].revenue)
+      const entries = Object.entries(m.packageSales || {})
+        .sort((a, b) => (b[1].totalRevenue || b[1].revenue || 0) - (a[1].totalRevenue || a[1].revenue || 0))
         .slice(0, 15);
-      const labels = entries.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
-      const revenue = entries.map(e => e[1].revenue);
-      const count = entries.map(e => e[1].count);
 
-      chartInstances.package = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Revenue',
-              data: revenue,
-              backgroundColor: CHART_COLORS.map(c => c + 'BB'),
-              borderRadius: 4,
-              barPercentage: 0.7
-            }
-          ]
+      const categories = entries.map(e => e[0]);
+      const data = entries.map((e, idx) => ({
+        name: e[0],
+        y: e[1].totalRevenue || e[1].revenue || 0,
+        count: e[1].initialCount ? (e[1].initialCount + (e[1].renewalCount || 0)) : (e[1].count || 0),
+        renewals: e[1].renewalsCount || e[1].renewedPatientsCount || 0,
+        color: Highcharts.getOptions().colors[idx % Highcharts.getOptions().colors.length] || '#06b6d4'
+      }));
+
+      const theme = getHighchartsThemeOptions();
+
+      highchartsInstances.package = Highcharts.chart('chart-package', Highcharts.merge(theme, {
+        chart: { type: 'bar' },
+        xAxis: {
+          categories: categories,
+          labels: { style: { fontSize: '11px', fontWeight: '500' } }
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: {
-                label: (ctx) => ` Revenue: ${formatCurrency(ctx.parsed.x)} | Patients: ${count[ctx.dataIndex]}`
-              }
+        yAxis: {
+          min: 0,
+          title: { text: 'Total Revenue (₹)', align: 'high', style: { color: 'var(--text-muted)' } },
+          labels: { formatter: function() { return formatCurrencyCompact(this.value); } }
+        },
+        plotOptions: {
+          bar: {
+            borderRadius: 4,
+            dataLabels: {
+              enabled: true,
+              formatter: function() { return formatCurrencyCompact(this.y); },
+              style: { fontSize: '10px', fontWeight: '700', color: 'var(--text-primary)', textOutline: 'none' }
             }
-          },
-          scales: {
-            x: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { callback: v => formatCurrency(v) } },
-            y: { grid: { display: false } }
           }
-        }
-      });
+        },
+        legend: { enabled: false },
+        tooltip: {
+          formatter: function() {
+            const p = this.point;
+            return `<div style="padding:4px 6px;">
+              <strong style="font-size:13px; color:${p.color};">📦 ${p.name}</strong><br/>
+              <span style="color:var(--text-muted);">Total Revenue:</span> <strong>${formatCurrency(p.y)}</strong><br/>
+              <span style="color:var(--text-muted);">Total Sold:</span> <strong>${p.count} Packages</strong><br/>
+              ${p.renewals > 0 ? `<span style="color:var(--purple);">🔄 Renewed Patients:</span> <strong>${p.renewals}</strong>` : ''}
+            </div>`;
+          }
+        },
+        series: [{
+          name: 'Revenue',
+          data: data
+        }]
+      }));
     }
 
     function renderRevenueChart(m) {
-      const canvas = ensureCanvas('chart-revenue');
-      if (!canvas) return;
+      const container = document.getElementById('chart-revenue');
+      if (!container) return;
 
-      const sortedDates = Object.keys(m.revenueByDate).sort();
-      const labels = sortedDates.map(d => {
+      const sortedDates = Object.keys(m.revenueByDate || {}).sort();
+      const categories = sortedDates.map(d => {
         try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); }
         catch { return d; }
       });
 
-      chartInstances.revenue = new Chart(canvas, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'Total',
-              data: sortedDates.map(d => m.revenueByDate[d].total),
-              borderColor: '#06b6d4',
-              backgroundColor: 'rgba(6,182,212,0.08)',
-              fill: true,
-              tension: 0.4,
-              pointRadius: 4,
-              pointBackgroundColor: '#06b6d4',
-              borderWidth: 2.5
-            },
-            {
-              label: 'Package',
-              data: sortedDates.map(d => m.revenueByDate[d].package),
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139,92,246,0.05)',
-              fill: true,
-              tension: 0.4,
-              pointRadius: 3,
-              borderWidth: 2
-            },
-            {
-              label: 'Consultation',
-              data: sortedDates.map(d => m.revenueByDate[d].consultation),
-              borderColor: '#10b981',
-              tension: 0.4,
-              pointRadius: 3,
-              borderWidth: 2
-            },
-            {
-              label: 'Single Session',
-              data: sortedDates.map(d => m.revenueByDate[d].singleSession),
-              borderColor: '#f59e0b',
-              tension: 0.4,
-              pointRadius: 3,
-              borderWidth: 2
-            }
-          ]
+      const totalData = sortedDates.map(d => m.revenueByDate[d].total || 0);
+      const pkgData = sortedDates.map(d => m.revenueByDate[d].package || 0);
+      const consultData = sortedDates.map(d => m.revenueByDate[d].consultation || 0);
+      const ssData = sortedDates.map(d => m.revenueByDate[d].singleSession || 0);
+
+      const theme = getHighchartsThemeOptions();
+
+      highchartsInstances.revenue = Highcharts.chart('chart-revenue', Highcharts.merge(theme, {
+        chart: { type: 'areaspline', zoomType: 'x' },
+        xAxis: {
+          categories: categories,
+          crosshair: true,
+          labels: { style: { fontSize: '10px' } }
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10 } },
-            tooltip: {
-              backgroundColor: 'rgba(15,23,42,0.95)',
-              borderColor: 'rgba(148,163,184,0.15)',
-              borderWidth: 1,
-              padding: 12,
-              callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}` }
+        yAxis: {
+          min: 0,
+          title: { text: 'Collection Revenue (₹)', style: { color: 'var(--text-muted)' } },
+          labels: { formatter: function() { return formatCurrencyCompact(this.value); } }
+        },
+        plotOptions: {
+          areaspline: {
+            fillOpacity: 0.15,
+            lineWidth: 2.5,
+            marker: { radius: 4, symbol: 'circle' }
+          }
+        },
+        tooltip: {
+          shared: true,
+          formatter: function() {
+            let s = `<div style="padding:4px 6px;"><strong style="font-size:13px; color:var(--cyan);">📅 ${this.x}</strong><br/>`;
+            this.points.forEach(point => {
+              s += `<span style="color:${point.color}; font-weight:700;">● ${point.series.name}:</span> <strong>${formatCurrency(point.y)}</strong><br/>`;
+            });
+            return s + `</div>`;
+          }
+        },
+        series: [
+          {
+            name: 'Total Collection',
+            data: totalData,
+            color: '#06b6d4',
+            fillColor: {
+              linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+              stops: [
+                [0, 'rgba(6, 182, 212, 0.3)'],
+                [1, 'rgba(6, 182, 212, 0.0)']
+              ]
             }
           },
-          scales: {
-            x: { grid: { color: 'rgba(148,163,184,0.06)' } },
-            y: { grid: { color: 'rgba(148,163,184,0.06)' }, ticks: { callback: v => formatCurrency(v) } }
+          {
+            name: 'Package Revenue',
+            data: pkgData,
+            color: '#8b5cf6',
+            fillColor: {
+              linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+              stops: [
+                [0, 'rgba(139, 92, 246, 0.25)'],
+                [1, 'rgba(139, 92, 246, 0.0)']
+              ]
+            }
+          },
+          {
+            name: 'Consultation Revenue',
+            data: consultData,
+            color: '#10b981',
+            fillOpacity: 0.05
+          },
+          {
+            name: 'Single Session Revenue',
+            data: ssData,
+            color: '#f59e0b',
+            fillOpacity: 0.05
           }
-        }
-      });
+        ]
+      }));
     }
 
     // ==================== DOCTOR INCENTIVE LEADERBOARD ====================
