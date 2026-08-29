@@ -1491,7 +1491,8 @@
           <input type="text" id="prm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:13px;" oninput="renderPRMTable()">
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-sm btn-emerald" onclick="exportPRMCSV()">📥 Export Patient List (CSV)</button>
+          <button class="btn btn-sm btn-emerald" onclick="exportPRMExcel()">📥 Export Excel (.xlsx)</button>
+          <button class="btn btn-sm" onclick="exportPRMCSV()">📥 Export CSV</button>
         </div>
       </div>
 
@@ -1558,7 +1559,8 @@
           <input type="text" id="dpm-search-input" placeholder="🔍 Search patient name..." style="width:100%; padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); font-size:12px;" oninput="renderDPMTable()">
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn btn-sm btn-emerald" onclick="exportDPMCSV()" style="font-size:11px; padding:4px 10px;">📥 Export Patient List (CSV)</button>
+          <button class="btn btn-sm btn-emerald" onclick="exportDPMExcel()" style="font-size:11px; padding:4px 10px;">📥 Export Excel (.xlsx)</button>
+          <button class="btn btn-sm" onclick="exportDPMCSV()" style="font-size:11px; padding:4px 10px;">📥 Export CSV</button>
         </div>
       </div>
 
@@ -5364,25 +5366,110 @@
       `).join('');
     }
 
+    function stripHtml(html) {
+      if (!html || html === '-') return '-';
+      let text = String(html)
+        .replace(/<span[^>]*class=["'][^"']*badge[^"']*["'][^>]*>(.*?)<\/span>/gi, '[$1] ')
+        .replace(/<br\s*[\/]?>/gi, '; ')
+        .replace(/<\/div>/gi, '; ')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      return text.replace(/;\s*;/g, ';').replace(/^;\s*/, '').replace(/;\s*$/, '');
+    }
+
+    async function exportPRMExcel() {
+      if (!currentPRMPatients || currentPRMPatients.length === 0) {
+        showToast('No patient data to export', 'error');
+        return;
+      }
+      showLoading(`Exporting Package Analysis for ${currentPRMPkgName}...`);
+      try {
+        await new Promise(r => setTimeout(r, 50));
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Daily Collection Analyzer';
+        wb.created = new Date();
+        const ws = wb.addWorksheet('Package Analysis');
+
+        ws.columns = [
+          { header: '#', width: 6 },
+          { header: 'Patient Name', width: 25 },
+          { header: 'Initial 1st Package', width: 40 },
+          { header: 'Initial Date', width: 14 },
+          { header: 'Initial Package Revenue (Rs)', width: 22 },
+          { header: 'Renewed Packages', width: 50 },
+          { header: 'Renewal Dates', width: 22 },
+          { header: 'Doctor', width: 28 },
+          { header: 'Agent', width: 22 },
+          { header: 'Renewal Package Revenue (Rs)', width: 22 },
+          { header: 'Total Paid (Rs)', width: 18 },
+          { header: 'Status / Stage', width: 24 },
+          { header: 'Has Renewal', width: 14 }
+        ];
+
+        const headerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+        applyHeaderStyle(ws, 1, headerStyle);
+
+        currentPRMPatients.forEach((p, idx) => {
+          ws.addRow([
+            idx + 1,
+            p.patientName,
+            stripHtml(p.initialPkg),
+            p.initialDateStr || '-',
+            p.initialRevenue || 0,
+            stripHtml(p.renNamesStr),
+            stripHtml(p.renDatesStr),
+            p.doctor || '-',
+            p.agent || '-',
+            p.renewalRevenue || 0,
+            p.totalPaid || 0,
+            stripHtml(p.stageBadge),
+            p.hasRenewal ? 'Yes' : 'No'
+          ]);
+        });
+
+        const buf = await wb.xlsx.writeBuffer();
+        downloadBlob(new Blob([buf]), `Package_Renewal_Analysis_${currentPRMPkgName.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+        showToast(`Exported ${currentPRMPatients.length} patients for ${currentPRMPkgName}`, 'success');
+      } catch (err) {
+        console.error('Export Excel failed:', err);
+        showToast('Export failed: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
     function exportPRMCSV() {
       if (!currentPRMPatients || currentPRMPatients.length === 0) {
         showToast('No patient data to export', 'error');
         return;
       }
 
-      const headers = ['#', 'Patient Name', 'Initial 1st Package', 'Initial Date', 'Initial Package Revenue (Rs)', 'Renewed Packages', 'Renewal Dates', 'Doctor', 'Agent', 'Renewal Package Revenue (Rs)', 'Total Paid (Rs)', 'Has Renewal'];
+      const headers = ['#', 'Patient Name', 'Initial 1st Package', 'Initial Date', 'Initial Package Revenue (Rs)', 'Renewed Packages', 'Renewal Dates', 'Doctor', 'Agent', 'Renewal Package Revenue (Rs)', 'Total Paid (Rs)', 'Status / Stage', 'Has Renewal'];
       const rows = currentPRMPatients.map((p, idx) => [
         idx + 1,
         `"${p.patientName}"`,
-        `"${p.initialPkg}"`,
-        `"${p.initialDateStr}"`,
-        p.initialRevenue,
-        `"${p.renNamesStr.replace(/<br>/g, '; ')}"`,
-        `"${p.renDatesStr.replace(/<br>/g, '; ')}"`,
-        `"${p.doctor}"`,
-        `"${p.agent}"`,
-        p.renewalRevenue,
-        p.totalPaid,
+        `"${stripHtml(p.initialPkg)}"`,
+        `"${p.initialDateStr || '-'}"`,
+        p.initialRevenue || 0,
+        `"${stripHtml(p.renNamesStr)}"`,
+        `"${stripHtml(p.renDatesStr)}"`,
+        `"${p.doctor || '-'}"`,
+        `"${p.agent || '-'}"`,
+        p.renewalRevenue || 0,
+        p.totalPaid || 0,
+        `"${stripHtml(p.stageBadge)}"`,
         p.hasRenewal ? 'Yes' : 'No'
       ]);
 
@@ -5685,25 +5772,92 @@
       `).join('');
     }
 
+    async function exportDPMExcel() {
+      if (!currentDPMPatients || currentDPMPatients.length === 0) {
+        showToast('No patient data to export', 'error');
+        return;
+      }
+      showLoading(`Exporting patient list for ${currentDPMDoctorName}...`);
+      try {
+        await new Promise(r => setTimeout(r, 50));
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Daily Collection Analyzer';
+        wb.created = new Date();
+        const ws = wb.addWorksheet('Doctor Patients');
+
+        ws.columns = [
+          { header: '#', width: 6 },
+          { header: 'Patient Name', width: 25 },
+          { header: 'Initial 1st Package', width: 40 },
+          { header: 'Initial Date', width: 14 },
+          { header: 'Initial Package Revenue (Rs)', width: 22 },
+          { header: 'Renewed Packages', width: 50 },
+          { header: 'Renewal Dates', width: 22 },
+          { header: 'Agent', width: 22 },
+          { header: 'Renewal Package Revenue (Rs)', width: 22 },
+          { header: 'Total Paid (Rs)', width: 18 },
+          { header: 'Status / Stage', width: 24 }
+        ];
+
+        const headerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+        applyHeaderStyle(ws, 1, headerStyle);
+
+        currentDPMPatients.forEach((p, idx) => {
+          ws.addRow([
+            idx + 1,
+            p.patientName,
+            stripHtml(p.initialPkg),
+            p.initialDateStr || '-',
+            p.initialRevenue || 0,
+            stripHtml(p.renNamesStr),
+            stripHtml(p.renDatesStr),
+            p.agent || '-',
+            p.renewalRevenue || 0,
+            p.totalPaid || 0,
+            stripHtml(p.stageBadge)
+          ]);
+        });
+
+        const buf = await wb.xlsx.writeBuffer();
+        downloadBlob(new Blob([buf]), `Doctor_Patient_List_${currentDPMDoctorName.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+        showToast(`Exported ${currentDPMPatients.length} patient records for ${currentDPMDoctorName}`, 'success');
+      } catch (err) {
+        console.error('Export Excel failed:', err);
+        showToast('Export failed: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
     function exportDPMCSV() {
       if (!currentDPMPatients || currentDPMPatients.length === 0) {
         showToast('No patient data to export', 'error');
         return;
       }
 
-      const headers = ['#', 'Patient Name', 'Initial 1st Package', 'Initial Date', 'Initial Package Revenue (Rs)', 'Renewed Packages', 'Renewal Dates', 'Agent', 'Renewal Package Revenue (Rs)', 'Total Paid (Rs)', 'Status'];
+      const headers = ['#', 'Patient Name', 'Initial 1st Package', 'Initial Date', 'Initial Package Revenue (Rs)', 'Renewed Packages', 'Renewal Dates', 'Agent', 'Renewal Package Revenue (Rs)', 'Total Paid (Rs)', 'Status / Stage'];
       const rows = currentDPMPatients.map((p, idx) => [
         idx + 1,
         `"${p.patientName}"`,
-        `"${p.initialPkg}"`,
-        `"${p.initialDateStr}"`,
-        p.initialRevenue,
-        `"${p.renNamesStr.replace(/<br>/g, '; ')}"`,
-        `"${p.renDatesStr.replace(/<br>/g, '; ')}"`,
-        `"${p.agent}"`,
-        p.renewalRevenue,
-        p.totalPaid,
-        `"${p.stageBadge.replace(/<[^>]+>/g, '')}"`
+        `"${stripHtml(p.initialPkg)}"`,
+        `"${p.initialDateStr || '-'}"`,
+        p.initialRevenue || 0,
+        `"${stripHtml(p.renNamesStr)}"`,
+        `"${stripHtml(p.renDatesStr)}"`,
+        `"${p.agent || '-'}"`,
+        p.renewalRevenue || 0,
+        p.totalPaid || 0,
+        `"${stripHtml(p.stageBadge)}"`
       ]);
 
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
