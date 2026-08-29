@@ -2780,8 +2780,11 @@
           dateRemaining = Math.max(0, dateRemaining - consultTotal);
 
           // Step 2: Single Sessions each get their own fixed price independently
-          for (const sr of ssRows) {
-            const price = sr.packageCost > 0 ? sr.packageCost : getSingleSessionPrice(sr.packageName, 0);
+          for (let i = 0; i < ssRows.length; i++) {
+            const sr = ssRows[i];
+            const price = (sr.amountPaid && sr.amountPaid > 0)
+              ? sr.amountPaid
+              : (sr.packageCost > 0 ? sr.packageCost : getSingleSessionPrice(sr.packageName, 0));
             sr.proportionalPaid = Math.min(price, dateRemaining);
             dateRemaining = Math.max(0, dateRemaining - sr.proportionalPaid);
           }
@@ -3096,9 +3099,13 @@
               ssCount = Math.max(1, Math.round(svc.proportionalPaid / unitCost));
             }
 
-            const perSessionPaid = Math.round((svc.proportionalPaid / ssCount) * 100) / 100;
-
+            let ssAllocatedSoFar = 0;
             for (let i = 0; i < ssCount; i++) {
+              const currentPaid = (i === ssCount - 1)
+                ? Math.round((svc.proportionalPaid - ssAllocatedSoFar) * 100) / 100
+                : Math.round((svc.proportionalPaid / ssCount) * 100) / 100;
+              ssAllocatedSoFar += currentPaid;
+
               finalServices.push({
                 packageName: svc.packageName,
                 type: svc.type,
@@ -3110,13 +3117,13 @@
                 amountPaid: svc.amountPaid / ssCount,
                 packageCost: unitCost,
                 totalPackageCost: unitCost,
-                proportionalPaid: perSessionPaid,
+                proportionalPaid: currentPaid,
                 paymentMode: svc.paymentMode,
                 invoiceNo: svc.invoiceNo,
                 purchaseId: svc.purchaseId
               });
               p.packages.push(svc.packageName);
-              p.singleSessionRevenue += perSessionPaid;
+              p.singleSessionRevenue += currentPaid;
             }
             continue;
           }
@@ -3126,6 +3133,11 @@
           p.packages.push(svc.packageName);
           p.packageRevenue += svc.proportionalPaid;
         }
+
+        p.singleSessionRevenue = Math.round(p.singleSessionRevenue * 100) / 100;
+        p.consultationRevenue = Math.round(p.consultationRevenue * 100) / 100;
+        p.packageRevenue = Math.round(p.packageRevenue * 100) / 100;
+        p.totalPaid = Math.round((p.consultationRevenue + p.packageRevenue + p.singleSessionRevenue) * 100) / 100;
 
         // Sum unique package purchase costs for totalPackageValue
         // Rule: Group by bundleTotalFromExcel or unique package contract names (ignore installment payment dates)
