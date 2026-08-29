@@ -3927,13 +3927,32 @@
       chartInstances.pie = Highcharts.chart('chart-pie', Highcharts.merge(theme, {
         chart: {
           type: 'pie',
-          spacing: [10, 10, 10, 10]
+          spacing: [10, 10, 10, 10],
+          events: {
+            render: function() {
+              const chart = this;
+              const series = chart.series && chart.series[0];
+              if (!series || !series.center) return;
+              const cx = chart.plotLeft + series.center[0];
+              const cy = chart.plotTop + series.center[1];
+              if (chart.customCenterLabel) chart.customCenterLabel.destroy();
+              chart.customCenterLabel = chart.renderer.text(
+                `<div style="text-align:center; transform: translate(-50%, -50%); pointer-events:none;">
+                  <span style="font-size:22px; font-weight:800; color:var(--cyan); line-height:1.1; display:block;">${m.totalPatients}</span>
+                  <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">PATIENTS</span>
+                </div>`,
+                cx,
+                cy,
+                true
+              ).attr({ zIndex: 5 }).add();
+            }
+          }
         },
         plotOptions: {
           pie: {
-            innerSize: '65%',
-            size: '80%',
-            center: ['30%', '50%'],
+            innerSize: '64%',
+            size: '78%',
+            center: ['28%', '50%'],
             allowPointSelect: true,
             cursor: 'pointer',
             borderRadius: 4,
@@ -3946,22 +3965,15 @@
           layout: 'vertical',
           align: 'right',
           verticalAlign: 'middle',
-          width: '45%',
-          itemMarginTop: 6,
-          itemMarginBottom: 6,
-          itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '17px' },
+          width: '52%',
+          itemMarginTop: 5,
+          itemMarginBottom: 5,
+          itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '16px' },
           labelFormatter: function() {
             return `<span style="color:${this.color};">●</span> ${this.name} (${this.percentage.toFixed(1)}% • ${this.y})`;
           }
         },
-        title: {
-          text: `<div style="text-align:center;"><span style="font-size:22px; font-weight:800; color:var(--cyan); line-height:1.1;">${m.totalPatients}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">PATIENTS</span></div>`,
-          align: 'center',
-          verticalAlign: 'middle',
-          x: -60,
-          y: -2,
-          useHTML: true
-        },
+        title: { text: null },
         tooltip: {
           formatter: function() {
             return `<div style="padding:4px 6px;">
@@ -3999,13 +4011,32 @@
       chartInstances.revenuePie = Highcharts.chart('chart-revenue-pie', Highcharts.merge(theme, {
         chart: {
           type: 'pie',
-          spacing: [10, 10, 10, 10]
+          spacing: [10, 10, 10, 10],
+          events: {
+            render: function() {
+              const chart = this;
+              const series = chart.series && chart.series[0];
+              if (!series || !series.center) return;
+              const cx = chart.plotLeft + series.center[0];
+              const cy = chart.plotTop + series.center[1];
+              if (chart.customCenterLabel) chart.customCenterLabel.destroy();
+              chart.customCenterLabel = chart.renderer.text(
+                `<div style="text-align:center; transform: translate(-50%, -50%); pointer-events:none;">
+                  <span style="font-size:20px; font-weight:800; color:var(--emerald); line-height:1.1; display:block;">${formatCurrencyCompact(totalRev)}</span>
+                  <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">REVENUE</span>
+                </div>`,
+                cx,
+                cy,
+                true
+              ).attr({ zIndex: 5 }).add();
+            }
+          }
         },
         plotOptions: {
           pie: {
-            innerSize: '65%',
-            size: '80%',
-            center: ['30%', '50%'],
+            innerSize: '64%',
+            size: '78%',
+            center: ['28%', '50%'],
             allowPointSelect: true,
             cursor: 'pointer',
             borderRadius: 4,
@@ -4018,22 +4049,15 @@
           layout: 'vertical',
           align: 'right',
           verticalAlign: 'middle',
-          width: '45%',
-          itemMarginTop: 6,
-          itemMarginBottom: 6,
-          itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '17px' },
+          width: '52%',
+          itemMarginTop: 5,
+          itemMarginBottom: 5,
+          itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '16px' },
           labelFormatter: function() {
             return `<span style="color:${this.color};">●</span> ${this.name} (${this.percentage.toFixed(1)}% • ${formatCurrencyCompact(this.y)})`;
           }
         },
-        title: {
-          text: `<div style="text-align:center;"><span style="font-size:20px; font-weight:800; color:var(--emerald); line-height:1.1;">${formatCurrencyCompact(totalRev)}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">REVENUE</span></div>`,
-          align: 'center',
-          verticalAlign: 'middle',
-          x: -60,
-          y: -2,
-          useHTML: true
-        },
+        title: { text: null },
         tooltip: {
           formatter: function() {
             return `<div style="padding:4px 6px;">
@@ -4099,7 +4123,7 @@
         xAxis: {
           categories: categories,
           crosshair: true,
-          labels: { rotation: -25, style: { fontSize: '10.5px', fontWeight: '500' } }
+          labels: { rotation: -25, style: { fontSize: '10px', fontWeight: '500' } }
         },
         yAxis: [
           {
@@ -4208,7 +4232,7 @@
         xAxis: {
           categories: categories,
           crosshair: true,
-          labels: { rotation: -25, style: { fontSize: '10.5px', fontWeight: '500' } }
+          labels: { rotation: -25, style: { fontSize: '10px', fontWeight: '500' } }
         },
         yAxis: [
           {
@@ -4295,13 +4319,32 @@
         chartInstances.sourcePie = Highcharts.chart('chart-source-pie', Highcharts.merge(theme, {
           chart: {
             type: 'pie',
-            spacing: [10, 10, 10, 10]
+            spacing: [10, 10, 10, 10],
+            events: {
+              render: function() {
+                const chart = this;
+                const series = chart.series && chart.series[0];
+                if (!series || !series.center) return;
+                const cx = chart.plotLeft + series.center[0];
+                const cy = chart.plotTop + series.center[1];
+                if (chart.customCenterLabel) chart.customCenterLabel.destroy();
+                chart.customCenterLabel = chart.renderer.text(
+                  `<div style="text-align:center; transform: translate(-50%, -50%); pointer-events:none;">
+                    <span style="font-size:20px; font-weight:800; color:var(--cyan); line-height:1.1; display:block;">${totalLeads}</span>
+                    <span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">TOTAL LEADS</span>
+                  </div>`,
+                  cx,
+                  cy,
+                  true
+                ).attr({ zIndex: 5 }).add();
+              }
+            }
           },
           plotOptions: {
             pie: {
-              innerSize: '65%',
-              size: '80%',
-              center: ['30%', '50%'],
+              innerSize: '64%',
+              size: '78%',
+              center: ['28%', '50%'],
               allowPointSelect: true,
               cursor: 'pointer',
               borderRadius: 4,
@@ -4314,22 +4357,15 @@
             layout: 'vertical',
             align: 'right',
             verticalAlign: 'middle',
-            width: '45%',
-            itemMarginTop: 6,
-            itemMarginBottom: 6,
-            itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '17px' },
+            width: '52%',
+            itemMarginTop: 5,
+            itemMarginBottom: 5,
+            itemStyle: { fontSize: '11px', fontWeight: '500', lineHeight: '16px' },
             labelFormatter: function() {
               return `<span style="color:${this.color};">●</span> ${this.name} (${this.percentage.toFixed(1)}% • ${this.convRate}% Conv)`;
             }
           },
-          title: {
-            text: `<div style="text-align:center;"><span style="font-size:20px; font-weight:800; color:var(--cyan); line-height:1.1;">${totalLeads}</span><br/><span style="font-size:10px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">TOTAL LEADS</span></div>`,
-            align: 'center',
-            verticalAlign: 'middle',
-            x: -60,
-            y: -2,
-            useHTML: true
-          },
+          title: { text: null },
           tooltip: {
             formatter: function() {
               return `<div style="padding:4px 6px;">
