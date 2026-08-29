@@ -4987,9 +4987,10 @@
 
         if (pkgServices.length === 0) continue;
 
-        // Find the FIRST occurrence of pkgName in patient's package services
-        const anchorIndex = pkgServices.findIndex(s => s.packageName && s.packageName.toLowerCase() === pkgName.toLowerCase());
-        if (anchorIndex === -1) continue; // Patient did not purchase target package
+        // Find the FIRST occurrence of pkgName where it was an INITIAL purchase (!isRenewal)
+        // This matches the leaderboard's _initialPatients pool exactly
+        const anchorIndex = pkgServices.findIndex(s => s.packageName && s.packageName.toLowerCase() === pkgName.toLowerCase() && !s.isRenewal);
+        if (anchorIndex === -1) continue; // Patient did not purchase this package as initial
 
         const initSvc = pkgServices[anchorIndex];
         const renSvcs = pkgServices.slice(anchorIndex + 1);
