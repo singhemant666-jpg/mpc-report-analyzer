@@ -1870,7 +1870,7 @@
                 <tr>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Rank" onclick="sortPackageRenewalLeaderboard('renewalCount')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="name" data-title="Treatment Package" onclick="sortPackageRenewalLeaderboard('name')">Treatment Package</th>
-                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="initialCount" data-title="Initial Pkg Patients" onclick="sortPackageRenewalLeaderboard('initialCount')">Initial Pkg Patients</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="totalPatients" data-title="Initial Pkg Patients" onclick="sortPackageRenewalLeaderboard('totalPatients')">Initial Pkg Patients</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewedPatientsCount" data-title="Renewed Patients" onclick="sortPackageRenewalLeaderboard('renewedPatientsCount')">Renewed Patients</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="patientConvPct" data-title="Patient Conversion %" onclick="sortPackageRenewalLeaderboard('patientConvPct')">Patient Conversion %</th>
                   <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortPackageRenewalLeaderboard('renewalCount')">Renewals Sold</th>
@@ -4927,7 +4927,7 @@
               <span class="badge badge-cyan" style="font-size:10px; cursor:pointer;">🔍 View Patients</span>
             </div>
           </td>
-          <td style="text-align:center; font-weight:600;">${item.initialCount}</td>
+          <td style="text-align:center; font-weight:600;">${item.totalPatients || item._initialPatients && item._initialPatients.size || item.initialCount}</td>
           <td style="font-weight:700; color:var(--purple); text-align:center;">${item.renewedPatientsCount || 0}</td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -8129,7 +8129,7 @@
       // 4. Package Sales & Renewal Retention Breakdown
       const packageLines = Object.entries(m.packageSales || {})
         .sort((a,b) => (b[1].totalRevenue || b[1].revenue || 0) - (a[1].totalRevenue || a[1].revenue || 0))
-        .map(([pkg, d]) => `  * ${pkg}: Initial Patients=${d.initialCount || 0}, Renewed Patients=${d.renewedPatientsCount || 0}, Patient Retention Conv=${(d.patientConvPct || 0).toFixed(1)}%, Renewals Sold=${d.renewalCount || 0}, Initial Revenue=${formatCurrency(d.initialRevenue || 0)}, Renewal Revenue=${formatCurrency(d.renewalRevenue || 0)}, Total Revenue=${formatCurrency(d.totalRevenue || d.revenue || 0)}`)
+        .map(([pkg, d]) => `  * ${pkg}: Initial Patients=${d.totalPatients || d.initialCount || 0}, Renewed Patients=${d.renewedPatientsCount || 0}, Patient Retention Conv=${(d.patientConvPct || 0).toFixed(1)}%, Renewals Sold=${d.renewalCount || 0}, Initial Revenue=${formatCurrency(d.initialRevenue || 0)}, Renewal Revenue=${formatCurrency(d.renewalRevenue || 0)}, Total Revenue=${formatCurrency(d.totalRevenue || d.revenue || 0)}`)
         .join('\n');
 
       // 5. Payment Mode Breakdown
