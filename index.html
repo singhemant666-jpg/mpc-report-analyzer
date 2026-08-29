@@ -3166,18 +3166,43 @@
           return da - db;
         });
 
-        // Strict chronological package ordinal labeling:
-        // Index 0 is ALWAYS 1st Package (isRenewal = false). Index 1 is ALWAYS 2nd Package, Index 2 is ALWAYS 3rd Package, etc.
+        // ── Transaction-Based Ordinal & Renewal Determination ──
+        // 1. Group package services by distinct purchase transaction (Cart ID / Invoice / Date)
+        // 2. Identify the earliest purchase transaction: ALL packages bought in this initial purchase (including bundles) have isRenewal = false and stage = "1st Package"
+        // 3. Packages bought in SUBSEQUENT distinct purchase transactions are renewals (isRenewal = true, stage = "2nd Package", "3rd Package", etc.)
         const pkgSvcsOnly = finalServices.filter(s => s.type === 'package');
-        pkgSvcsOnly.forEach((s, idx) => {
-          if (idx === 0) {
-            s.isRenewal = false;
-            s.packageStageLabel = '1st Package';
-          } else {
-            s.isRenewal = true;
-            s.packageStageLabel = getOrdinalLabel(idx + 1);
+        if (pkgSvcsOnly.length > 0) {
+          const parseTs = (s) => s.paymentDate ? new Date(s.paymentDate).getTime() : 0;
+          
+          const purchaseGroups = {};
+          for (const s of pkgSvcsOnly) {
+            const dStr = s.paymentDate ? formatDate(s.paymentDate) : 'no_date';
+            const groupKey = s.cartId ? `cart_${s.cartId}` : (s.invoiceNo && s.invoiceNo !== '-' ? `inv_${s.invoiceNo}` : `date_${dStr}`);
+            if (!purchaseGroups[groupKey]) {
+              purchaseGroups[groupKey] = {
+                key: groupKey,
+                earliestDate: parseTs(s),
+                services: []
+              };
+            }
+            purchaseGroups[groupKey].services.push(s);
+            if (parseTs(s) < purchaseGroups[groupKey].earliestDate) {
+              purchaseGroups[groupKey].earliestDate = parseTs(s);
+            }
           }
-        });
+
+          const sortedGroups = Object.values(purchaseGroups).sort((a, b) => a.earliestDate - b.earliestDate);
+
+          sortedGroups.forEach((grp, grpIdx) => {
+            const isInitial = (grpIdx === 0);
+            const stageLabel = isInitial ? '1st Package' : getOrdinalLabel(grpIdx + 1);
+            
+            grp.services.forEach(s => {
+              s.isRenewal = !isInitial;
+              s.packageStageLabel = stageLabel;
+            });
+          });
+        }
 
         // Determine final status & preserve complete global patient profile if filtering
         p.services = finalServices;
@@ -6158,26 +6183,28 @@
 
         if (isRenewalsTab) {
           const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
-          const firstPkg = pkgSvcs[0];
-          const subsequentPkgs = pkgSvcs.slice(1);
+          const initialPkgs = pkgSvcs.filter(s => !s.isRenewal);
+          const renewalPkgs = pkgSvcs.filter(s => s.isRenewal);
 
-          if (firstPkg) {
-            const initIdParts = [];
-            if (firstPkg.cartId) initIdParts.push(`Cart #${firstPkg.cartId}`);
-            if (firstPkg.userplanId) initIdParts.push(`Plan #${firstPkg.userplanId}`);
-            const initIdTag = initIdParts.length > 0 ? ` <span style="font-size:10px; color:var(--text-muted); font-weight:500;">(${initIdParts.join(' • ')})</span>` : '';
-            initialPkgHTML = `
-              <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <span style="background:rgba(6,182,212,0.2); color:var(--cyan); border:1px solid rgba(6,182,212,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">1st Package</span>
-                <span style="color:var(--text-primary); font-weight:600;">${firstPkg.packageName}</span>
-                ${initIdTag}
-              </div>
-            `;
+          if (initialPkgs.length > 0) {
+            initialPkgHTML = initialPkgs.map(firstPkg => {
+              const initIdParts = [];
+              if (firstPkg.cartId) initIdParts.push(`Cart #${firstPkg.cartId}`);
+              if (firstPkg.userplanId) initIdParts.push(`Plan #${firstPkg.userplanId}`);
+              const initIdTag = initIdParts.length > 0 ? ` <span style="font-size:10px; color:var(--text-muted); font-weight:500;">(${initIdParts.join(' • ')})</span>` : '';
+              return `
+                <div style="font-size:0.8rem; margin-bottom:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span style="background:rgba(6,182,212,0.2); color:var(--cyan); border:1px solid rgba(6,182,212,0.4); padding:2px 7px; border-radius:4px; font-weight:700; font-size:0.7rem; white-space:nowrap;">1st Package</span>
+                  <span style="color:var(--text-primary); font-weight:600;">${firstPkg.packageName}</span>
+                  ${initIdTag}
+                </div>
+              `;
+            }).join('');
           }
 
-          if (subsequentPkgs.length > 0) {
-            renewedPkgHTML = subsequentPkgs.map((s, idx) => {
-              const label = getOrdinalLabel(idx + 2); // 2nd Package, 3rd Package, 4th Package, etc.
+          if (renewalPkgs.length > 0) {
+            renewedPkgHTML = renewalPkgs.map(s => {
+              const label = s.packageStageLabel || '2nd Package';
               const idParts = [];
               if (s.cartId) idParts.push(`Cart #${s.cartId}`);
               if (s.userplanId) idParts.push(`Plan #${s.userplanId}`);
