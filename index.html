@@ -3424,10 +3424,14 @@
       for (const p of pList) {
         if (!p.services || p.services.length === 0) continue;
         const patKey = p.id || p.name;
-        const hasAnyRenewal = p.services.some(s => s.isRenewal);
 
-        for (const s of p.services) {
-          if (s.type !== 'package' || !s.packageName) continue;
+        // Sort all package services chronologically for timeline-based renewal detection
+        const sortedPkgSvcs = p.services
+          .filter(s => s.type === 'package' && s.packageName)
+          .sort((a, b) => new Date(a.paymentDate || 0) - new Date(b.paymentDate || 0));
+
+        for (let si = 0; si < sortedPkgSvcs.length; si++) {
+          const s = sortedPkgSvcs[si];
           const pkgName = s.packageName;
 
           if (!packageSales[pkgName]) {
@@ -3459,9 +3463,15 @@
           } else {
             packageSales[pkgName].initialCount++;
             packageSales[pkgName].initialRevenue += amt;
-            packageSales[pkgName]._initialPatients.add(patKey);
-            if (hasAnyRenewal) {
-              packageSales[pkgName]._renewedPatients.add(patKey);
+
+            // Only record as initial patient once (first encounter)
+            if (!packageSales[pkgName]._initialPatients.has(patKey)) {
+              packageSales[pkgName]._initialPatients.add(patKey);
+              // Timeline-based: has ANY package purchase AFTER this initial PM purchase?
+              // This matches the modal's logic: packages after the anchor index
+              if (si < sortedPkgSvcs.length - 1) {
+                packageSales[pkgName]._renewedPatients.add(patKey);
+              }
             }
           }
 
@@ -3478,6 +3488,7 @@
         item.patientConvPct = item.totalPatients > 0 ? ((item.renewedPatientsCount / item.totalPatients) * 100) : 0;
         item.renewalRate = item.patientConvPct;
       }
+
 
       // Revenue by date
       const revenueByDate = {};
