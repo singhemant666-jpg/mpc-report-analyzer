@@ -781,21 +781,18 @@
     .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
 
     /* ==================== ADVANCED CHARTS & ANIMATIONS ==================== */
-    .charts-grid {
+    .charts-grid, .deep-dive-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 22px;
       margin-bottom: 28px;
+      width: 100%;
     }
 
-    .deep-dive-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 22px;
-      margin-bottom: 28px;
+    .charts-grid .full-width, .deep-dive-grid .full-width, .chart-card.full-width {
+      grid-column: 1 / -1;
+      width: 100%;
     }
-
-    .deep-dive-grid .full-width { grid-column: 1 / -1; }
 
     /* Scorecard & Heatmap Tables */
     .dd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -2076,6 +2073,8 @@
             <span class="chart-kpi-badge" id="kpi-source-conv-badge">Yield Analysis</span>
           </div>
           <div class="chart-container"><div id="chart-source" style="width:100%; height:100%;"></div></div>
+        </div>
+
         <div class="chart-card">
           <div class="chart-header">
             <div class="chart-title"><div class="dot"></div>Package Sales Leaderboard (Top 15)</div>
@@ -4941,7 +4940,7 @@
           name: 'Revenue',
           data: data
         }]
-      }));\r
+      }));
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -5032,21 +5031,22 @@
         },
         plotOptions: {
           pie: {
-            innerSize: '60%', size: '70%', center: ['28%', '50%'],
+            innerSize: '62%', size: '72%', center: ['24%', '50%'],
             allowPointSelect: true, cursor: 'pointer', borderRadius: 3,
             dataLabels: { enabled: false }, showInLegend: true
           }
         },
         legend: {
           enabled: true, layout: 'vertical', align: 'right', verticalAlign: 'middle',
-          width: '58%', maxHeight: 340, itemMarginTop: 2, itemMarginBottom: 2,
-          itemStyle: { fontSize: '10px', fontWeight: '500' },
+          width: '58%', maxHeight: 360, itemMarginTop: 2, itemMarginBottom: 2,
+          itemStyle: { fontSize: '10px', fontWeight: '500', lineHeight: '14px' },
           labelFormatter: function() {
             return `<span style="color:${this.color};">●</span> ${this.name} (${this.percentage.toFixed(1)}%)`;
           }
         },
         title: { text: null },
         tooltip: {
+          outside: true,
           formatter: function() {
             return `<div style="padding:4px 6px;">
               <strong style="color:${this.point.color};font-size:13px;">🩺 ${this.point.name}</strong><br/>
@@ -5098,6 +5098,7 @@
         legend: { align: 'center', verticalAlign: 'top', margin: 20, itemStyle: { fontSize: '10px', fontWeight: '600' } },
         plotOptions: { spline: { lineWidth: 2.5 } },
         tooltip: {
+          outside: true,
           formatter: function() {
             return `<div style="padding:4px 6px;"><strong>${this.x}</strong><br/>` +
               this.points.map(p => `<span style="color:${p.color};">●</span> ${p.series.name}: <strong>${formatCurrencyCompact(p.y)}</strong>`).join('<br/>') + '</div>';
@@ -5225,6 +5226,7 @@
           }
         },
         tooltip: {
+          outside: true,
           shared: true,
           formatter: function() {
             const total = this.points.reduce((s, p) => s + p.y, 0);
@@ -5283,6 +5285,7 @@
           bar: { stacking: 'normal', borderRadius: 3, dataLabels: { enabled: false } }
         },
         tooltip: {
+          outside: true,
           formatter: function() {
             return `<div style="padding:4px 6px;">
               <strong>After: ${this.x}</strong><br/>
