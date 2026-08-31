@@ -4479,7 +4479,7 @@
       const container = document.getElementById('chart-doctor');
       if (!container) return;
 
-      const rawEntries = Object.entries(m.doctorMap || {}).filter(([name, data]) => name && (data.consultation > 0 || data.totalPackages > 0));
+      const rawEntries = Object.entries(m.doctorMap || {}).filter(([name, data]) => isConsultingDoctor(name) && (data.consultation > 0 || data.totalPackages > 0));
       
       let entries = [];
       if (chartViewModes.doctorSort === 'conversion') {
@@ -4947,17 +4947,21 @@
     // 🩺 DOCTOR PERFORMANCE DEEP DIVE — Render Functions
     // ═══════════════════════════════════════════════════════════
 
+    function isConsultingDoctor(name) {
+      return typeof name === 'string' && /consulting/i.test(name.trim());
+    }
+
     function renderDoctorScorecard(m) {
       const el = document.getElementById('doctor-scorecard-table');
       if (!el) return;
       const badge = document.getElementById('kpi-doctor-count-badge');
 
       const doctors = Object.entries(m.doctorEnhanced || {})
-        .filter(([n]) => n && n !== 'Unknown' && n !== '-')
+        .filter(([n]) => isConsultingDoctor(n))
         .sort((a, b) => b[1].revenue - a[1].revenue);
 
-      if (badge) badge.textContent = `${doctors.length} Doctors`;
-      if (doctors.length === 0) { el.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No doctor data available.</p>'; return; }
+      if (badge) badge.textContent = `${doctors.length} Consulting Doctors`;
+      if (doctors.length === 0) { el.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No consulting doctor data available.</p>'; return; }
 
       const maxRev = doctors[0][1].revenue || 1;
       const rankIcons = ['🥇', '🥈', '🥉'];
@@ -4997,7 +5001,7 @@
 
       const palette = ['#06b6d4','#8b5cf6','#10b981','#f59e0b','#f43f5e','#3b82f6','#ec4899','#14b8a6','#a855f7','#6366f1','#84cc16','#ef4444','#f97316'];
       const doctors = Object.entries(m.doctorEnhanced || {})
-        .filter(([n]) => n && n !== 'Unknown' && n !== '-' && n !== '')
+        .filter(([n]) => isConsultingDoctor(n))
         .sort((a, b) => b[1].revenue - a[1].revenue);
 
       const data = doctors.map(([name, d], i) => ({
@@ -5065,7 +5069,7 @@
 
       const palette = ['#06b6d4','#8b5cf6','#10b981','#f59e0b','#f43f5e','#3b82f6','#ec4899','#a855f7'];
       const doctors = Object.entries(m.doctorEnhanced || {})
-        .filter(([n, d]) => n && n !== 'Unknown' && n !== '-' && d.revenue > 0)
+        .filter(([n, d]) => isConsultingDoctor(n) && d.revenue > 0)
         .sort((a, b) => b[1].revenue - a[1].revenue)
         .slice(0, 8);
 
@@ -5122,7 +5126,7 @@
 
       const matrix = m.doctorPackageMatrix || {};
       const doctors = Object.keys(matrix)
-        .filter(d => d && d !== 'Unknown' && d !== '-' && d !== '')
+        .filter(d => isConsultingDoctor(d))
         .sort((a, b) => {
           const ra = Object.values(matrix[a]).reduce((s,v)=>s+v.revenue,0);
           const rb = Object.values(matrix[b]).reduce((s,v)=>s+v.revenue,0);
