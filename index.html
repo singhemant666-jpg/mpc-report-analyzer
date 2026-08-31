@@ -800,16 +800,17 @@
       background: var(--bg-card-light);
       color: var(--text-muted);
       font-weight: 700;
-      font-size: 10px;
+      font-size: 10.5px;
       letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 8px 10px;
-      text-align: left;
+      padding: 10px 10px;
+      text-align: center;
       border-bottom: 1px solid var(--border);
-      white-space: nowrap;
+      vertical-align: middle;
     }
+    .dd-table th:first-child, .dd-table th.th-left { text-align: left; }
+    .dd-table th:last-child, .dd-table th.th-right { text-align: right; }
     .dd-table td {
-      padding: 7px 10px;
+      padding: 8px 10px;
       border-bottom: 1px solid rgba(148,163,184,0.08);
       color: var(--text-primary);
       vertical-align: middle;
@@ -4969,26 +4970,36 @@
 
       let html = `<table class="dd-table">
         <thead><tr>
-          <th>#</th><th>Doctor</th><th>Patients</th><th>Revenue</th>
+          <th class="th-left">#</th><th class="th-left">Doctor</th><th>Patients</th><th>Revenue</th>
           <th>Revenue Bar</th><th>Avg Ticket</th><th>Consultations</th>
-          <th>Pkg Conv %</th><th>Renewals</th><th>Renewal %</th><th>Top Package</th>
+          <th>Pkg Conv %</th><th>Renewals</th><th>Renewal %</th><th class="th-left">Top Package</th>
         </tr></thead><tbody>`;
 
       doctors.forEach(([name, d], i) => {
         const rankDisp = i < 3 ? `<span class="dd-rank ${rankClasses[i]}">${rankIcons[i]}</span>` : `<span class="dd-rank">${i+1}</span>`;
         const barW = Math.round((d.revenue / maxRev) * 100);
+        const cleanDocName = name.replace(/\s*Consulting\s*$/i, '').trim();
+        const cleanTopPkg = (d.topPackage || '-')
+          .replace(/Pain Management/i, 'Pain Mgmt')
+          .replace(/Wellness & Recovery/i, 'Wellness')
+          .replace(/Robotic Spine Alignment/i, 'Robotic Spine')
+          .replace(/Basic Physiotherapy/i, 'Physio');
+
         html += `<tr>
           <td>${rankDisp}</td>
-          <td><strong>${name}</strong></td>
-          <td style="color:var(--cyan);">${d.patientCount}</td>
-          <td style="color:var(--emerald);font-weight:700;">${formatCurrencyCompact(d.revenue)}</td>
-          <td><div class="dd-bar-wrap"><div class="dd-bar" style="width:${barW}%"></div></div></td>
-          <td>${formatCurrencyCompact(d.avgTicket)}</td>
-          <td>${d.consultations}</td>
-          <td style="color:${d.pkgConvRate >= 50 ? 'var(--emerald)' : d.pkgConvRate >= 25 ? 'var(--amber)' : 'var(--rose)'};">${d.pkgConvRate.toFixed(1)}%</td>
-          <td style="color:var(--purple);">${d.renewals}</td>
-          <td style="color:${d.renewalRate >= 50 ? 'var(--emerald)' : d.renewalRate >= 25 ? 'var(--amber)' : 'var(--rose)'};">${d.renewalRate.toFixed(1)}%</td>
-          <td style="color:var(--text-muted);font-size:11px;">${(d.topPackage||'-').length > 22 ? (d.topPackage||'-').substring(0,20)+'…' : (d.topPackage||'-')}</td>
+          <td>
+            <strong style="color:var(--text-primary);font-size:13px;">${cleanDocName}</strong>
+            <span style="font-size:9.5px;color:var(--cyan);font-weight:600;display:block;">Consulting</span>
+          </td>
+          <td style="color:var(--cyan);text-align:center;">${d.patientCount}</td>
+          <td style="color:var(--emerald);font-weight:700;text-align:center;">${formatCurrencyCompact(d.revenue)}</td>
+          <td style="text-align:center;"><div class="dd-bar-wrap"><div class="dd-bar" style="width:${barW}%"></div></div></td>
+          <td style="text-align:center;">${formatCurrencyCompact(d.avgTicket)}</td>
+          <td style="text-align:center;">${d.consultations}</td>
+          <td style="text-align:center;font-weight:600;color:${d.pkgConvRate >= 50 ? 'var(--emerald)' : d.pkgConvRate >= 25 ? 'var(--amber)' : 'var(--rose)'};">${d.pkgConvRate.toFixed(1)}%</td>
+          <td style="color:var(--purple);text-align:center;font-weight:600;">${d.renewals}</td>
+          <td style="text-align:center;font-weight:600;color:${d.renewalRate >= 50 ? 'var(--emerald)' : d.renewalRate >= 25 ? 'var(--amber)' : 'var(--rose)'};">${d.renewalRate.toFixed(1)}%</td>
+          <td style="color:var(--text-primary);font-size:11.5px;font-weight:600;" title="${d.topPackage||'-'}">📦 ${cleanTopPkg}</td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -5005,7 +5016,10 @@
         .sort((a, b) => b[1].revenue - a[1].revenue);
 
       const data = doctors.map(([name, d], i) => ({
-        name, y: d.revenue, color: palette[i % palette.length]
+        name: name.replace(/\s*Consulting\s*$/i, ''),
+        fullName: name,
+        y: d.revenue,
+        color: palette[i % palette.length]
       }));
 
       const totalRev = data.reduce((s, d) => s + d.y, 0);
@@ -5042,8 +5056,8 @@
         },
         legend: {
           enabled: true, layout: 'vertical', align: 'right', verticalAlign: 'middle',
-          width: '58%', maxHeight: 360, itemMarginTop: 2, itemMarginBottom: 2,
-          itemStyle: { fontSize: '10px', fontWeight: '500', lineHeight: '14px' },
+          width: '58%', maxHeight: 360, itemMarginTop: 3, itemMarginBottom: 3,
+          itemStyle: { fontSize: '10.5px', fontWeight: '600', lineHeight: '15px' },
           labelFormatter: function() {
             return `<span style="color:${this.color};">●</span> ${this.name} (${this.percentage.toFixed(1)}%)`;
           }
@@ -5053,7 +5067,7 @@
           outside: true,
           formatter: function() {
             return `<div style="padding:4px 6px;">
-              <strong style="color:${this.point.color};font-size:13px;">🩺 ${this.point.name}</strong><br/>
+              <strong style="color:${this.point.color};font-size:13px;">🩺 ${this.point.fullName || this.point.name}</strong><br/>
               <span style="color:var(--text-muted);">Revenue:</span> <strong>${formatCurrency(this.point.y)}</strong><br/>
               <span style="color:var(--text-muted);">Share:</span> <strong>${this.percentage.toFixed(1)}%</strong>
             </div>`;
@@ -5083,7 +5097,8 @@
       });
 
       const series = doctors.map(([name, d], i) => ({
-        name,
+        name: name.replace(/\s*Consulting\s*$/i, ''),
+        fullName: name,
         color: palette[i % palette.length],
         data: months.map(mo => d.monthlyRevenue[mo] || 0),
         marker: { radius: 4 }
@@ -5099,13 +5114,13 @@
           title: { text: 'Revenue (₹)', style: { fontSize: '10px' } },
           labels: { formatter: function() { return formatCurrencyCompact(this.value); }, style: { fontSize: '10px' } }
         },
-        legend: { align: 'center', verticalAlign: 'top', margin: 20, itemStyle: { fontSize: '10px', fontWeight: '600' } },
+        legend: { align: 'center', verticalAlign: 'top', margin: 20, itemStyle: { fontSize: '10.5px', fontWeight: '600' } },
         plotOptions: { spline: { lineWidth: 2.5 } },
         tooltip: {
           outside: true,
           formatter: function() {
             return `<div style="padding:4px 6px;"><strong>${this.x}</strong><br/>` +
-              this.points.map(p => `<span style="color:${p.color};">●</span> ${p.series.name}: <strong>${formatCurrencyCompact(p.y)}</strong>`).join('<br/>') + '</div>';
+              this.points.map(p => `<span style="color:${p.color};">●</span> ${p.series.userOptions.fullName || p.series.name}: <strong>${formatCurrencyCompact(p.y)}</strong>`).join('<br/>') + '</div>';
           }, shared: true
         },
         series
@@ -5161,14 +5176,36 @@
         return 'heat-5';
       };
 
-      const shortPkg = (p) => p.length > 16 ? p.substring(0,14)+'…' : p;
-      const shortDoc = (d) => d.length > 22 ? d.substring(0,20)+'…' : d;
+      const formatPkgTh = (p) => {
+        let clean = p
+          .replace(/Pain Management/i, 'Pain Mgmt')
+          .replace(/Wellness & Recovery/i, 'Wellness')
+          .replace(/Robotic Spine Alignment/i, 'Robotic Spine')
+          .replace(/Basic Physiotherapy/i, 'Physio');
+        
+        const m = clean.match(/^(.*?)[-\s](\d+)$/);
+        if (m) {
+          return `<div style="text-align:center;line-height:1.25;min-width:76px;padding:2px 0;">
+            <span style="font-size:10px;color:var(--text-muted);font-weight:600;display:block;">${m[1]}</span>
+            <span style="font-size:11.5px;font-weight:800;color:var(--cyan);letter-spacing:0.3px;">#${m[2]} Pkg</span>
+          </div>`;
+        }
+        return `<div style="text-align:center;line-height:1.25;min-width:76px;font-size:10.5px;font-weight:700;">${clean}</div>`;
+      };
+
+      const formatDocTd = (d) => {
+        const clean = d.replace(/\s*Consulting\s*$/i, '').trim();
+        return `<div style="line-height:1.25;padding:2px 0;">
+          <strong style="font-size:12.5px;color:var(--text-primary);display:block;">${clean}</strong>
+          <span style="font-size:9.5px;color:var(--cyan);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Consulting</span>
+        </div>`;
+      };
 
       let html = `<table class="dd-table">
         <thead><tr>
-          <th>Doctor</th>
-          ${packages.map(p => `<th title="${p}">${shortPkg(p)}</th>`).join('')}
-          <th>Total</th>
+          <th class="th-left">Doctor</th>
+          ${packages.map(p => `<th title="${p}">${formatPkgTh(p)}</th>`).join('')}
+          <th class="th-right">Total</th>
         </tr></thead><tbody>`;
 
       doctors.forEach(doc => {
@@ -5177,16 +5214,16 @@
           return s + (v ? (heatmapMode==='revenue' ? v.revenue : v.count) : 0);
         }, 0);
 
-        html += `<tr><td style="font-weight:600;">${shortDoc(doc)}</td>`;
+        html += `<tr><td>${formatDocTd(doc)}</td>`;
         packages.forEach(pkg => {
           const v = matrix[doc]?.[pkg];
           const val = v ? (heatmapMode==='revenue' ? v.revenue : v.count) : 0;
           const display = val > 0 ? (heatmapMode==='revenue' ? formatCurrencyCompact(val) : val) : '—';
-          const title = val > 0 ? (heatmapMode==='revenue' ? formatCurrency(val) : `${val} services`) : '';
+          const title = val > 0 ? `${doc} • ${pkg}: ${heatmapMode==='revenue' ? formatCurrency(val) : `${val} services`}` : `${doc} • ${pkg}: None`;
           html += `<td><div class="heat-cell ${getHeatClass(val)}" title="${title}">${display}</div></td>`;
         });
         const totalDisplay = heatmapMode==='revenue' ? formatCurrencyCompact(rowTotal) : rowTotal;
-        html += `<td style="font-weight:700;color:var(--cyan);">${totalDisplay}</td></tr>`;
+        html += `<td style="font-weight:800;color:var(--cyan);text-align:right;">${totalDisplay}</td></tr>`;
       });
       html += '</tbody></table>';
       el.innerHTML = html;
