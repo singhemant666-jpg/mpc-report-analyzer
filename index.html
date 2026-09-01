@@ -2546,32 +2546,60 @@
       <div class="section-title" style="margin-top:32px;"><span class="icon">🚨</span> Patient Re-engagement &amp; Recall Radar (1-Click Outreach)</div>
       <div class="tables-section" style="margin-bottom: 28px;">
         <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius); padding:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-            <div style="display:flex; gap:8px;">
-              <button class="chart-pill-btn active" id="btn-risk-all" onclick="filterRiskRadar('all')">All Inactive</button>
-              <button class="chart-pill-btn" id="btn-risk-30" onclick="filterRiskRadar(30)">30–60 Days</button>
-              <button class="chart-pill-btn" id="btn-risk-60" onclick="filterRiskRadar(60)">60–90 Days</button>
-              <button class="chart-pill-btn" id="btn-risk-90" onclick="filterRiskRadar(90)">90+ Days (Critical)</button>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="chart-pill-btn active" id="btn-risk-all" onclick="filterRiskRadar('all')">
+                All Inactive (<span id="cnt-risk-all">0</span>)
+              </button>
+              <button class="chart-pill-btn" id="btn-risk-30" onclick="filterRiskRadar(30)">
+                🟡 30–60 Days (<span id="cnt-risk-30">0</span>)
+              </button>
+              <button class="chart-pill-btn" id="btn-risk-60" onclick="filterRiskRadar(60)">
+                🟠 60–90 Days (<span id="cnt-risk-60">0</span>)
+              </button>
+              <button class="chart-pill-btn" id="btn-risk-90" onclick="filterRiskRadar(90)">
+                🔴 90+ Days (<span id="cnt-risk-90">0</span>)
+              </button>
             </div>
-            <span id="risk-radar-stats" style="font-size:12px; color:var(--text-muted); font-weight:700;"></span>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="risk-radar-search" class="search-input" style="padding:6px 12px; font-size:12px; height:32px; min-width:200px; border-radius:6px;" placeholder="🔍 Search patient, doctor, phone..." oninput="onRiskRadarSearchInput()">
+              <button class="btn btn-sm btn-primary" onclick="exportRiskRadarCSV()">📄 Export Recall CSV</button>
+            </div>
           </div>
           <div class="table-wrapper">
             <table id="risk-radar-table">
               <thead>
                 <tr>
-                  <th class="th-left">Patient Name</th>
+                  <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('name')">Patient Name ⬍</th>
                   <th>Phone / ID</th>
-                  <th>Last Visit Date</th>
-                  <th>Days Inactive</th>
-                  <th>Risk Tier</th>
-                  <th class="th-left">Last Consulting Doctor</th>
+                  <th style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('lastVisit')">Last Visit Date ⬍</th>
+                  <th style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('daysInactive')">Days Inactive ⬍</th>
+                  <th style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('riskTier')">Risk Tier ⬍</th>
+                  <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('doctor')">Last Consulting Doctor ⬍</th>
                   <th class="th-left">Last Service / Package</th>
-                  <th>Total Spent</th>
+                  <th style="cursor:pointer; user-select:none;" onclick="sortRiskRadar('totalSpent')">Total Spent ⬍</th>
                   <th class="th-left">Action</th>
                 </tr>
               </thead>
               <tbody id="risk-radar-tbody"></tbody>
             </table>
+          </div>
+          <!-- Risk Radar Pagination Footer -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+            <div style="font-size:12px; color:var(--text-muted); font-weight:600;" id="risk-radar-stats"></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span style="font-size:12px; color:var(--text-muted);">Rows per page:</span>
+              <select id="risk-radar-pagesize" onchange="onRiskRadarPageSizeChange()" style="background:var(--bg-card-solid); border:1px solid var(--border); color:var(--text-primary); padding:3px 6px; border-radius:4px; font-size:12px;">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+                <option value="all">All</option>
+              </select>
+              <button class="btn btn-sm btn-primary" id="btn-risk-prev" onclick="changeRiskRadarPage(-1)">◀ Prev</button>
+              <span id="risk-radar-page-info" style="font-size:12px; font-weight:700; color:var(--cyan); min-width:80px; text-align:center;">Page 1</span>
+              <button class="btn btn-sm btn-primary" id="btn-risk-next" onclick="changeRiskRadarPage(1)">Next ▶</button>
+            </div>
           </div>
         </div>
       </div>
@@ -4353,10 +4381,13 @@
         const firstVisit = dates[dates.length - 1] || null;
         const lastService = svcs[0]?.packageName || svcs[0]?.type || 'Consultation';
 
+        const svcsPhone = svcs.find(s => s.phone || s.contact || s.mobile || s.patientPhone);
+        const patPhone = p.phone || p.contact || p.mobile || svcsPhone?.phone || svcsPhone?.contact || svcsPhone?.mobile || p.id || '-';
+
         return {
           id: p.id || '',
           name: p.name || 'Anonymous',
-          phone: p.phone || p.contact || p.id || '-',
+          phone: patPhone,
           totalSpent,
           visits: svcs.length,
           packages: pkgCount,
@@ -4403,6 +4434,7 @@
           let riskLabel = 'Moderate (30–60d)';
           if (diffDays >= 90) { riskTier = '90'; riskLabel = 'Critical (90d+)'; }
           else if (diffDays >= 60) { riskTier = '60'; riskLabel = 'High (60–90d)'; }
+          else { riskTier = '30'; riskLabel = 'Moderate (30–60d)'; }
 
           riskRadarPatients.push({
             ...p,
@@ -6593,38 +6625,131 @@
     // ═══════════════════════════════════════════════════════════
 
     let currentRiskFilter = 'all';
+    let currentRiskPage = 1;
+    let currentRiskPageSize = 50;
+    let currentRiskSearch = '';
+    let currentRiskSortCol = 'daysInactive';
+    let currentRiskSortAsc = false;
 
     function filterRiskRadar(tier) {
-      currentRiskFilter = tier;
+      currentRiskFilter = String(tier);
+      currentRiskPage = 1;
       ['all', '30', '60', '90'].forEach(t => {
         document.getElementById(`btn-risk-${t}`)?.classList.toggle('active', String(tier) === t);
       });
       if (window.currentMetrics) renderRiskRadar(window.currentMetrics);
     }
 
+    function onRiskRadarSearchInput() {
+      currentRiskSearch = (document.getElementById('risk-radar-search')?.value || '').trim().toLowerCase();
+      currentRiskPage = 1;
+      if (window.currentMetrics) renderRiskRadar(window.currentMetrics);
+    }
+
+    function onRiskRadarPageSizeChange() {
+      const val = document.getElementById('risk-radar-pagesize')?.value || '50';
+      currentRiskPageSize = val === 'all' ? 999999 : parseInt(val, 10) || 50;
+      currentRiskPage = 1;
+      if (window.currentMetrics) renderRiskRadar(window.currentMetrics);
+    }
+
+    function changeRiskRadarPage(delta) {
+      currentRiskPage += delta;
+      if (currentRiskPage < 1) currentRiskPage = 1;
+      if (window.currentMetrics) renderRiskRadar(window.currentMetrics);
+    }
+
+    function sortRiskRadar(col) {
+      if (currentRiskSortCol === col) {
+        currentRiskSortAsc = !currentRiskSortAsc;
+      } else {
+        currentRiskSortCol = col;
+        currentRiskSortAsc = (col === 'name' || col === 'doctor');
+      }
+      if (window.currentMetrics) renderRiskRadar(window.currentMetrics);
+    }
+
     function renderRiskRadar(m) {
       const tbody = document.getElementById('risk-radar-tbody');
       const statsEl = document.getElementById('risk-radar-stats');
+      const pageInfoEl = document.getElementById('risk-radar-page-info');
+      const btnPrev = document.getElementById('btn-risk-prev');
+      const btnNext = document.getElementById('btn-risk-next');
       if (!tbody) return;
 
       const rawPatients = m.riskRadarPatients || [];
+
+      // Update tab counter badges
+      const cntAll = document.getElementById('cnt-risk-all');
+      const cnt30 = document.getElementById('cnt-risk-30');
+      const cnt60 = document.getElementById('cnt-risk-60');
+      const cnt90 = document.getElementById('cnt-risk-90');
+      if (cntAll) cntAll.textContent = rawPatients.length;
+      if (cnt30) cnt30.textContent = rawPatients.filter(p => p.riskTier === '30').length;
+      if (cnt60) cnt60.textContent = rawPatients.filter(p => p.riskTier === '60').length;
+      if (cnt90) cnt90.textContent = rawPatients.filter(p => p.riskTier === '90').length;
+
+      // 1. Filter by Tier
       let patients = rawPatients;
       if (currentRiskFilter !== 'all') {
-        patients = rawPatients.filter(p => p.riskTier === String(currentRiskFilter));
+        patients = rawPatients.filter(p => String(p.riskTier) === String(currentRiskFilter));
       }
+
+      // 2. Filter by Search Query
+      if (currentRiskSearch) {
+        patients = patients.filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const ph = (p.phone || '').toLowerCase();
+          const doc = (p.preferredDoctor || '').toLowerCase();
+          const svc = (p.lastService || '').toLowerCase();
+          return n.includes(currentRiskSearch) || ph.includes(currentRiskSearch) || doc.includes(currentRiskSearch) || svc.includes(currentRiskSearch);
+        });
+      }
+
+      // 3. Sort
+      patients = [...patients].sort((a, b) => {
+        let va, vb;
+        if (currentRiskSortCol === 'name') { va = (a.name || '').toLowerCase(); vb = (b.name || '').toLowerCase(); }
+        else if (currentRiskSortCol === 'lastVisit') { va = a.lastVisit ? a.lastVisit.getTime() : 0; vb = b.lastVisit ? b.lastVisit.getTime() : 0; }
+        else if (currentRiskSortCol === 'daysInactive') { va = a.daysInactive; vb = b.daysInactive; }
+        else if (currentRiskSortCol === 'riskTier') { va = parseInt(a.riskTier, 10); vb = parseInt(b.riskTier, 10); }
+        else if (currentRiskSortCol === 'doctor') { va = (a.preferredDoctor || '').toLowerCase(); vb = (b.preferredDoctor || '').toLowerCase(); }
+        else if (currentRiskSortCol === 'totalSpent') { va = a.totalSpent; vb = b.totalSpent; }
+        else { va = a.daysInactive; vb = b.daysInactive; }
+
+        if (va < vb) return currentRiskSortAsc ? -1 : 1;
+        if (va > vb) return currentRiskSortAsc ? 1 : -1;
+        return 0;
+      });
+
+      const totalMatching = patients.length;
+      const totalPages = Math.max(1, Math.ceil(totalMatching / currentRiskPageSize));
+      if (currentRiskPage > totalPages) currentRiskPage = totalPages;
+
+      const startIdx = (currentRiskPage - 1) * currentRiskPageSize;
+      const endIdx = Math.min(startIdx + currentRiskPageSize, totalMatching);
+      const pagePatients = patients.slice(startIdx, endIdx);
 
       if (statsEl) {
-        statsEl.innerHTML = `Showing <strong>${patients.length}</strong> of <strong>${rawPatients.length}</strong> inactive patients`;
+        if (totalMatching === 0) {
+          statsEl.innerHTML = `Showing <strong>0</strong> of <strong>${rawPatients.length}</strong> inactive patients`;
+        } else {
+          statsEl.innerHTML = `Showing <strong>${startIdx + 1}–${endIdx}</strong> of <strong>${totalMatching}</strong> patients (${rawPatients.length} total inactive)`;
+        }
       }
 
-      if (patients.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:16px;">No inactive patients found in this filter range.</td></tr>';
+      if (pageInfoEl) pageInfoEl.textContent = `Page ${currentRiskPage} of ${totalPages}`;
+      if (btnPrev) btnPrev.disabled = currentRiskPage <= 1;
+      if (btnNext) btnNext.disabled = currentRiskPage >= totalPages;
+
+      if (pagePatients.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No inactive patients found matching the selected filter/search.</td></tr>';
         return;
       }
 
       const getRiskBadge = (tier) => {
-        if (tier === '90') return '<span class="risk-badge risk-badge-90">🔴 Critical (90d+)</span>';
-        if (tier === '60') return '<span class="risk-badge risk-badge-60">🟠 High (60–90d)</span>';
+        if (String(tier) === '90') return '<span class="risk-badge risk-badge-90">🔴 Critical (90d+)</span>';
+        if (String(tier) === '60') return '<span class="risk-badge risk-badge-60">🟠 High (60–90d)</span>';
         return '<span class="risk-badge risk-badge-30">🟡 Moderate (30–60d)</span>';
       };
 
@@ -6633,10 +6758,10 @@
         return d instanceof Date ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : String(d);
       };
 
-      tbody.innerHTML = patients.slice(0, 50).map(p => {
+      tbody.innerHTML = pagePatients.map(p => {
         const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
         const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-        const msgText = encodeURIComponent(`Hello ${p.name}, greetings from MPC Clinic! We noticed it has been a while since your last session with ${p.preferredDoctor}. We wanted to check in on your health and recovery. Let us know if you would like to schedule your follow-up!`);
+        const msgText = encodeURIComponent(`Hello ${p.name}, warm greetings from MPC Clinic! We noticed it has been a while since your last session with ${p.preferredDoctor.replace(/\s*Consulting\s*$/i, '')}. We wanted to check in on your recovery and spinal wellness. Let us know if you would like to reserve your follow-up appointment!`);
         const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msgText}` : null;
 
         const actionBtn = waLink
@@ -6655,6 +6780,50 @@
           <td>${actionBtn}</td>
         </tr>`;
       }).join('');
+    }
+
+    function exportRiskRadarCSV() {
+      if (!window.currentMetrics) return;
+      const rawPatients = window.currentMetrics.riskRadarPatients || [];
+      let patients = rawPatients;
+      if (currentRiskFilter !== 'all') {
+        patients = rawPatients.filter(p => String(p.riskTier) === String(currentRiskFilter));
+      }
+      if (currentRiskSearch) {
+        patients = patients.filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const ph = (p.phone || '').toLowerCase();
+          const doc = (p.preferredDoctor || '').toLowerCase();
+          const svc = (p.lastService || '').toLowerCase();
+          return n.includes(currentRiskSearch) || ph.includes(currentRiskSearch) || doc.includes(currentRiskSearch) || svc.includes(currentRiskSearch);
+        });
+      }
+
+      if (patients.length === 0) {
+        alert('No patient records to export in the current filter.');
+        return;
+      }
+
+      const headers = ['Patient Name', 'Phone / ID', 'Last Visit Date', 'Days Inactive', 'Risk Tier', 'Last Consulting Doctor', 'Last Service', 'Total Spent (INR)'];
+      const rows = patients.map(p => [
+        `"${(p.name || '').replace(/"/g, '""')}"`,
+        `"${p.phone || ''}"`,
+        p.lastVisit instanceof Date ? p.lastVisit.toISOString().split('T')[0] : '',
+        p.daysInactive,
+        p.riskLabel || p.riskTier,
+        `"${(p.preferredDoctor || '').replace(/"/g, '""')}"`,
+        `"${(p.lastService || '').replace(/"/g, '""')}"`,
+        p.totalSpent || 0
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `MPC_Patient_Recall_Radar_${currentRiskFilter}_days.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     // ═══════════════════════════════════════════════════════════
