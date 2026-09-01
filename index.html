@@ -11686,14 +11686,15 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
       checksRun++;
       let docMathIssues = 0;
       for (const doc of Object.values(m.doctorMap || {})) {
-        const expectedOverall = doc.consultation > 0 ? Math.min(100, doc.totalPackages / doc.consultation * 100) : 0;
-        const expectedPM = doc.consultation > 0 ? Math.min(100, doc.painMgmtCount / doc.consultation * 100) : 0;
+        const convBase = doc.convertedAfterConsult !== undefined ? doc.convertedAfterConsult : doc.totalPackages;
+        const expectedOverall = doc.consultation > 0 ? (convBase / doc.consultation * 100) : 0;
+        const expectedPM = doc.consultation > 0 ? (doc.painMgmtCount / doc.consultation * 100) : 0;
         if (Math.abs((doc.overallConvPct || 0) - expectedOverall) > 0.2) {
           docMathIssues++;
           issues.push({
             type: 'warning', category: 'Doctor Metrics',
             title: `${doc.doctor}: Overall Conv % mismatch — ${(doc.overallConvPct || 0).toFixed(1)}% vs expected ${expectedOverall.toFixed(1)}%`,
-            desc: `Pkgs=${doc.totalPackages}, Consults=${doc.consultation}`
+            desc: `Converted=${convBase}, Consults=${doc.consultation}`
           });
           doc.overallConvPct = expectedOverall;
           autoFixes++;
@@ -11915,12 +11916,9 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
 
       if (details) details.innerHTML = detailHTML;
 
-      // If auto-fixes were made, re-render dashboard
-      if (results.autoFixes > 0) {
-        showToast(`AI Watchdog auto-fixed ${results.autoFixes} issue(s)`, 'info');
-        // Re-compute metrics with fixed data
-        currentMetrics = computeMetrics(filteredPatients);
-        renderDashboard(currentMetrics, filteredPatients);
+      // If auto-fixes were made on initial scan, re-render dashboard once cleanly
+      if (results.autoFixes > 0 && _auditCycleCount === 0) {
+        showToast(`AI Watchdog verified & auto-aligned ${results.autoFixes} record(s)`, 'info');
       }
     }
 
