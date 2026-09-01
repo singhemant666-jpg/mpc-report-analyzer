@@ -2343,33 +2343,6 @@
       </div>
 
       <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- 📞 AGENT & TELECALLER PERFORMANCE SCORECARD                    -->
-      <!-- ═══════════════════════════════════════════════════════════════ -->
-      <div class="section-title" style="margin-top:32px;"><span class="icon">📞</span> Agent &amp; Telecaller Performance Deep Dive</div>
-      <div class="tables-section" style="margin-bottom: 28px;">
-        <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
-          <div class="table-wrapper">
-            <table id="agent-scorecard-table">
-              <thead>
-                <tr>
-                  <th class="th-left"># Rank</th>
-                  <th class="th-left">Agent Name</th>
-                  <th>Leads / Inquiries</th>
-                  <th>Consultations Handled</th>
-                  <th>Packages Converted</th>
-                  <th>Conversion %</th>
-                  <th>Renewals Handled</th>
-                  <th>Total Revenue Generated</th>
-                  <th class="th-left">Top Channel</th>
-                </tr>
-              </thead>
-              <tbody id="agent-scorecard-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════════════════════════════════════════════════════════ -->
       <!-- 📦 PACKAGE ANALYTICS DEEP DIVE                                 -->
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <div class="section-title" style="margin-top:32px;"><span class="icon">📦</span> Package Analytics Deep Dive</div>
@@ -4595,7 +4568,6 @@
       renderDoctorTrend(metrics);
       renderDoctorHeatmap(metrics);
       renderDoctorCommissionCalculator(metrics);
-      renderAgentDeepDive(metrics);
       renderPackageFunnel(metrics);
       renderCrossSellChart(metrics);
       renderCohortRetention(metrics);
@@ -6142,39 +6114,6 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 📞 AGENT & TELECALLER PERFORMANCE SCORECARD
-    // ═══════════════════════════════════════════════════════════
-
-    function renderAgentDeepDive(m) {
-      const tbody = document.getElementById('agent-scorecard-tbody');
-      if (!tbody) return;
-
-      const agents = m.agentDeepDive || [];
-      if (agents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:16px;">No agent data available.</td></tr>';
-        return;
-      }
-
-      const rankIcons = ['🥇', '🥈', '🥉'];
-      const rankClasses = ['gold', 'silver', 'bronze'];
-
-      tbody.innerHTML = agents.map((a, i) => {
-        const rankDisp = i < 3 ? `<span class="dd-rank ${rankClasses[i]}">${rankIcons[i]}</span>` : `<span class="dd-rank">${i+1}</span>`;
-        return `<tr>
-          <td style="width:40px;">${rankDisp}</td>
-          <td><strong style="color:var(--text-primary);font-size:13px;">${a.name}</strong></td>
-          <td style="text-align:center;color:var(--cyan);font-weight:700;">${a.leads}</td>
-          <td style="text-align:center;">${a.consultations}</td>
-          <td style="text-align:center;color:var(--purple);font-weight:700;">${a.packages}</td>
-          <td style="text-align:center;font-weight:700;color:${a.conversionRate >= 40 ? 'var(--emerald)' : a.conversionRate >= 20 ? 'var(--amber)' : 'var(--rose)'};">${a.conversionRate.toFixed(1)}%</td>
-          <td style="text-align:center;color:var(--purple);">${a.renewals}</td>
-          <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(a.revenue)}</td>
-          <td style="font-size:11px;color:var(--text-muted);">${a.topChannel}</td>
-        </tr>`;
-      }).join('');
     }
 
     // ═══════════════════════════════════════════════════════════
