@@ -7748,14 +7748,18 @@
     }
 
     async function exportDoctorIncentiveExcel() {
-      if (!window.currentMetrics) {
-        showToast('No metrics available to export', 'error');
+      const m = (currentMetrics && currentMetrics.doctorMap && Object.keys(currentMetrics.doctorMap).length > 0)
+        ? currentMetrics
+        : (typeof computeMetrics === 'function' ? computeMetrics(filteredPatients || allPatients || {}) : null);
+
+      if (!m || !m.doctorMap || Object.keys(m.doctorMap).length === 0) {
+        showToast('No metrics available to export. Please upload a report file first.', 'error');
         return;
       }
       showLoading('Generating Doctor Leaderboard Excel...');
       try {
         await new Promise(r => setTimeout(r, 50));
-        let doctors = Object.values(window.currentMetrics.doctorMap || {})
+        let doctors = Object.values(m.doctorMap || {})
           .filter(d => d.doctor && d.consultation > 0);
 
         doctors.sort((a, b) => (b.totalPackageRevenue || 0) - (a.totalPackageRevenue || 0));
@@ -7897,7 +7901,7 @@
 
         const buf = await wb.xlsx.writeBuffer();
         const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        saveAs(blob, `MPC_Doctor_Incentive_Conversion_Leaderboard_${new Date().toISOString().split('T')[0]}.xlsx`);
+        downloadBlob(blob, `MPC_Doctor_Incentive_Conversion_Leaderboard_${new Date().toISOString().split('T')[0]}.xlsx`);
         hideLoading();
         showToast('Doctor Leaderboard Excel exported successfully!', 'success');
       } catch (err) {
