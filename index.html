@@ -998,6 +998,86 @@
     .mom-badge-pos { color: #10b981; font-weight: 700; background: rgba(16,185,129,0.12); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
     .mom-badge-neg { color: #f43f5e; font-weight: 700; background: rgba(244,63,94,0.12); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 
+    /* Sales Optimization Suite CSS */
+    .action-queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .action-tab-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .action-tab-btn {
+      background: var(--bg-card-light);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .action-tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 10px rgba(6,182,212,0.3);
+    }
+    .action-badge-count {
+      background: rgba(255,255,255,0.25);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .velocity-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .velocity-urgent { background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid rgba(244,63,94,0.3); }
+    .velocity-warm { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .velocity-fresh { background: rgba(6,182,212,0.15); color: #06b6d4; border: 1px solid rgba(6,182,212,0.3); }
+
+    .bundle-chip {
+      background: rgba(139,92,246,0.12);
+      color: #a855f7;
+      border: 1px solid rgba(139,92,246,0.25);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      margin: 2px;
+    }
+
+    .upgrade-bar-bg {
+      background: var(--bg-card-light);
+      border-radius: 6px;
+      height: 8px;
+      width: 100%;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .upgrade-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #06b6d4, #10b981);
+    }
+
     .chart-card {
       background: var(--bg-card);
       backdrop-filter: blur(20px);
@@ -2172,6 +2252,35 @@
         </div>
       </div>
 
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- 📋 DAILY FRONT-DESK ACTION QUEUE & HOT LEADS PLAYBOOK           -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <div class="section-title" style="margin-top:32px;"><span class="icon">📋</span> Daily Front-Desk Sales Playbook &amp; Conversion Velocity Queue</div>
+      <div class="tables-section" style="margin-bottom: 28px;">
+        <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius); padding:16px;">
+          <div class="action-queue-header">
+            <div class="action-tab-group">
+              <button class="action-tab-btn active" id="btn-action-hot" onclick="switchActionQueue('hot')">
+                🔥 Hot Unconverted Consultations <span class="action-badge-count" id="badge-cnt-hot">0</span>
+              </button>
+              <button class="action-tab-btn" id="btn-action-renewal" onclick="switchActionQueue('renewal')">
+                🔄 Renewal / Package Due Alerts <span class="action-badge-count" id="badge-cnt-renewal">0</span>
+              </button>
+              <button class="action-tab-btn" id="btn-action-vip" onclick="switchActionQueue('vip')">
+                💎 VIP Patient Maintenance <span class="action-badge-count" id="badge-cnt-vip">0</span>
+              </button>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted); font-weight:700;" id="action-queue-status"></div>
+          </div>
+          <div class="table-wrapper">
+            <table id="action-queue-table">
+              <thead id="action-queue-thead"></thead>
+              <tbody id="action-queue-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Analytics & Charts -->
       <div class="section-title"><span class="icon">📊</span> Analytics & Visualizations</div>
 
@@ -2241,6 +2350,14 @@
             <span class="chart-kpi-badge" id="kpi-source-conv-badge">Yield Analysis</span>
           </div>
           <div class="chart-container"><div id="chart-source" style="width:100%; height:100%;"></div></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title"><div class="dot"></div>Lead Channel Revenue Yield &amp; Ticket Size</div>
+            <span class="chart-kpi-badge">Revenue per Patient</span>
+          </div>
+          <div class="chart-container"><div id="chart-channel-yield" style="width:100%;height:100%;"></div></div>
         </div>
 
         <div class="chart-card">
@@ -2357,6 +2474,27 @@
             <span class="chart-kpi-badge">Retention Analysis</span>
           </div>
           <div id="cohort-retention-table" style="overflow:auto; max-height:380px; margin-top:8px;"></div>
+        </div>
+
+        <!-- Package Upgrade & Upsell Radar (full width) -->
+        <div class="chart-card full-width" id="package-upsell-card">
+          <div class="chart-header">
+            <div class="chart-title"><div class="dot"></div>Package Upgrade &amp; Upsell Opportunity Radar</div>
+            <span class="chart-kpi-badge" id="kpi-upsell-badge">Intro Package Holders</span>
+          </div>
+          <div style="margin-bottom:12px; font-size:12px; color:var(--text-muted);">
+            Identifies patients on introductory packages (e.g. Pain Management 6, Wellness 6) with high conversion likelihood to upgrade to full #12, #24, or Annual Care.
+          </div>
+          <div id="package-upsell-table" style="overflow-x:auto;"></div>
+        </div>
+
+        <!-- Cross-Specialty Service Bundle Matrix (full width) -->
+        <div class="chart-card full-width" id="service-bundle-card">
+          <div class="chart-header">
+            <div class="chart-title"><div class="dot"></div>Cross-Specialty Service Bundle &amp; Multi-Service Penetration</div>
+            <span class="chart-kpi-badge">Cross-Selling Yield</span>
+          </div>
+          <div id="service-bundle-table" style="overflow-x:auto; margin-top:8px;"></div>
         </div>
       </div>
 
@@ -4298,25 +4436,175 @@
         inactiveCount: riskRadarPatients.length
       };
 
-      // ── NEW: Agent Deep Dive Metrics ──────────────────────────────────
-      const agentDeepDive = Object.entries(agentMap || {})
+      // ── NEW: Sales Growth Suite Computations ───────────────────────────
+      // 1. Hot Leads (Unconverted Consultations)
+      const hotLeads = [];
+      const renewalDueQueue = [];
+      const vipMaintenanceQueue = [];
+
+      for (const p of pList) {
+        const svcs = p.services || [];
+        const hasConsult = svcs.some(s => s.type === 'consultation');
+        const pkgs = svcs.filter(s => s.type === 'package');
+        const totalSpent = svcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        const consultSvcs = svcs.filter(s => s.type === 'consultation').sort((a,b) => new Date(b.paymentDate||0) - new Date(a.paymentDate||0));
+        const lastConsult = consultSvcs[0] || null;
+        const lastPkg = pkgs.sort((a,b) => new Date(b.paymentDate||0) - new Date(a.paymentDate||0))[0] || null;
+        const consultDoc = lastConsult?.doctor || svcs[0]?.doctor || 'N/A';
+
+        // Unconverted Consultations Queue
+        if (hasConsult && pkgs.length === 0 && lastConsult?.paymentDate) {
+          const cDate = lastConsult.paymentDate instanceof Date ? lastConsult.paymentDate : new Date(lastConsult.paymentDate);
+          if (!isNaN(cDate.getTime())) {
+            const diffDays = Math.floor((maxReportDate.getTime() - cDate.getTime()) / (1000 * 60 * 60 * 24));
+            let velocityTier = 'urgent';
+            let velocityLabel = '0–3 Days (High Priority)';
+            if (diffDays > 7) { velocityTier = 'cold'; velocityLabel = '8+ Days'; }
+            else if (diffDays > 3) { velocityTier = 'warm'; velocityLabel = '4–7 Days'; }
+
+            hotLeads.push({
+              id: p.id || '',
+              name: p.name || 'Anonymous',
+              phone: p.phone || p.contact || p.id || '-',
+              consultDate: cDate,
+              daysElapsed: Math.max(0, diffDays),
+              doctor: consultDoc,
+              leadSource: lastConsult.source || p.source || 'Direct',
+              velocityTier,
+              velocityLabel
+            });
+          }
+        }
+
+        // Renewal Due Queue (Packages purchased, check if > 21 days ago)
+        if (pkgs.length > 0 && lastPkg?.paymentDate) {
+          const pDate = lastPkg.paymentDate instanceof Date ? lastPkg.paymentDate : new Date(lastPkg.paymentDate);
+          if (!isNaN(pDate.getTime())) {
+            const diffDays = Math.floor((maxReportDate.getTime() - pDate.getTime()) / (1000 * 60 * 60 * 24));
+            renewalDueQueue.push({
+              id: p.id || '',
+              name: p.name || 'Anonymous',
+              phone: p.phone || p.contact || p.id || '-',
+              lastPkgDate: pDate,
+              daysSincePkg: Math.max(0, diffDays),
+              currentPackage: lastPkg.packageName || 'Package',
+              doctor: lastPkg.doctor || consultDoc,
+              totalSpent
+            });
+          }
+        }
+
+        // VIP Maintenance Queue
+        if (totalSpent >= 50000) {
+          const dates = svcs.map(s => s.paymentDate instanceof Date ? s.paymentDate : new Date(s.paymentDate||0)).filter(d => !isNaN(d.getTime())).sort((a,b) => b - a);
+          const lastVisit = dates[0] || null;
+          if (lastVisit) {
+            const diffDays = Math.floor((maxReportDate.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+            vipMaintenanceQueue.push({
+              id: p.id || '',
+              name: p.name || 'Anonymous',
+              phone: p.phone || p.contact || p.id || '-',
+              lastVisit,
+              daysSinceVisit: Math.max(0, diffDays),
+              preferredDoctor: consultDoc,
+              totalSpent
+            });
+          }
+        }
+      }
+
+      hotLeads.sort((a, b) => a.daysElapsed - b.daysElapsed);
+      renewalDueQueue.sort((a, b) => a.daysSincePkg - b.daysSincePkg);
+      vipMaintenanceQueue.sort((a, b) => b.totalSpent - a.totalSpent);
+
+      // 2. Package Upgrade & Upsell Potential
+      const upsellOpportunities = [];
+      for (const p of pList) {
+        const pkgs = (p.services || []).filter(s => s.type === 'package' && s.packageName);
+        if (pkgs.length === 0) continue;
+        
+        // Find if holding introductory packages (e.g. Pain Mgmt 6, Wellness 6, BMSK 6, etc.)
+        const hasIntroPkg = pkgs.some(s => /[\s-_]6\b|6\s*session|intro/i.test(s.packageName));
+        const has12Pkg = pkgs.some(s => /[\s-_]12\b|12\s*session/i.test(s.packageName));
+        const has24Pkg = pkgs.some(s => /[\s-_]24\b|24\s*session|annual/i.test(s.packageName));
+
+        if ((hasIntroPkg || has12Pkg) && !has24Pkg) {
+          const latestPkg = pkgs[pkgs.length - 1];
+          const currentPkgName = latestPkg.packageName;
+          let suggestedUpgrade = 'Pain Management-24';
+          let estAddedRevenue = 25000;
+
+          if (hasIntroPkg && !has12Pkg) {
+            suggestedUpgrade = currentPkgName.replace(/[\s-_]6\b/i, '-12');
+            estAddedRevenue = 15000;
+          } else if (has12Pkg) {
+            suggestedUpgrade = currentPkgName.replace(/[\s-_]12\b/i, '-24');
+            estAddedRevenue = 30000;
+          }
+
+          upsellOpportunities.push({
+            id: p.id || '',
+            name: p.name || 'Anonymous',
+            phone: p.phone || p.contact || p.id || '-',
+            currentPackage: currentPkgName,
+            suggestedUpgrade,
+            estAddedRevenue,
+            doctor: latestPkg.doctor || 'N/A',
+            likelihood: has12Pkg ? 85 : 65
+          });
+        }
+      }
+      upsellOpportunities.sort((a, b) => b.estAddedRevenue - a.estAddedRevenue);
+
+      // 3. Lead Source ROI & Channel Yield Optimizer
+      const channelYieldData = Object.entries(sourceMap || {})
         .filter(([n]) => n && n !== 'Unknown' && n !== '-')
         .map(([name, d]) => {
-          const leads = d.consultation || d.total || 0;
+          const totalLeads = d.consultation || d.total || 0;
           const pkgs = d.package || 0;
-          const convRate = leads > 0 ? (pkgs / leads) * 100 : 0;
+          const convRate = totalLeads > 0 ? (pkgs / totalLeads) * 100 : 0;
+          const grossRev = d.revenue || 0;
+          const yieldPerLead = totalLeads > 0 ? grossRev / totalLeads : 0;
+          const avgTicket = pkgs > 0 ? grossRev / pkgs : 0;
+
           return {
             name,
-            leads,
-            consultations: d.consultation || 0,
+            leads: totalLeads,
             packages: pkgs,
             conversionRate: convRate,
-            renewals: d.renewalCount || 0,
-            revenue: d.revenue || 0,
-            topChannel: d.topSource || 'Direct'
+            revenue: grossRev,
+            yieldPerLead,
+            avgTicket
           };
         })
         .sort((a, b) => b.revenue - a.revenue);
+
+      // 4. Cross-Specialty Service Bundle Matrix
+      const bundleCounts = {
+        painAndRobotic: 0,
+        painAndWellness: 0,
+        painAndBmsk: 0,
+        roboticAndWellness: 0,
+        singleServiceOnly: 0,
+        multiService: 0
+      };
+
+      for (const p of pList) {
+        const svcs = p.services || [];
+        const hasPain = svcs.some(s => isPainManagementPackage(s.packageName));
+        const hasRobotic = svcs.some(s => isRoboticSpinePackage(s.packageName));
+        const hasWellness = svcs.some(s => isWellnessPackage(s.packageName));
+        const hasBmsk = svcs.some(s => isBMSKPackage(s.packageName));
+
+        const categoriesCount = (hasPain?1:0) + (hasRobotic?1:0) + (hasWellness?1:0) + (hasBmsk?1:0);
+        if (categoriesCount >= 2) bundleCounts.multiService++;
+        else if (categoriesCount === 1) bundleCounts.singleServiceOnly++;
+
+        if (hasPain && hasRobotic) bundleCounts.painAndRobotic++;
+        if (hasPain && hasWellness) bundleCounts.painAndWellness++;
+        if (hasPain && hasBmsk) bundleCounts.painAndBmsk++;
+        if (hasRobotic && hasWellness) bundleCounts.roboticAndWellness++;
+      }
 
       return {
         totalPatients,
@@ -4358,7 +4646,12 @@
         ltvTiers,
         riskRadarPatients,
         executiveBriefing,
-        agentDeepDive,
+        hotLeads,
+        renewalDueQueue,
+        vipMaintenanceQueue,
+        upsellOpportunities,
+        channelYieldData,
+        bundleCounts,
         STATUSES: [...STATUSES, 'Package Renewal']
       };
 
@@ -4555,13 +4848,15 @@
     // ==================== DASHBOARD RENDERING ====================
     function renderDashboard(metrics, patients) {
       renderMetricCards(metrics);
-      renderExecutiveBriefing(metrics);
       renderCategoryCards(metrics);
       renderCharts(metrics);
       renderDoctorIncentiveTable(metrics);
       renderPackageRenewalLeaderboard(metrics);
       renderMoMAnalytics(metrics);
       renderTables(patients, metrics);
+      // Sales Optimization & Action Queue
+      renderActionQueue(metrics);
+      renderChannelYieldChart(metrics);
       // Deep Dive sections
       renderDoctorScorecard(metrics);
       renderDoctorRevenuePie(metrics);
@@ -4571,8 +4866,11 @@
       renderPackageFunnel(metrics);
       renderCrossSellChart(metrics);
       renderCohortRetention(metrics);
+      renderPackageUpsellRadar(metrics);
+      renderServiceBundleMatrix(metrics);
       renderVipLtvSection(metrics, patients);
       renderRiskRadar(metrics, patients);
+      renderExecutiveBriefing(metrics);
       // Start continuous AI background monitor after dashboard loads
       setTimeout(() => startAIBackgroundMonitor(patients, metrics), 1500);
     }
@@ -6306,6 +6604,356 @@
           <td>${actionBtn}</td>
         </tr>`;
       }).join('');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 📋 DAILY FRONT-DESK SALES ACTION QUEUE
+    // ═══════════════════════════════════════════════════════════
+    let currentActionQueueTab = 'hot';
+
+    function switchActionQueue(tab) {
+      currentActionQueueTab = tab;
+      document.getElementById('btn-action-hot')?.classList.toggle('active', tab === 'hot');
+      document.getElementById('btn-action-renewal')?.classList.toggle('active', tab === 'renewal');
+      document.getElementById('btn-action-vip')?.classList.toggle('active', tab === 'vip');
+      if (window.currentMetrics) renderActionQueue(window.currentMetrics);
+    }
+
+    function renderActionQueue(m) {
+      const thead = document.getElementById('action-queue-thead');
+      const tbody = document.getElementById('action-queue-tbody');
+      const statusEl = document.getElementById('action-queue-status');
+      if (!thead || !tbody) return;
+
+      const hotLeads = m.hotLeads || [];
+      const renewals = m.renewalDueQueue || [];
+      const vips = m.vipMaintenanceQueue || [];
+
+      // Update badge counts
+      const bHot = document.getElementById('badge-cnt-hot');
+      const bRen = document.getElementById('badge-cnt-renewal');
+      const bVip = document.getElementById('badge-cnt-vip');
+      if (bHot) bHot.textContent = hotLeads.length;
+      if (bRen) bRen.textContent = renewals.length;
+      if (bVip) bVip.textContent = vips.length;
+
+      const fmtDate = (d) => d instanceof Date ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : String(d || '-');
+
+      if (currentActionQueueTab === 'hot') {
+        if (statusEl) statusEl.innerHTML = `Showing <strong>${hotLeads.length}</strong> unconverted consultations needing follow-up`;
+        thead.innerHTML = `<tr>
+          <th class="th-left">Patient Name</th>
+          <th>Contact</th>
+          <th>Consult Date</th>
+          <th>Days Elapsed</th>
+          <th>Priority Velocity</th>
+          <th class="th-left">Consulting Doctor</th>
+          <th class="th-left">Lead Source</th>
+          <th class="th-left">Direct Action</th>
+        </tr>`;
+
+        if (hotLeads.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:16px;">🎉 Excellent! No unconverted consultations pending in this period.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = hotLeads.slice(0, 30).map(p => {
+          const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
+          const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+          const msg = encodeURIComponent(`Hello ${p.name}, this is from MPC Clinic. Dr. ${p.doctor.replace(/\s*Consulting\s*$/i, '')} recommended a targeted recovery treatment plan during your recent consultation. We would love to help you get started! Can we assist you with our available package options?`);
+          const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
+          const badgeClass = p.velocityTier === 'urgent' ? 'velocity-urgent' : (p.velocityTier === 'warm' ? 'velocity-warm' : 'velocity-fresh');
+
+          const actionBtn = waLink
+            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 Follow-up WhatsApp</a>`
+            : `<button class="btn btn-sm btn-primary" onclick="alert('Follow-up recorded for ${p.name}')">📞 Call Lead</button>`;
+
+          return `<tr>
+            <td><strong style="color:var(--text-primary);">${p.name}</strong></td>
+            <td style="text-align:center;font-size:11px;color:var(--text-muted);">${p.phone}</td>
+            <td style="text-align:center;font-size:11.5px;">${fmtDate(p.consultDate)}</td>
+            <td style="text-align:center;font-weight:700;color:var(--cyan);">${p.daysElapsed}d ago</td>
+            <td style="text-align:center;"><span class="velocity-badge ${badgeClass}">${p.velocityLabel}</span></td>
+            <td style="font-size:11.5px;">${p.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
+            <td style="font-size:11px;color:var(--text-muted);">${p.leadSource}</td>
+            <td>${actionBtn}</td>
+          </tr>`;
+        }).join('');
+
+      } else if (currentActionQueueTab === 'renewal') {
+        if (statusEl) statusEl.innerHTML = `Showing <strong>${renewals.length}</strong> active package holders eligible for session renewal`;
+        thead.innerHTML = `<tr>
+          <th class="th-left">Patient Name</th>
+          <th>Contact</th>
+          <th>Last Pkg Date</th>
+          <th>Days Since Purchase</th>
+          <th class="th-left">Current Package</th>
+          <th class="th-left">Consulting Doctor</th>
+          <th>Total Spent</th>
+          <th class="th-left">Direct Action</th>
+        </tr>`;
+
+        if (renewals.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:16px;">No package renewal records available.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = renewals.slice(0, 30).map(p => {
+          const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
+          const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+          const msg = encodeURIComponent(`Hello ${p.name}, warm greetings from MPC Clinic! As you progress through your ${p.currentPackage} sessions with Dr. ${p.doctor.replace(/\s*Consulting\s*$/i, '')}, we want to make sure your rehabilitation momentum continues seamlessly. Would you like to reserve your renewal slot with our loyalty privilege discount?`);
+          const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
+
+          const actionBtn = waLink
+            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 Send Renewal Offer</a>`
+            : `<button class="btn btn-sm btn-primary" onclick="alert('Renewal reminder logged for ${p.name}')">📞 Call</button>`;
+
+          return `<tr>
+            <td><strong style="color:var(--text-primary);">${p.name}</strong></td>
+            <td style="text-align:center;font-size:11px;color:var(--text-muted);">${p.phone}</td>
+            <td style="text-align:center;font-size:11.5px;">${fmtDate(p.lastPkgDate)}</td>
+            <td style="text-align:center;font-weight:700;color:var(--amber);">${p.daysSincePkg} days</td>
+            <td style="font-size:11.5px;color:var(--purple);font-weight:600;">${p.currentPackage}</td>
+            <td style="font-size:11.5px;">${p.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
+            <td style="text-align:center;font-weight:700;color:var(--emerald);">${formatCurrency(p.totalSpent)}</td>
+            <td>${actionBtn}</td>
+          </tr>`;
+        }).join('');
+
+      } else if (currentActionQueueTab === 'vip') {
+        if (statusEl) statusEl.innerHTML = `Showing <strong>${vips.length}</strong> VIP patients (₹50k+ spend) due for health concierge follow-up`;
+        thead.innerHTML = `<tr>
+          <th class="th-left">VIP Patient</th>
+          <th>Contact</th>
+          <th>Last Visit</th>
+          <th>Days Since Visit</th>
+          <th class="th-left">Preferred Doctor</th>
+          <th>Lifetime Spend</th>
+          <th class="th-left">Concierge Action</th>
+        </tr>`;
+
+        if (vips.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">No VIP patients due for maintenance.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = vips.slice(0, 30).map(p => {
+          const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
+          const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+          const msg = encodeURIComponent(`Dear ${p.name}, greetings from MPC Clinic Executive Care! We value your trust in our clinic. Dr. ${p.preferredDoctor.replace(/\s*Consulting\s*$/i, '')} and our team would like to invite you for your complimentary VIP spinal & physical wellness checkup. Please let us know a convenient time!`);
+          const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
+
+          const actionBtn = waLink
+            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💎 VIP Concierge Message</a>`
+            : `<button class="btn btn-sm btn-primary" onclick="alert('VIP note logged for ${p.name}')">📞 Call</button>`;
+
+          return `<tr>
+            <td><strong style="color:var(--text-primary);"><span style="color:#f59e0b;">★</span> ${p.name}</strong></td>
+            <td style="text-align:center;font-size:11px;color:var(--text-muted);">${p.phone}</td>
+            <td style="text-align:center;font-size:11.5px;">${fmtDate(p.lastVisit)}</td>
+            <td style="text-align:center;font-weight:700;color:var(--rose);">${p.daysSinceVisit} days</td>
+            <td style="font-size:11.5px;">${p.preferredDoctor.replace(/\s*Consulting\s*$/i, '')}</td>
+            <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(p.totalSpent)}</td>
+            <td>${actionBtn}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🎯 LEAD CHANNEL REVENUE YIELD & CONVERSION OPTIMIZER CHART
+    // ═══════════════════════════════════════════════════════════
+    function renderChannelYieldChart(m) {
+      const container = document.getElementById('chart-channel-yield');
+      if (!container || !window.Highcharts) return;
+
+      const data = (m.channelYieldData || []).slice(0, 8);
+      if (data.length === 0) return;
+
+      const categories = data.map(d => d.name);
+      const yields = data.map(d => Math.round(d.yieldPerLead));
+      const convRates = data.map(d => Math.round(d.conversionRate * 10) / 10);
+      const theme = getHighchartsThemeOptions();
+
+      if (chartInstances.channelYield) { try { chartInstances.channelYield.destroy(); } catch(e){} }
+      chartInstances.channelYield = Highcharts.chart('chart-channel-yield', Highcharts.merge(theme, {
+        chart: { type: 'column' },
+        title: { text: null },
+        xAxis: { categories, crosshair: true },
+        yAxis: [
+          {
+            title: { text: 'Yield / Lead (₹)', style: { color: '#06b6d4' } },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } }
+          },
+          {
+            title: { text: 'Conversion %', style: { color: '#10b981' } },
+            labels: { format: '{value}%' },
+            opposite: true,
+            min: 0
+          }
+        ],
+        tooltip: {
+          shared: true,
+          outside: true,
+          formatter: function() {
+            let s = `<strong style="font-size:13px;">${this.x}</strong><br/>`;
+            this.points.forEach(p => {
+              if (p.series.name === 'Yield per Lead') {
+                s += `<span style="color:${p.color}">●</span> ${p.series.name}: <strong>${formatCurrency(p.y)}</strong><br/>`;
+              } else {
+                s += `<span style="color:${p.color}">●</span> ${p.series.name}: <strong>${p.y}%</strong><br/>`;
+              }
+            });
+            return s;
+          }
+        },
+        series: [
+          {
+            name: 'Yield per Lead',
+            type: 'column',
+            data: yields,
+            color: '#06b6d4',
+            borderRadius: 4
+          },
+          {
+            name: 'Conversion Rate',
+            type: 'spline',
+            yAxis: 1,
+            data: convRates,
+            color: '#10b981',
+            marker: { lineWidth: 2, lineColor: '#10b981', fillColor: '#ffffff' }
+          }
+        ]
+      }));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🚀 PACKAGE UPGRADE & UPSELL OPPORTUNITY RADAR
+    // ═══════════════════════════════════════════════════════════
+    function renderPackageUpsellRadar(m) {
+      const el = document.getElementById('package-upsell-table');
+      if (!el) return;
+
+      const opps = m.upsellOpportunities || [];
+      const badge = document.getElementById('kpi-upsell-badge');
+      if (badge) badge.textContent = `${opps.length} Intro Pkg Holders`;
+
+      if (opps.length === 0) {
+        el.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No entry-level package upgrade opportunities found in this dataset.</p>';
+        return;
+      }
+
+      const totalEstRev = opps.reduce((sum, o) => sum + o.estAddedRevenue, 0);
+
+      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:12px;color:var(--text-muted);">Total Upsell Pipeline Potential: <strong style="color:var(--emerald);font-size:14px;">${formatCurrency(totalEstRev)}</strong></span>
+        <span style="font-size:11.5px;color:var(--cyan);font-weight:700;">Top ${Math.min(opps.length, 25)} Candidates Ranked by Added Revenue</span>
+      </div>
+      <table class="dd-table">
+        <thead><tr>
+          <th class="th-left">Patient Name</th>
+          <th>Phone</th>
+          <th class="th-left">Current Package</th>
+          <th class="th-left">Suggested Target Upgrade</th>
+          <th style="text-align:center;">Upgrade Likelihood</th>
+          <th>Est. Added Revenue</th>
+          <th class="th-left">Doctor</th>
+          <th class="th-left">Action</th>
+        </tr></thead><tbody>`;
+
+      opps.slice(0, 25).forEach(o => {
+        const cleanPhone = String(o.phone || '').replace(/[^0-9]/g, '');
+        const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+        const msg = encodeURIComponent(`Hello ${o.name}, hope you are seeing good improvement from your ${o.currentPackage} sessions at MPC Clinic! Dr. ${o.doctor.replace(/\s*Consulting\s*$/i, '')} suggests upgrading your plan to our comprehensive ${o.suggestedUpgrade} to achieve full long-term relief. Would you like us to apply your existing session credit toward this upgraded package?`);
+        const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
+
+        const actionBtn = waLink
+          ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">🚀 Pitch Upgrade</a>`
+          : `<button class="btn btn-sm btn-primary" onclick="alert('Upsell pitch recorded for ${o.name}')">📞 Call</button>`;
+
+        html += `<tr>
+          <td><strong style="color:var(--text-primary);">${o.name}</strong></td>
+          <td style="text-align:center;font-size:11px;color:var(--text-muted);">${o.phone}</td>
+          <td style="font-size:11.5px;color:var(--amber);font-weight:600;">${o.currentPackage}</td>
+          <td style="font-size:12px;color:var(--purple);font-weight:700;">${o.suggestedUpgrade}</td>
+          <td style="text-align:center;width:140px;">
+            <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:2px;">${o.likelihood}% High</div>
+            <div class="upgrade-bar-bg"><div class="upgrade-bar-fill" style="width:${o.likelihood}%;"></div></div>
+          </td>
+          <td style="text-align:center;font-weight:800;color:var(--emerald);">+${formatCurrency(o.estAddedRevenue)}</td>
+          <td style="font-size:11.5px;">${o.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
+          <td>${actionBtn}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      el.innerHTML = html;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🔄 CROSS-SPECIALTY SERVICE BUNDLE MATRIX
+    // ═══════════════════════════════════════════════════════════
+    function renderServiceBundleMatrix(m) {
+      const el = document.getElementById('service-bundle-table');
+      if (!el) return;
+
+      const bundles = m.bundleCounts || {};
+      const totalPat = m.totalPatients || 1;
+      const multiRate = ((bundles.multiService || 0) / totalPat * 100).toFixed(1);
+      const singleRate = ((bundles.singleServiceOnly || 0) / totalPat * 100).toFixed(1);
+
+      el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:16px;">
+        <div style="background:var(--bg-card-light);padding:14px 16px;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Multi-Service Patients</div>
+          <div style="font-size:22px;font-weight:800;color:var(--purple);margin:4px 0;">${bundles.multiService || 0}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${multiRate}% of all clinic patients</div>
+        </div>
+        <div style="background:var(--bg-card-light);padding:14px 16px;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Untapped Single-Service Patients</div>
+          <div style="font-size:22px;font-weight:800;color:var(--amber);margin:4px 0;">${bundles.singleServiceOnly || 0}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${singleRate}% ripe for cross-specialty bundling</div>
+        </div>
+        <div style="background:var(--bg-card-light);padding:14px 16px;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Pain + Spine Alignment Penetration</div>
+          <div style="font-size:22px;font-weight:800;color:var(--cyan);margin:4px 0;">${bundles.painAndRobotic || 0}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Top combination in orthopedic care</div>
+        </div>
+      </div>
+
+      <table class="dd-table">
+        <thead><tr>
+          <th class="th-left">Specialty Service Bundle Combination</th>
+          <th>Patients Penetrated</th>
+          <th>Cross-Sell Synergy Level</th>
+          <th class="th-left">Clinical Recommendation Strategy</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:var(--text-primary);">Pain Management + Robotic Spine Alignment</strong></td>
+            <td style="text-align:center;font-weight:700;color:var(--cyan);font-size:13px;">${bundles.painAndRobotic || 0}</td>
+            <td style="text-align:center;"><span class="bundle-chip">⭐⭐⭐ Highest Synergy</span></td>
+            <td style="font-size:11.5px;color:var(--text-muted);">Bundle acute disc decompression with spine alignment for 2.5× faster relief.</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--text-primary);">Pain Management + Wellness &amp; Recovery</strong></td>
+            <td style="text-align:center;font-weight:700;color:var(--purple);font-size:13px;">${bundles.painAndWellness || 0}</td>
+            <td style="text-align:center;"><span class="bundle-chip">⭐⭐ High Synergy</span></td>
+            <td style="font-size:11.5px;color:var(--text-muted);">Transition post-pain patients into active wellness maintenance packages.</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--text-primary);">Pain Management + BMSK Therapy</strong></td>
+            <td style="text-align:center;font-weight:700;color:var(--emerald);font-size:13px;">${bundles.painAndBmsk || 0}</td>
+            <td style="text-align:center;"><span class="bundle-chip">⭐⭐ High Synergy</span></td>
+            <td style="font-size:11.5px;color:var(--text-muted);">Combine joint pain rehab with targeted musculoskeletal physical conditioning.</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--text-primary);">Robotic Spine + Wellness &amp; Recovery</strong></td>
+            <td style="text-align:center;font-weight:700;color:var(--amber);font-size:13px;">${bundles.roboticAndWellness || 0}</td>
+            <td style="text-align:center;"><span class="bundle-chip">⭐ Moderate Synergy</span></td>
+            <td style="font-size:11.5px;color:var(--text-muted);">Follow spine realignment with posture strengthening and wellness therapy.</td>
+          </tr>
+        </tbody>
+      </table>`;
     }
 
     function switchRevenueView(mode) {
