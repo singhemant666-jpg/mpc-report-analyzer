@@ -2476,16 +2476,34 @@
           <div id="cohort-retention-table" style="overflow:auto; max-height:380px; margin-top:8px;"></div>
         </div>
 
-        <!-- Package Upgrade & Upsell Radar (full width) -->
-        <div class="chart-card full-width" id="package-upsell-card">
+        <!-- Day-of-Week Revenue & Capacity Matrix (full width) -->
+        <div class="chart-card full-width" id="day-of-week-card">
           <div class="chart-header">
-            <div class="chart-title"><div class="dot"></div>Package Upgrade &amp; Upsell Opportunity Radar</div>
-            <span class="chart-kpi-badge" id="kpi-upsell-badge">Intro Package Holders</span>
+            <div class="chart-title"><div class="dot"></div>Day-of-Week Revenue &amp; Clinic Capacity Utilization Matrix</div>
+            <span class="chart-kpi-badge">Peak vs Idle Days</span>
           </div>
           <div style="margin-bottom:12px; font-size:12px; color:var(--text-muted);">
-            Identifies patients on introductory packages (e.g. Pain Management 6, Wellness 6) with high conversion likelihood to upgrade to full #12, #24, or Annual Care.
+            Analyzes patient footfall and revenue velocity across weekdays to identify underutilized slots and optimize doctor scheduling.
           </div>
-          <div id="package-upsell-table" style="overflow-x:auto;"></div>
+          <div id="day-of-week-table" style="overflow-x:auto;"></div>
+        </div>
+
+        <!-- Payment Mode Realization & Ticket Size -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title"><div class="dot"></div>Payment Mode Inflow &amp; Ticket Size</div>
+            <span class="chart-kpi-badge">Payment Methods</span>
+          </div>
+          <div class="chart-container"><div id="chart-payment-ticket" style="width:100%;height:100%;"></div></div>
+        </div>
+
+        <!-- Patient Visit Frequency & Retention Curve -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title"><div class="dot"></div>Patient Visit Frequency &amp; Retention Curve</div>
+            <span class="chart-kpi-badge">Visit Density</span>
+          </div>
+          <div class="chart-container"><div id="chart-visit-frequency" style="width:100%;height:100%;"></div></div>
         </div>
 
         <!-- Cross-Specialty Service Bundle Matrix (full width) -->
@@ -4517,46 +4535,75 @@
       renewalDueQueue.sort((a, b) => a.daysSincePkg - b.daysSincePkg);
       vipMaintenanceQueue.sort((a, b) => b.totalSpent - a.totalSpent);
 
-      // 2. Package Upgrade & Upsell Potential
-      const upsellOpportunities = [];
+      // 2. Day-of-Week Capacity & Footfall Velocity
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayOfWeekMap = {};
+      dayNames.forEach(d => {
+        dayOfWeekMap[d] = { day: d, visits: 0, revenue: 0, consultations: 0, packages: 0, painMgmtRev: 0, spineRev: 0, wellnessRev: 0 };
+      });
+
       for (const p of pList) {
-        const pkgs = (p.services || []).filter(s => s.type === 'package' && s.packageName);
-        if (pkgs.length === 0) continue;
-        
-        // Find if holding introductory packages (e.g. Pain Mgmt 6, Wellness 6, BMSK 6, etc.)
-        const hasIntroPkg = pkgs.some(s => /[\s-_]6\b|6\s*session|intro/i.test(s.packageName));
-        const has12Pkg = pkgs.some(s => /[\s-_]12\b|12\s*session/i.test(s.packageName));
-        const has24Pkg = pkgs.some(s => /[\s-_]24\b|24\s*session|annual/i.test(s.packageName));
+        for (const s of (p.services || [])) {
+          if (!s.paymentDate) continue;
+          const d = s.paymentDate instanceof Date ? s.paymentDate : new Date(s.paymentDate);
+          if (isNaN(d.getTime())) continue;
+          const dayName = dayNames[d.getDay()];
+          const dObj = dayOfWeekMap[dayName];
+          dObj.visits++;
+          const rev = s.proportionalPaid || 0;
+          dObj.revenue += rev;
+          if (s.type === 'consultation') dObj.consultations++;
+          else if (s.type === 'package') dObj.packages++;
 
-        if ((hasIntroPkg || has12Pkg) && !has24Pkg) {
-          const latestPkg = pkgs[pkgs.length - 1];
-          const currentPkgName = latestPkg.packageName;
-          let suggestedUpgrade = 'Pain Management-24';
-          let estAddedRevenue = 25000;
-
-          if (hasIntroPkg && !has12Pkg) {
-            suggestedUpgrade = currentPkgName.replace(/[\s-_]6\b/i, '-12');
-            estAddedRevenue = 15000;
-          } else if (has12Pkg) {
-            suggestedUpgrade = currentPkgName.replace(/[\s-_]12\b/i, '-24');
-            estAddedRevenue = 30000;
-          }
-
-          upsellOpportunities.push({
-            id: p.id || '',
-            name: p.name || 'Anonymous',
-            phone: p.phone || p.contact || p.id || '-',
-            currentPackage: currentPkgName,
-            suggestedUpgrade,
-            estAddedRevenue,
-            doctor: latestPkg.doctor || 'N/A',
-            likelihood: has12Pkg ? 85 : 65
-          });
+          if (isPainManagementPackage(s.packageName)) dObj.painMgmtRev += rev;
+          else if (isRoboticSpinePackage(s.packageName)) dObj.spineRev += rev;
+          else if (isWellnessPackage(s.packageName)) dObj.wellnessRev += rev;
         }
       }
-      upsellOpportunities.sort((a, b) => b.estAddedRevenue - a.estAddedRevenue);
 
-      // 3. Lead Source ROI & Channel Yield Optimizer
+      // Order starting with Monday
+      const orderedDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const dayOfWeekData = orderedDays.map(d => dayOfWeekMap[d]);
+
+      // 3. Payment Mode Inflow & Average Ticket Size
+      const paymentRealizationData = Object.entries(paymentModeRevenue || {})
+        .filter(([mode]) => mode && mode !== 'Unknown' && mode !== '-')
+        .map(([mode, rev]) => {
+          const count = paymentModeCounts[mode] || 0;
+          const avgTicket = count > 0 ? rev / count : 0;
+          const share = totalRevenue > 0 ? (rev / totalRevenue) * 100 : 0;
+          return { mode, revenue: rev, count, avgTicket, share };
+        })
+        .sort((a, b) => b.revenue - a.revenue);
+
+      // 4. Patient Visit Frequency & Retention Curve
+      const visitBins = {
+        '1 Visit (Single-Touch)': { count: 0, revenue: 0, label: '1 Visit (Single-Touch / Drop-off)' },
+        '2–5 Visits (Short-Term)': { count: 0, revenue: 0, label: '2–5 Visits (Short-Term Therapy)' },
+        '6–12 Visits (Standard Rehab)': { count: 0, revenue: 0, label: '6–12 Visits (Standard Rehab Package)' },
+        '13–24 Visits (Extended Care)': { count: 0, revenue: 0, label: '13–24 Visits (Extended / Renewal Care)' },
+        '25+ Visits (Long-Term VIP)': { count: 0, revenue: 0, label: '25+ Visits (Committed / VIP Wellness)' }
+      };
+
+      for (const p of pList) {
+        const vCount = (p.services || []).length;
+        const pRev = (p.services || []).reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        if (vCount <= 1) { visitBins['1 Visit (Single-Touch)'].count++; visitBins['1 Visit (Single-Touch)'].revenue += pRev; }
+        else if (vCount <= 5) { visitBins['2–5 Visits (Short-Term)'].count++; visitBins['2–5 Visits (Short-Term)'].revenue += pRev; }
+        else if (vCount <= 12) { visitBins['6–12 Visits (Standard Rehab)'].count++; visitBins['6–12 Visits (Standard Rehab)'].revenue += pRev; }
+        else if (vCount <= 24) { visitBins['13–24 Visits (Extended Care)'].count++; visitBins['13–24 Visits (Extended Care)'].revenue += pRev; }
+        else { visitBins['25+ Visits (Long-Term VIP)'].count++; visitBins['25+ Visits (Long-Term VIP)'].revenue += pRev; }
+      }
+
+      const visitFrequencyData = Object.entries(visitBins).map(([key, data]) => ({
+        bin: key,
+        label: data.label,
+        count: data.count,
+        revenue: data.revenue,
+        pctOfPatients: totalPatients > 0 ? (data.count / totalPatients) * 100 : 0
+      }));
+
+      // 5. Lead Source ROI & Channel Yield Optimizer
       const channelYieldData = Object.entries(sourceMap || {})
         .filter(([n]) => n && n !== 'Unknown' && n !== '-')
         .map(([name, d]) => {
@@ -4579,7 +4626,7 @@
         })
         .sort((a, b) => b.revenue - a.revenue);
 
-      // 4. Cross-Specialty Service Bundle Matrix
+      // 6. Cross-Specialty Service Bundle Matrix
       const bundleCounts = {
         painAndRobotic: 0,
         painAndWellness: 0,
@@ -4649,7 +4696,9 @@
         hotLeads,
         renewalDueQueue,
         vipMaintenanceQueue,
-        upsellOpportunities,
+        dayOfWeekData,
+        paymentRealizationData,
+        visitFrequencyData,
         channelYieldData,
         bundleCounts,
         STATUSES: [...STATUSES, 'Package Renewal']
@@ -4866,7 +4915,9 @@
       renderPackageFunnel(metrics);
       renderCrossSellChart(metrics);
       renderCohortRetention(metrics);
-      renderPackageUpsellRadar(metrics);
+      renderDayOfWeekMatrix(metrics);
+      renderPaymentTicketChart(metrics);
+      renderVisitFrequencyChart(metrics);
       renderServiceBundleMatrix(metrics);
       renderVipLtvSection(metrics, patients);
       renderRiskRadar(metrics, patients);
@@ -6828,65 +6879,187 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 🚀 PACKAGE UPGRADE & UPSELL OPPORTUNITY RADAR
+    // 📅 DAY-OF-WEEK REVENUE & CAPACITY UTILIZATION MATRIX
     // ═══════════════════════════════════════════════════════════
-    function renderPackageUpsellRadar(m) {
-      const el = document.getElementById('package-upsell-table');
+    function renderDayOfWeekMatrix(m) {
+      const el = document.getElementById('day-of-week-table');
       if (!el) return;
 
-      const opps = m.upsellOpportunities || [];
-      const badge = document.getElementById('kpi-upsell-badge');
-      if (badge) badge.textContent = `${opps.length} Intro Pkg Holders`;
-
-      if (opps.length === 0) {
-        el.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No entry-level package upgrade opportunities found in this dataset.</p>';
+      const data = m.dayOfWeekData || [];
+      if (data.length === 0) {
+        el.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No day-of-week data available.</p>';
         return;
       }
 
-      const totalEstRev = opps.reduce((sum, o) => sum + o.estAddedRevenue, 0);
+      const maxRev = Math.max(...data.map(d => d.revenue), 1);
+      const totalRev = data.reduce((s, d) => s + d.revenue, 0) || 1;
+      const totalVisits = data.reduce((s, d) => s + d.visits, 0) || 1;
 
-      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:12px;color:var(--text-muted);">Total Upsell Pipeline Potential: <strong style="color:var(--emerald);font-size:14px;">${formatCurrency(totalEstRev)}</strong></span>
-        <span style="font-size:11.5px;color:var(--cyan);font-weight:700;">Top ${Math.min(opps.length, 25)} Candidates Ranked by Added Revenue</span>
-      </div>
-      <table class="dd-table">
+      let html = `<table class="dd-table">
         <thead><tr>
-          <th class="th-left">Patient Name</th>
-          <th>Phone</th>
-          <th class="th-left">Current Package</th>
-          <th class="th-left">Suggested Target Upgrade</th>
-          <th style="text-align:center;">Upgrade Likelihood</th>
-          <th>Est. Added Revenue</th>
-          <th class="th-left">Doctor</th>
-          <th class="th-left">Action</th>
+          <th class="th-left">Day of Week</th>
+          <th>Total Visits</th>
+          <th>Footfall Share %</th>
+          <th>Consultations</th>
+          <th>Packages Sold</th>
+          <th>Pain Mgmt Rev (₹)</th>
+          <th>Spine Alignment Rev (₹)</th>
+          <th>Wellness Rev (₹)</th>
+          <th>Total Day Revenue (₹)</th>
+          <th>Capacity Velocity</th>
         </tr></thead><tbody>`;
 
-      opps.slice(0, 25).forEach(o => {
-        const cleanPhone = String(o.phone || '').replace(/[^0-9]/g, '');
-        const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-        const msg = encodeURIComponent(`Hello ${o.name}, hope you are seeing good improvement from your ${o.currentPackage} sessions at MPC Clinic! Dr. ${o.doctor.replace(/\s*Consulting\s*$/i, '')} suggests upgrading your plan to our comprehensive ${o.suggestedUpgrade} to achieve full long-term relief. Would you like us to apply your existing session credit toward this upgraded package?`);
-        const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
-
-        const actionBtn = waLink
-          ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">🚀 Pitch Upgrade</a>`
-          : `<button class="btn btn-sm btn-primary" onclick="alert('Upsell pitch recorded for ${o.name}')">📞 Call</button>`;
+      data.forEach(d => {
+        const footShare = ((d.visits / totalVisits) * 100).toFixed(1);
+        const revShare = ((d.revenue / totalRev) * 100).toFixed(1);
+        const isPeak = d.revenue >= maxRev * 0.75;
+        const isLow = d.revenue <= maxRev * 0.35;
+        const capBadge = isPeak
+          ? '<span style="background:rgba(16,185,129,0.15);color:#10b981;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">🔥 Peak Day</span>'
+          : (isLow
+            ? '<span style="background:rgba(244,63,94,0.15);color:#f43f5e;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">⚡ Opportunity Slot</span>'
+            : '<span style="background:rgba(6,182,212,0.15);color:#06b6d4;font-weight:700;padding:2px 8px;border-radius:4px;font-size:11px;">✨ Normal Flow</span>');
 
         html += `<tr>
-          <td><strong style="color:var(--text-primary);">${o.name}</strong></td>
-          <td style="text-align:center;font-size:11px;color:var(--text-muted);">${o.phone}</td>
-          <td style="font-size:11.5px;color:var(--amber);font-weight:600;">${o.currentPackage}</td>
-          <td style="font-size:12px;color:var(--purple);font-weight:700;">${o.suggestedUpgrade}</td>
-          <td style="text-align:center;width:140px;">
-            <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:2px;">${o.likelihood}% High</div>
-            <div class="upgrade-bar-bg"><div class="upgrade-bar-fill" style="width:${o.likelihood}%;"></div></div>
-          </td>
-          <td style="text-align:center;font-weight:800;color:var(--emerald);">+${formatCurrency(o.estAddedRevenue)}</td>
-          <td style="font-size:11.5px;">${o.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
-          <td>${actionBtn}</td>
+          <td><strong style="color:var(--text-primary);">${d.day}</strong></td>
+          <td style="text-align:center;font-weight:700;">${d.visits}</td>
+          <td style="text-align:center;font-size:11.5px;color:var(--text-muted);">${footShare}%</td>
+          <td style="text-align:center;">${d.consultations}</td>
+          <td style="text-align:center;color:var(--purple);font-weight:600;">${d.packages}</td>
+          <td style="text-align:center;color:var(--cyan);">${formatCurrency(d.painMgmtRev)}</td>
+          <td style="text-align:center;color:var(--amber);">${formatCurrency(d.spineRev)}</td>
+          <td style="text-align:center;color:var(--purple);">${formatCurrency(d.wellnessRev)}</td>
+          <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(d.revenue)} <span style="font-size:10px;color:var(--text-muted);">(${revShare}%)</span></td>
+          <td style="text-align:center;">${capBadge}</td>
         </tr>`;
       });
       html += '</tbody></table>';
       el.innerHTML = html;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 💳 PAYMENT MODE INFLOW & TICKET SIZE CHART
+    // ═══════════════════════════════════════════════════════════
+    function renderPaymentTicketChart(m) {
+      const container = document.getElementById('chart-payment-ticket');
+      if (!container || !window.Highcharts) return;
+
+      const data = (m.paymentRealizationData || []).slice(0, 6);
+      if (data.length === 0) return;
+
+      const categories = data.map(d => d.mode);
+      const revs = data.map(d => d.revenue);
+      const tickets = data.map(d => Math.round(d.avgTicket));
+      const theme = getHighchartsThemeOptions();
+
+      if (chartInstances.paymentTicket) { try { chartInstances.paymentTicket.destroy(); } catch(e){} }
+      chartInstances.paymentTicket = Highcharts.chart('chart-payment-ticket', Highcharts.merge(theme, {
+        chart: { type: 'bar' },
+        title: { text: null },
+        xAxis: { categories, crosshair: true },
+        yAxis: [
+          {
+            title: { text: 'Realized Revenue (₹)' },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } }
+          },
+          {
+            title: { text: 'Avg Ticket (₹)' },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } },
+            opposite: true
+          }
+        ],
+        tooltip: {
+          shared: true,
+          outside: true,
+          formatter: function() {
+            let s = `<strong style="font-size:13px;">💳 ${this.x}</strong><br/>`;
+            this.points.forEach(p => {
+              s += `<span style="color:${p.color}">●</span> ${p.series.name}: <strong>${formatCurrency(p.y)}</strong><br/>`;
+            });
+            return s;
+          }
+        },
+        series: [
+          {
+            name: 'Total Revenue',
+            data: revs,
+            color: '#8b5cf6',
+            borderRadius: 3
+          },
+          {
+            name: 'Avg Ticket Size',
+            yAxis: 1,
+            data: tickets,
+            color: '#10b981',
+            borderRadius: 3
+          }
+        ]
+      }));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ⏱️ PATIENT VISIT FREQUENCY & RETENTION CURVE CHART
+    // ═══════════════════════════════════════════════════════════
+    function renderVisitFrequencyChart(m) {
+      const container = document.getElementById('chart-visit-frequency');
+      if (!container || !window.Highcharts) return;
+
+      const data = m.visitFrequencyData || [];
+      if (data.length === 0) return;
+
+      const categories = ['1 Visit', '2–5 Visits', '6–12 Visits', '13–24 Visits', '25+ Visits'];
+      const counts = data.map(d => d.count);
+      const revs = data.map(d => d.revenue);
+      const theme = getHighchartsThemeOptions();
+
+      if (chartInstances.visitFreq) { try { chartInstances.visitFreq.destroy(); } catch(e){} }
+      chartInstances.visitFreq = Highcharts.chart('chart-visit-frequency', Highcharts.merge(theme, {
+        chart: { type: 'column' },
+        title: { text: null },
+        xAxis: { categories, crosshair: true },
+        yAxis: [
+          {
+            title: { text: 'Patient Count' },
+            min: 0
+          },
+          {
+            title: { text: 'Cohort Revenue (₹)' },
+            labels: { formatter: function() { return formatCurrencyCompact(this.value); } },
+            opposite: true
+          }
+        ],
+        tooltip: {
+          shared: true,
+          outside: true,
+          formatter: function() {
+            let s = `<strong style="font-size:13px;">${this.x}</strong><br/>`;
+            this.points.forEach(p => {
+              if (p.series.name === 'Patient Count') {
+                s += `<span style="color:${p.color}">●</span> ${p.series.name}: <strong>${p.y} Patients</strong><br/>`;
+              } else {
+                s += `<span style="color:${p.color}">●</span> ${p.series.name}: <strong>${formatCurrency(p.y)}</strong><br/>`;
+              }
+            });
+            return s;
+          }
+        },
+        series: [
+          {
+            name: 'Patient Count',
+            data: counts,
+            color: '#06b6d4',
+            borderRadius: 4
+          },
+          {
+            name: 'Cohort Revenue',
+            type: 'spline',
+            yAxis: 1,
+            data: revs,
+            color: '#f59e0b',
+            marker: { lineWidth: 2, lineColor: '#f59e0b', fillColor: '#ffffff' }
+          }
+        ]
+      }));
     }
 
     // ═══════════════════════════════════════════════════════════
