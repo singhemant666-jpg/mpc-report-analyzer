@@ -2258,8 +2258,8 @@
       <div class="section-title" style="margin-top:32px;"><span class="icon">📋</span> Daily Front-Desk Sales Playbook &amp; Conversion Velocity Queue</div>
       <div class="tables-section" style="margin-bottom: 28px;">
         <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius); padding:16px;">
-          <div class="action-queue-header">
-            <div class="action-tab-group">
+          <div class="action-queue-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div class="action-tab-group" style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="action-tab-btn active" id="btn-action-hot" onclick="switchActionQueue('hot')">
                 🔥 Hot Unconverted Consultations <span class="action-badge-count" id="badge-cnt-hot">0</span>
               </button>
@@ -2270,13 +2270,33 @@
                 💎 VIP Patient Maintenance <span class="action-badge-count" id="badge-cnt-vip">0</span>
               </button>
             </div>
-            <div style="font-size:12px; color:var(--text-muted); font-weight:700;" id="action-queue-status"></div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="text" id="action-queue-search" class="search-input" style="padding:6px 12px; font-size:12px; height:32px; min-width:200px; border-radius:6px;" placeholder="🔍 Search patient, doctor, phone..." oninput="onActionQueueSearchInput()">
+              <button class="btn btn-sm btn-primary" onclick="exportActionQueueCSV()">📄 Export Queue CSV</button>
+            </div>
           </div>
           <div class="table-wrapper">
             <table id="action-queue-table">
               <thead id="action-queue-thead"></thead>
               <tbody id="action-queue-tbody"></tbody>
             </table>
+          </div>
+          <!-- Action Queue Pagination Footer -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);">
+            <div style="font-size:12px; color:var(--text-muted); font-weight:600;" id="action-queue-status"></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span style="font-size:12px; color:var(--text-muted);">Rows per page:</span>
+              <select id="action-queue-pagesize" onchange="onActionQueuePageSizeChange()" style="background:var(--bg-card-solid); border:1px solid var(--border); color:var(--text-primary); padding:3px 6px; border-radius:4px; font-size:12px;">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+                <option value="all">All</option>
+              </select>
+              <button class="btn btn-sm btn-primary" id="btn-action-prev" onclick="changeActionQueuePage(-1)">◀ Prev</button>
+              <span id="action-queue-page-info" style="font-size:12px; font-weight:700; color:var(--cyan); min-width:80px; text-align:center;">Page 1</span>
+              <button class="btn btn-sm btn-primary" id="btn-action-next" onclick="changeActionQueuePage(1)">Next ▶</button>
+            </div>
           </div>
         </div>
       </div>
@@ -4494,6 +4514,8 @@
 
       for (const p of pList) {
         const svcs = p.services || [];
+        const svcsPhone = svcs.find(s => s.phone || s.contact || s.mobile || s.patientPhone);
+        const patPhone = p.phone || p.contact || p.mobile || svcsPhone?.phone || svcsPhone?.contact || svcsPhone?.mobile || p.id || '-';
         const hasConsult = svcs.some(s => s.type === 'consultation');
         const pkgs = svcs.filter(s => s.type === 'package');
         const totalSpent = svcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
@@ -4515,11 +4537,11 @@
             hotLeads.push({
               id: p.id || '',
               name: p.name || 'Anonymous',
-              phone: p.phone || p.contact || p.id || '-',
+              phone: patPhone,
               consultDate: cDate,
               daysElapsed: Math.max(0, diffDays),
               doctor: consultDoc,
-              leadSource: lastConsult.source || p.source || 'Direct',
+              leadSource: lastConsult.leadSource || lastConsult.source || p.source || 'Direct',
               velocityTier,
               velocityLabel
             });
@@ -4534,7 +4556,7 @@
             renewalDueQueue.push({
               id: p.id || '',
               name: p.name || 'Anonymous',
-              phone: p.phone || p.contact || p.id || '-',
+              phone: patPhone,
               lastPkgDate: pDate,
               daysSincePkg: Math.max(0, diffDays),
               currentPackage: lastPkg.packageName || 'Package',
@@ -4553,7 +4575,7 @@
             vipMaintenanceQueue.push({
               id: p.id || '',
               name: p.name || 'Anonymous',
-              phone: p.phone || p.contact || p.id || '-',
+              phone: patPhone,
               lastVisit,
               daysSinceVisit: Math.max(0, diffDays),
               preferredDoctor: consultDoc,
@@ -6830,12 +6852,48 @@
     // 📋 DAILY FRONT-DESK SALES ACTION QUEUE
     // ═══════════════════════════════════════════════════════════
     let currentActionQueueTab = 'hot';
+    let currentActionQueuePage = 1;
+    let currentActionQueuePageSize = 50;
+    let currentActionQueueSearch = '';
+    let currentActionQueueSortCol = '';
+    let currentActionQueueSortAsc = true;
 
     function switchActionQueue(tab) {
       currentActionQueueTab = tab;
+      currentActionQueuePage = 1;
+      currentActionQueueSortCol = '';
       document.getElementById('btn-action-hot')?.classList.toggle('active', tab === 'hot');
       document.getElementById('btn-action-renewal')?.classList.toggle('active', tab === 'renewal');
       document.getElementById('btn-action-vip')?.classList.toggle('active', tab === 'vip');
+      if (window.currentMetrics) renderActionQueue(window.currentMetrics);
+    }
+
+    function onActionQueueSearchInput() {
+      currentActionQueueSearch = (document.getElementById('action-queue-search')?.value || '').trim().toLowerCase();
+      currentActionQueuePage = 1;
+      if (window.currentMetrics) renderActionQueue(window.currentMetrics);
+    }
+
+    function onActionQueuePageSizeChange() {
+      const val = document.getElementById('action-queue-pagesize')?.value || '50';
+      currentActionQueuePageSize = val === 'all' ? 999999 : parseInt(val, 10) || 50;
+      currentActionQueuePage = 1;
+      if (window.currentMetrics) renderActionQueue(window.currentMetrics);
+    }
+
+    function changeActionQueuePage(delta) {
+      currentActionQueuePage += delta;
+      if (currentActionQueuePage < 1) currentActionQueuePage = 1;
+      if (window.currentMetrics) renderActionQueue(window.currentMetrics);
+    }
+
+    function sortActionQueue(col) {
+      if (currentActionQueueSortCol === col) {
+        currentActionQueueSortAsc = !currentActionQueueSortAsc;
+      } else {
+        currentActionQueueSortCol = col;
+        currentActionQueueSortAsc = (col === 'name' || col === 'doctor' || col === 'preferredDoctor');
+      }
       if (window.currentMetrics) renderActionQueue(window.currentMetrics);
     }
 
@@ -6843,6 +6901,9 @@
       const thead = document.getElementById('action-queue-thead');
       const tbody = document.getElementById('action-queue-tbody');
       const statusEl = document.getElementById('action-queue-status');
+      const pageInfoEl = document.getElementById('action-queue-page-info');
+      const btnPrev = document.getElementById('btn-action-prev');
+      const btnNext = document.getElementById('btn-action-next');
       if (!thead || !tbody) return;
 
       const hotLeads = m.hotLeads || [];
@@ -6859,33 +6920,89 @@
 
       const fmtDate = (d) => d instanceof Date ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : String(d || '-');
 
+      // Select active list
+      let rawList = [];
+      if (currentActionQueueTab === 'hot') rawList = hotLeads;
+      else if (currentActionQueueTab === 'renewal') rawList = renewals;
+      else if (currentActionQueueTab === 'vip') rawList = vips;
+
+      // Filter by search query
+      let list = rawList;
+      if (currentActionQueueSearch) {
+        list = list.filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const ph = (p.phone || '').toLowerCase();
+          const doc = (p.doctor || p.preferredDoctor || '').toLowerCase();
+          const pkg = (p.currentPackage || p.leadSource || '').toLowerCase();
+          return n.includes(currentActionQueueSearch) || ph.includes(currentActionQueueSearch) || doc.includes(currentActionQueueSearch) || pkg.includes(currentActionQueueSearch);
+        });
+      }
+
+      // Sort
+      if (currentActionQueueSortCol) {
+        list = [...list].sort((a, b) => {
+          let va = a[currentActionQueueSortCol];
+          let vb = b[currentActionQueueSortCol];
+          if (va instanceof Date) va = va.getTime();
+          if (vb instanceof Date) vb = vb.getTime();
+          if (typeof va === 'string') va = va.toLowerCase();
+          if (typeof vb === 'string') vb = vb.toLowerCase();
+          if (va < vb) return currentActionQueueSortAsc ? -1 : 1;
+          if (va > vb) return currentActionQueueSortAsc ? 1 : -1;
+          return 0;
+        });
+      }
+
+      const totalMatching = list.length;
+      const totalPages = Math.max(1, Math.ceil(totalMatching / currentActionQueuePageSize));
+      if (currentActionQueuePage > totalPages) currentActionQueuePage = totalPages;
+
+      const startIdx = (currentActionQueuePage - 1) * currentActionQueuePageSize;
+      const endIdx = Math.min(startIdx + currentActionQueuePageSize, totalMatching);
+      const pageItems = list.slice(startIdx, endIdx);
+
+      if (statusEl) {
+        let label = 'unconverted consultations needing follow-up';
+        if (currentActionQueueTab === 'renewal') label = 'package holders eligible for renewal';
+        else if (currentActionQueueTab === 'vip') label = 'VIP patients for concierge maintenance';
+
+        if (totalMatching === 0) {
+          statusEl.innerHTML = `Showing <strong>0</strong> of <strong>${rawList.length}</strong> ${label}`;
+        } else {
+          statusEl.innerHTML = `Showing <strong>${startIdx + 1}–${endIdx}</strong> of <strong>${totalMatching}</strong> ${label} (${rawList.length} total)`;
+        }
+      }
+
+      if (pageInfoEl) pageInfoEl.textContent = `Page ${currentActionQueuePage} of ${totalPages}`;
+      if (btnPrev) btnPrev.disabled = currentActionQueuePage <= 1;
+      if (btnNext) btnNext.disabled = currentActionQueuePage >= totalPages;
+
       if (currentActionQueueTab === 'hot') {
-        if (statusEl) statusEl.innerHTML = `Showing <strong>${hotLeads.length}</strong> unconverted consultations needing follow-up`;
         thead.innerHTML = `<tr>
-          <th class="th-left">Patient Name</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('name')">Patient Name ⬍</th>
           <th>Contact</th>
-          <th>Consult Date</th>
-          <th>Days Elapsed</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('consultDate')">Consult Date ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('daysElapsed')">Days Elapsed ⬍</th>
           <th>Priority Velocity</th>
-          <th class="th-left">Consulting Doctor</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('doctor')">Consulting Doctor ⬍</th>
           <th class="th-left">Lead Source</th>
           <th class="th-left">Direct Action</th>
         </tr>`;
 
-        if (hotLeads.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:16px;">🎉 Excellent! No unconverted consultations pending in this period.</td></tr>';
+        if (pageItems.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">🎉 Excellent! No unconverted consultations pending in this filter/search.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = hotLeads.slice(0, 30).map(p => {
+        tbody.innerHTML = pageItems.map(p => {
           const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
           const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-          const msg = encodeURIComponent(`Hello ${p.name}, this is from MPC Clinic. Dr. ${p.doctor.replace(/\s*Consulting\s*$/i, '')} recommended a targeted recovery treatment plan during your recent consultation. We would love to help you get started! Can we assist you with our available package options?`);
+          const msg = encodeURIComponent(`Hello ${p.name}, warm greetings from MPC Clinic! Dr. ${p.doctor.replace(/\s*Consulting\s*$/i, '')} recommended a personalized recovery care plan during your recent consultation. We would love to help you get started towards full recovery! Would you like us to assist you with our session package options?`);
           const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
           const badgeClass = p.velocityTier === 'urgent' ? 'velocity-urgent' : (p.velocityTier === 'warm' ? 'velocity-warm' : 'velocity-fresh');
 
           const actionBtn = waLink
-            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 Follow-up WhatsApp</a>`
+            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 WhatsApp</a>`
             : `<button class="btn btn-sm btn-primary" onclick="alert('Follow-up recorded for ${p.name}')">📞 Call Lead</button>`;
 
           return `<tr>
@@ -6901,24 +7018,23 @@
         }).join('');
 
       } else if (currentActionQueueTab === 'renewal') {
-        if (statusEl) statusEl.innerHTML = `Showing <strong>${renewals.length}</strong> active package holders eligible for session renewal`;
         thead.innerHTML = `<tr>
-          <th class="th-left">Patient Name</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('name')">Patient Name ⬍</th>
           <th>Contact</th>
-          <th>Last Pkg Date</th>
-          <th>Days Since Purchase</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('lastPkgDate')">Last Pkg Date ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('daysSincePkg')">Days Since Purchase ⬍</th>
           <th class="th-left">Current Package</th>
-          <th class="th-left">Consulting Doctor</th>
-          <th>Total Spent</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('doctor')">Consulting Doctor ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('totalSpent')">Total Spent ⬍</th>
           <th class="th-left">Direct Action</th>
         </tr>`;
 
-        if (renewals.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:16px;">No package renewal records available.</td></tr>';
+        if (pageItems.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No package renewal records available in this filter/search.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = renewals.slice(0, 30).map(p => {
+        tbody.innerHTML = pageItems.map(p => {
           const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
           const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
           const msg = encodeURIComponent(`Hello ${p.name}, warm greetings from MPC Clinic! As you progress through your ${p.currentPackage} sessions with Dr. ${p.doctor.replace(/\s*Consulting\s*$/i, '')}, we want to make sure your rehabilitation momentum continues seamlessly. Would you like to reserve your renewal slot with our loyalty privilege discount?`);
@@ -6941,30 +7057,29 @@
         }).join('');
 
       } else if (currentActionQueueTab === 'vip') {
-        if (statusEl) statusEl.innerHTML = `Showing <strong>${vips.length}</strong> VIP patients (₹50k+ spend) due for health concierge follow-up`;
         thead.innerHTML = `<tr>
-          <th class="th-left">VIP Patient</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('name')">VIP Patient ⬍</th>
           <th>Contact</th>
-          <th>Last Visit</th>
-          <th>Days Since Visit</th>
-          <th class="th-left">Preferred Doctor</th>
-          <th>Lifetime Spend</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('lastVisit')">Last Visit ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('daysSinceVisit')">Days Since Visit ⬍</th>
+          <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('preferredDoctor')">Preferred Doctor ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('totalSpent')">Lifetime Spend ⬍</th>
           <th class="th-left">Concierge Action</th>
         </tr>`;
 
-        if (vips.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">No VIP patients due for maintenance.</td></tr>';
+        if (pageItems.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">No VIP patients due for maintenance in this filter/search.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = vips.slice(0, 30).map(p => {
+        tbody.innerHTML = pageItems.map(p => {
           const cleanPhone = String(p.phone || '').replace(/[^0-9]/g, '');
           const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-          const msg = encodeURIComponent(`Dear ${p.name}, greetings from MPC Clinic Executive Care! We value your trust in our clinic. Dr. ${p.preferredDoctor.replace(/\s*Consulting\s*$/i, '')} and our team would like to invite you for your complimentary VIP spinal & physical wellness checkup. Please let us know a convenient time!`);
+          const msg = encodeURIComponent(`Dear ${p.name}, warm greetings from MPC Clinic Executive Care! We value your trust in our clinic. Dr. ${p.preferredDoctor.replace(/\s*Consulting\s*$/i, '')} and our team would like to invite you for your complimentary VIP spinal & physical wellness checkup. Please let us know a convenient time!`);
           const waLink = phoneFormatted.length >= 10 ? `https://wa.me/${phoneFormatted}?text=${msg}` : null;
 
           const actionBtn = waLink
-            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💎 VIP Concierge Message</a>`
+            ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💎 VIP WhatsApp</a>`
             : `<button class="btn btn-sm btn-primary" onclick="alert('VIP note logged for ${p.name}')">📞 Call</button>`;
 
           return `<tr>
@@ -6978,6 +7093,78 @@
           </tr>`;
         }).join('');
       }
+    }
+
+    function exportActionQueueCSV() {
+      if (!window.currentMetrics) return;
+      const m = window.currentMetrics;
+      let rawList = [];
+      let filename = 'MPC_Hot_Leads.csv';
+      if (currentActionQueueTab === 'hot') { rawList = m.hotLeads || []; filename = 'MPC_Hot_Unconverted_Consultations.csv'; }
+      else if (currentActionQueueTab === 'renewal') { rawList = m.renewalDueQueue || []; filename = 'MPC_Package_Renewals_Due.csv'; }
+      else if (currentActionQueueTab === 'vip') { rawList = m.vipMaintenanceQueue || []; filename = 'MPC_VIP_Maintenance_Queue.csv'; }
+
+      let list = rawList;
+      if (currentActionQueueSearch) {
+        list = list.filter(p => {
+          const n = (p.name || '').toLowerCase();
+          const ph = (p.phone || '').toLowerCase();
+          const doc = (p.doctor || p.preferredDoctor || '').toLowerCase();
+          const pkg = (p.currentPackage || p.leadSource || '').toLowerCase();
+          return n.includes(currentActionQueueSearch) || ph.includes(currentActionQueueSearch) || doc.includes(currentActionQueueSearch) || pkg.includes(currentActionQueueSearch);
+        });
+      }
+
+      if (list.length === 0) {
+        alert('No records to export in the current queue.');
+        return;
+      }
+
+      let headers = [];
+      let rows = [];
+
+      if (currentActionQueueTab === 'hot') {
+        headers = ['Patient Name', 'Contact', 'Consult Date', 'Days Elapsed', 'Priority', 'Consulting Doctor', 'Lead Source'];
+        rows = list.map(p => [
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          `"${p.phone || ''}"`,
+          p.consultDate instanceof Date ? p.consultDate.toISOString().split('T')[0] : '',
+          p.daysElapsed,
+          p.velocityLabel,
+          `"${(p.doctor || '').replace(/"/g, '""')}"`,
+          `"${(p.leadSource || '').replace(/"/g, '""')}"`
+        ]);
+      } else if (currentActionQueueTab === 'renewal') {
+        headers = ['Patient Name', 'Contact', 'Last Pkg Date', 'Days Since Purchase', 'Current Package', 'Doctor', 'Total Spent (INR)'];
+        rows = list.map(p => [
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          `"${p.phone || ''}"`,
+          p.lastPkgDate instanceof Date ? p.lastPkgDate.toISOString().split('T')[0] : '',
+          p.daysSincePkg,
+          `"${(p.currentPackage || '').replace(/"/g, '""')}"`,
+          `"${(p.doctor || '').replace(/"/g, '""')}"`,
+          p.totalSpent || 0
+        ]);
+      } else if (currentActionQueueTab === 'vip') {
+        headers = ['VIP Patient Name', 'Contact', 'Last Visit Date', 'Days Since Visit', 'Preferred Doctor', 'Lifetime Spend (INR)'];
+        rows = list.map(p => [
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          `"${p.phone || ''}"`,
+          p.lastVisit instanceof Date ? p.lastVisit.toISOString().split('T')[0] : '',
+          p.daysSinceVisit,
+          `"${(p.preferredDoctor || '').replace(/"/g, '""')}"`,
+          p.totalSpent || 0
+        ]);
+      }
+
+      const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     // ═══════════════════════════════════════════════════════════
