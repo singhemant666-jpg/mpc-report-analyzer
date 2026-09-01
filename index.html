@@ -2120,28 +2120,38 @@
       <div class="section-title"><span class="icon">🏷️</span> Patient Categories</div>
       <div class="category-grid" id="category-grid"></div>
 
-      <!-- Doctor Incentive & Pain Management Breakdown -->
-      <div class="section-title"><span class="icon">🏆</span> Doctor Incentive & Pain Management Conversion Leaderboard</div>
+      <!-- Doctor Incentive & Package Conversion Breakdown -->
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:32px; margin-bottom:12px;">
+        <div class="section-title" style="margin-top:0; margin-bottom:0;"><span class="icon">🏆</span> Doctor Incentive &amp; Package Conversion Leaderboard</div>
+        <button class="btn btn-success btn-sm" onclick="exportDoctorIncentiveExcel()" id="btn-export-doc-excel">
+          📥 Download Doctor Leaderboard Excel
+        </button>
+      </div>
       <div class="tables-section" style="margin-bottom: 28px;">
         <div class="table-content" style="border-top:1px solid var(--border); border-radius:var(--radius);">
           <div class="table-wrapper">
             <table id="doctor-incentive-table">
               <thead>
                 <tr>
-                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Rank" onclick="sortDoctorLeaderboard('painMgmtCount')">Rank</th>
+                  <th style="text-align:center; cursor:pointer; user-select:none;" data-sort="totalPackageRevenue" data-title="Rank" onclick="sortDoctorLeaderboard('totalPackageRevenue')">Rank</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="doctor" data-title="Consulting Doctor" onclick="sortDoctorLeaderboard('doctor')">Consulting Doctor</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="consultation" data-title="Consultations" onclick="sortDoctorLeaderboard('consultation')">Consultations</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="Converted After Consultation" onclick="sortDoctorLeaderboard('totalPackages')">Converted After Consultation</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="convertedAfterConsult" data-title="Converted After Consultation" onclick="sortDoctorLeaderboard('convertedAfterConsult')">Converted After Consultation</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="nonConverted" data-title="Non Converted" onclick="sortDoctorLeaderboard('nonConverted')">Non Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="overallConvPct" data-title="Overall Conv %" onclick="sortDoctorLeaderboard('overallConvPct')">Overall Conv %</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackages" data-title="1st Pkg Converted" onclick="sortDoctorLeaderboard('totalPackages')">1st Pkg Converted</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="painMgmtCount" data-title="Pain Mgmt Pkgs" onclick="sortDoctorLeaderboard('painMgmtCount')">Pain Mgmt Pkgs</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtConvPct" data-title="Pain Mgmt Conv %" onclick="sortDoctorLeaderboard('painMgmtConvPct')">Pain Mgmt Conv %</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtRevenue" data-title="Pain Mgmt Rev (₹)" onclick="sortDoctorLeaderboard('painMgmtRevenue')">Pain Mgmt Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="bmskCount" data-title="Basic MSK Pkgs" onclick="sortDoctorLeaderboard('bmskCount')">Basic MSK Pkgs</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="bmskRevenue" data-title="Basic MSK Rev (₹)" onclick="sortDoctorLeaderboard('bmskRevenue')">Basic MSK Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="shockwaveCount" data-title="Shockwave Pkgs" onclick="sortDoctorLeaderboard('shockwaveCount')">Shockwave Pkgs</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="shockwaveRevenue" data-title="Shockwave Rev (₹)" onclick="sortDoctorLeaderboard('shockwaveRevenue')">Shockwave Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="roboticSpineCount" data-title="Robotic Spine Pkgs" onclick="sortDoctorLeaderboard('roboticSpineCount')">Robotic Spine Pkgs</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="roboticSpineRevenue" data-title="Robotic Spine Rev (₹)" onclick="sortDoctorLeaderboard('roboticSpineRevenue')">Robotic Spine Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="wellnessCount" data-title="Wellness Pkgs" onclick="sortDoctorLeaderboard('wellnessCount')">Wellness Pkgs</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="wellnessRevenue" data-title="Wellness Rev (₹)" onclick="sortDoctorLeaderboard('wellnessRevenue')">Wellness Rev (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Renewals Sold" onclick="sortDoctorLeaderboard('renewalCount')">Renewals Sold</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="renewalConvPct" data-title="Renewal Conv %" onclick="sortDoctorLeaderboard('renewalConvPct')">Renewal Conv %</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue" onclick="sortDoctorLeaderboard('renewalRevenue')">Renewal Revenue</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="painMgmtRevenue" data-title="Pain Mgmt Revenue" onclick="sortDoctorLeaderboard('painMgmtRevenue')">Pain Mgmt Revenue</th>
-                  <th>Pain Mgmt Tier Breakdown</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Renewal Revenue (₹)" onclick="sortDoctorLeaderboard('renewalRevenue')">Renewal Revenue (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="totalPackageRevenue" data-title="Total Package Rev (₹)" onclick="sortDoctorLeaderboard('totalPackageRevenue')">Total Package Rev (₹)</th>
                   <th style="text-align:center;">Incentive Rank</th>
                 </tr>
               </thead>
@@ -3947,12 +3957,22 @@
                 consultation: 0,
                 convertedAfterConsult: 0,
                 totalPackages: 0,
+                totalPackageRevenue: 0,
                 painMgmtCount: 0,
+                painMgmtRevenue: 0,
+                bmskCount: 0,
+                bmskRevenue: 0,
+                shockwaveCount: 0,
+                shockwaveRevenue: 0,
+                roboticSpineCount: 0,
+                roboticSpineRevenue: 0,
+                wellnessCount: 0,
+                wellnessRevenue: 0,
+                otherPackageCount: 0,
+                otherPackageRevenue: 0,
                 renewalCount: 0,
                 renewalRevenue: 0,
-                otherPackageCount: 0,
                 singleSessionCount: 0,
-                painMgmtRevenue: 0,
                 totalRevenue: 0,
                 pmBreakdown: {}
               };
@@ -3964,17 +3984,41 @@
 
             if (isConverted) {
               dMap.convertedAfterConsult++;
-              dMap.totalPackages++;
-              const initialPmSvcs = initialPkgSvcs.filter(s => isPainManagementPackage(s.packageName));
-              if (initialPmSvcs.length > 0) {
-                dMap.painMgmtCount++;
-                for (const svc of initialPmSvcs) {
-                  dMap.painMgmtRevenue += (svc.proportionalPaid || 0);
-                  const pkgName = svc.packageName || 'Unknown';
+              dMap.totalPackages += initialPkgSvcs.length;
+
+              for (const svc of initialPkgSvcs) {
+                const amt = svc.proportionalPaid || 0;
+                const pkgName = svc.packageName || 'Unknown';
+                const lower = pkgName.toLowerCase();
+                dMap.totalPackageRevenue += amt;
+
+                const isBmsk = lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
+                const isShock = lower.includes('shockwave') || lower.includes('eswt') || lower.includes('acoustic wave');
+                const isSpine = lower.includes('robotic spine') || lower.includes('spine aligner') || lower.includes('spine decompression') || lower.includes('decompression');
+                const isWell = lower.includes('wellness') || lower.includes('w&r');
+                const isPm = (lower.includes('pain management') || lower.includes('pain mgmt') || lower.startsWith('pm-') || lower.includes('pain recovery')) && !isBmsk && !isShock && !isSpine && !isWell;
+
+                if (isBmsk) {
+                  dMap.bmskCount++;
+                  dMap.bmskRevenue += amt;
+                } else if (isShock) {
+                  dMap.shockwaveCount++;
+                  dMap.shockwaveRevenue += amt;
+                } else if (isSpine) {
+                  dMap.roboticSpineCount++;
+                  dMap.roboticSpineRevenue += amt;
+                } else if (isWell) {
+                  dMap.wellnessCount++;
+                  dMap.wellnessRevenue += amt;
+                } else if (isPm) {
+                  dMap.painMgmtCount++;
+                  dMap.painMgmtRevenue += amt;
                   dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
+                } else {
+                  dMap.otherPackageCount++;
+                  dMap.otherPackageRevenue += amt;
                 }
               }
-              dMap.otherPackageCount += initialPkgSvcs.filter(s => !isPainManagementPackage(s.packageName)).length;
             }
 
             dMap.renewalCount += renPkgSvcs.length;
@@ -3993,7 +4037,6 @@
       for (const doc of Object.keys(doctorMap)) {
         const d = doctorMap[doc];
         d.convertedAfterConsult = d.convertedAfterConsult || 0;
-        d.totalPackages = d.convertedAfterConsult;
         d.nonConverted = Math.max(0, d.consultation - d.convertedAfterConsult);
         d.overallConvPct = d.consultation > 0 ? (d.convertedAfterConsult / d.consultation * 100) : 0;
         d.painMgmtConvPct = d.consultation > 0 ? (d.painMgmtCount / d.consultation * 100) : 0;
@@ -7601,7 +7644,7 @@
     }
 
     // ==================== DOCTOR INCENTIVE LEADERBOARD ====================
-    let doctorSortState = { key: 'painMgmtCount', dir: 'desc' };
+    let doctorSortState = { key: 'totalPackageRevenue', dir: 'desc' };
 
     function sortDoctorLeaderboard(key) {
       if (doctorSortState.key === key) {
@@ -7652,7 +7695,7 @@
       });
 
       if (doctors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" class="no-data">No doctor data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="20" class="no-data">No doctor data available</td></tr>';
         return;
       }
 
@@ -7661,28 +7704,13 @@
       tbody.innerHTML = doctors.map((d, idx) => {
         const rankLabel = rankIcons[idx] || `#${idx + 1}`;
 
-        const selectedPkgFilter = (document.getElementById('filter-package') ? document.getElementById('filter-package').value : '').trim();
-
-        let tierEntries = Object.entries(d.pmBreakdown || {})
-          .sort((a, b) => b[1] - a[1]);
-
-        if (selectedPkgFilter) {
-          tierEntries = tierEntries.filter(([name]) => name.toLowerCase() === selectedPkgFilter.toLowerCase());
-        }
-        
-        const tierStr = tierEntries.length > 0
-          ? tierEntries.map(([name, count]) => {
-              const shortName = name.replace(/Pain Management/i, 'PM');
-              return `<span class="badge badge-purple" style="margin:2px 2px;">${shortName}: ${count}</span>`;
-            }).join(' ')
-          : '<span style="color:var(--text-muted)">-</span>';
-
         let badgeClass = 'badge-cyan';
         let rankBadge = '👍 Contributor';
         if (idx === 0) { badgeClass = 'badge-emerald'; rankBadge = '⭐ Top Converter'; }
         else if (idx === 1 || idx === 2) { badgeClass = 'badge-purple'; rankBadge = '🔥 High Performer'; }
 
         const safeDocName = (d.doctor || '').replace(/'/g, "\\'");
+        const docPkgTotalRev = d.totalPackageRevenue || (d.painMgmtRevenue + d.bmskRevenue + d.shockwaveRevenue + d.roboticSpineRevenue + d.wellnessRevenue) || 0;
 
         return `<tr onclick="openDoctorPatientModal('${safeDocName}')" style="cursor:pointer;" title="Click to view detailed patient list for ${d.doctor}">
           <td style="font-weight:700; color:var(--cyan); text-align:center;">${rankLabel}</td>
@@ -7692,36 +7720,191 @@
               <span class="badge badge-cyan" style="font-size:10px; cursor:pointer;" onclick="event.stopPropagation(); openDoctorPatientModal('${safeDocName}')">🔍 View Patients</span>
             </div>
           </td>
-          <td>${d.consultation}</td>
-          <td style="font-weight:700; color:var(--emerald);">${d.totalPackages}</td>
-          <td style="font-weight:700; color:var(--rose);">${d.nonConverted}</td>
-          <td>
-            <div style="display:flex; align-items:center; gap:8px;">
+          <td style="text-align:center; font-weight:600;">${d.consultation}</td>
+          <td style="text-align:center; font-weight:700; color:var(--emerald);">${d.convertedAfterConsult}</td>
+          <td style="text-align:center; font-weight:700; color:var(--rose);">${d.nonConverted}</td>
+          <td style="text-align:center;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
               <span style="font-weight:700; color:var(--emerald); min-width:45px;">${d.overallConvPct.toFixed(1)}%</span>
-              <div class="gauge" style="width:60px;"><div class="gauge-fill" style="width:${Math.min(d.overallConvPct, 100)}%; background:linear-gradient(90deg, #10b981, #34d399);"></div></div>
+              <div class="gauge" style="width:45px;"><div class="gauge-fill" style="width:${Math.min(d.overallConvPct, 100)}%; background:linear-gradient(90deg, #10b981, #34d399);"></div></div>
             </div>
           </td>
-          <td style="font-weight:700; color:var(--cyan);">${d.totalPackages}</td>
-          <td style="font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
-          <td>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:700; min-width:45px;">${d.painMgmtConvPct.toFixed(1)}%</span>
-              <div class="gauge" style="width:70px;"><div class="gauge-fill" style="width:${Math.min(d.painMgmtConvPct, 100)}%"></div></div>
-            </div>
-          </td>
-          <td style="font-weight:700; color:var(--purple);">${d.renewalCount}</td>
-          <td>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-weight:700; color:var(--purple); min-width:45px;">${d.renewalConvPct.toFixed(1)}%</span>
-              <div class="gauge" style="width:70px;"><div class="gauge-fill" style="width:${Math.min(d.renewalConvPct, 100)}%; background:linear-gradient(90deg, #8b5cf6, #a78bfa);"></div></div>
-            </div>
-          </td>
-          <td style="font-weight:700; color:var(--purple);">${formatCurrency(d.renewalRevenue)}</td>
-          <td style="font-weight:700; color:var(--amber);">${formatCurrency(d.painMgmtRevenue)}</td>
-          <td>${tierStr}</td>
-          <td><span class="badge ${badgeClass}">${rankBadge}</span></td>
+          <td style="text-align:center; font-weight:700; color:var(--emerald);">${d.painMgmtCount}</td>
+          <td style="text-align:center; font-weight:700; color:var(--emerald);">${formatCurrency(d.painMgmtRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:#fb923c;">${d.bmskCount}</td>
+          <td style="text-align:center; font-weight:700; color:#fb923c;">${formatCurrency(d.bmskRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:var(--cyan);">${d.shockwaveCount}</td>
+          <td style="text-align:center; font-weight:700; color:var(--cyan);">${formatCurrency(d.shockwaveRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:var(--rose);">${d.roboticSpineCount}</td>
+          <td style="text-align:center; font-weight:700; color:var(--rose);">${formatCurrency(d.roboticSpineRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${d.wellnessCount}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${formatCurrency(d.wellnessRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${d.renewalCount}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${formatCurrency(d.renewalRevenue)}</td>
+          <td style="text-align:center; font-weight:800; color:var(--emerald);">${formatCurrency(docPkgTotalRev)}</td>
+          <td style="text-align:center;"><span class="badge ${badgeClass}">${rankBadge}</span></td>
         </tr>`;
       }).join('');
+    }
+
+    async function exportDoctorIncentiveExcel() {
+      if (!window.currentMetrics) {
+        showToast('No metrics available to export', 'error');
+        return;
+      }
+      showLoading('Generating Doctor Leaderboard Excel...');
+      try {
+        await new Promise(r => setTimeout(r, 50));
+        let doctors = Object.values(window.currentMetrics.doctorMap || {})
+          .filter(d => d.doctor && d.consultation > 0);
+
+        doctors.sort((a, b) => (b.totalPackageRevenue || 0) - (a.totalPackageRevenue || 0));
+
+        if (doctors.length === 0) {
+          hideLoading();
+          showToast('No doctor records to export', 'error');
+          return;
+        }
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Clinic Analytics';
+        wb.created = new Date();
+        const ws = wb.addWorksheet('Doctor Conversion Leaderboard');
+
+        ws.columns = [
+          { header: 'Rank', width: 8 },
+          { header: 'Consulting Doctor', width: 28 },
+          { header: 'Consultations', width: 15 },
+          { header: 'Converted (Pkgs)', width: 16 },
+          { header: 'Non-Converted', width: 15 },
+          { header: 'Overall Conv %', width: 15 },
+          { header: 'Pain Mgmt Pkgs', width: 16 },
+          { header: 'Pain Mgmt Revenue (Rs)', width: 22 },
+          { header: 'Basic MSK Pkgs', width: 16 },
+          { header: 'Basic MSK Revenue (Rs)', width: 22 },
+          { header: 'Shockwave Pkgs', width: 16 },
+          { header: 'Shockwave Revenue (Rs)', width: 22 },
+          { header: 'Robotic Spine Pkgs', width: 18 },
+          { header: 'Robotic Spine Revenue (Rs)', width: 24 },
+          { header: 'Wellness Pkgs', width: 16 },
+          { header: 'Wellness Revenue (Rs)', width: 22 },
+          { header: 'Renewals Sold', width: 15 },
+          { header: 'Renewal Revenue (Rs)', width: 22 },
+          { header: 'Total Package Revenue (Rs)', width: 25 },
+          { header: 'Incentive Tier', width: 18 }
+        ];
+
+        const headerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+        applyHeaderStyle(ws, 1, headerStyle);
+
+        doctors.forEach((d, idx) => {
+          let tierBadge = 'Contributor';
+          if (idx === 0) tierBadge = 'Top Converter (1st)';
+          else if (idx === 1) tierBadge = 'High Performer (2nd)';
+          else if (idx === 2) tierBadge = 'High Performer (3rd)';
+
+          const docPkgTotalRev = d.totalPackageRevenue || (d.painMgmtRevenue + d.bmskRevenue + d.shockwaveRevenue + d.roboticSpineRevenue + d.wellnessRevenue) || 0;
+
+          const row = ws.addRow([
+            idx + 1,
+            d.doctor,
+            d.consultation || 0,
+            d.convertedAfterConsult || 0,
+            d.nonConverted || 0,
+            `${(d.overallConvPct || 0).toFixed(1)}%`,
+            d.painMgmtCount || 0,
+            d.painMgmtRevenue || 0,
+            d.bmskCount || 0,
+            d.bmskRevenue || 0,
+            d.shockwaveCount || 0,
+            d.shockwaveRevenue || 0,
+            d.roboticSpineCount || 0,
+            d.roboticSpineRevenue || 0,
+            d.wellnessCount || 0,
+            d.wellnessRevenue || 0,
+            d.renewalCount || 0,
+            d.renewalRevenue || 0,
+            docPkgTotalRev,
+            tierBadge
+          ]);
+
+          row.getCell(8).numFmt = '#,##0';
+          row.getCell(10).numFmt = '#,##0';
+          row.getCell(12).numFmt = '#,##0';
+          row.getCell(14).numFmt = '#,##0';
+          row.getCell(16).numFmt = '#,##0';
+          row.getCell(18).numFmt = '#,##0';
+          row.getCell(19).numFmt = '#,##0';
+        });
+
+        // Summary Total Row
+        const totConsult = doctors.reduce((s, d) => s + (d.consultation || 0), 0);
+        const totConv = doctors.reduce((s, d) => s + (d.convertedAfterConsult || 0), 0);
+        const totNonConv = doctors.reduce((s, d) => s + (d.nonConverted || 0), 0);
+        const totPmCount = doctors.reduce((s, d) => s + (d.painMgmtCount || 0), 0);
+        const totPmRev = doctors.reduce((s, d) => s + (d.painMgmtRevenue || 0), 0);
+        const totBmskCount = doctors.reduce((s, d) => s + (d.bmskCount || 0), 0);
+        const totBmskRev = doctors.reduce((s, d) => s + (d.bmskRevenue || 0), 0);
+        const totShockCount = doctors.reduce((s, d) => s + (d.shockwaveCount || 0), 0);
+        const totShockRev = doctors.reduce((s, d) => s + (d.shockwaveRevenue || 0), 0);
+        const totRoboticCount = doctors.reduce((s, d) => s + (d.roboticSpineCount || 0), 0);
+        const totRoboticRev = doctors.reduce((s, d) => s + (d.roboticSpineRevenue || 0), 0);
+        const totWellCount = doctors.reduce((s, d) => s + (d.wellnessCount || 0), 0);
+        const totWellRev = doctors.reduce((s, d) => s + (d.wellnessRevenue || 0), 0);
+        const totRenCount = doctors.reduce((s, d) => s + (d.renewalCount || 0), 0);
+        const totRenRev = doctors.reduce((s, d) => s + (d.renewalRevenue || 0), 0);
+        const totPkgRev = doctors.reduce((s, d) => s + (d.totalPackageRevenue || 0), 0);
+        const overallConv = totConsult > 0 ? ((totConv / totConsult) * 100).toFixed(1) + '%' : '0%';
+
+        const summaryRow = ws.addRow([
+          '',
+          'TOTAL / CLINIC SUMMARY',
+          totConsult,
+          totConv,
+          totNonConv,
+          overallConv,
+          totPmCount,
+          totPmRev,
+          totBmskCount,
+          totBmskRev,
+          totShockCount,
+          totShockRev,
+          totRoboticCount,
+          totRoboticRev,
+          totWellCount,
+          totWellRev,
+          totRenCount,
+          totRenRev,
+          totPkgRev,
+          ''
+        ]);
+        summaryRow.font = { bold: true };
+        summaryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+        summaryRow.eachCell(cell => {
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
+        });
+
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `MPC_Doctor_Incentive_Conversion_Leaderboard_${new Date().toISOString().split('T')[0]}.xlsx`);
+        hideLoading();
+        showToast('Doctor Leaderboard Excel exported successfully!', 'success');
+      } catch (err) {
+        hideLoading();
+        console.error('Error exporting Doctor Leaderboard Excel:', err);
+        showToast('Error exporting Excel: ' + err.message, 'error');
+      }
     }
 
     // ==================== PACKAGE RENEWAL LEADERBOARD ====================
@@ -9691,38 +9874,52 @@
         }
         for (let c = 7; c <= 15; c++) s14.getColumn(c).numFmt = '#,##0.00';
 
-        // Sheet 15: Doctor Incentives & Pain Mgmt
-        const s15 = wb.addWorksheet('Doctor Incentives & Pain Mgmt');
+        // Sheet 15: Doctor Conversion Leaderboard & Package Breakdown
+        const s15 = wb.addWorksheet('Doctor Conversion Leaderboard');
         s15.columns = [
-          { width: 10 }, { width: 30 }, { width: 16 }, { width: 16 },
-          { width: 22 }, { width: 22 }, { width: 22 }, { width: 45 }
+          { width: 8 }, { width: 28 }, { width: 15 }, { width: 16 }, { width: 15 }, { width: 15 },
+          { width: 16 }, { width: 22 }, { width: 16 }, { width: 22 },
+          { width: 16 }, { width: 22 }, { width: 18 }, { width: 24 },
+          { width: 16 }, { width: 22 }, { width: 15 }, { width: 22 }, { width: 25 }
         ];
-        s15.addRow(['Rank', 'Doctor', 'Consultation', 'Total Pkgs', 'Pain Mgmt Pkgs', 'Pain Mgmt Conv %', 'Pain Mgmt Revenue', 'Pain Mgmt Tier Breakdown']);
+        s15.addRow([
+          'Rank', 'Doctor', 'Consultation', 'Converted (Pkgs)', 'Non-Converted', 'Overall Conv %',
+          'Pain Mgmt Pkgs', 'Pain Mgmt Revenue (Rs)', 'Basic MSK Pkgs', 'Basic MSK Revenue (Rs)',
+          'Shockwave Pkgs', 'Shockwave Revenue (Rs)', 'Robotic Spine Pkgs', 'Robotic Spine Revenue (Rs)',
+          'Wellness Pkgs', 'Wellness Revenue (Rs)', 'Renewals Sold', 'Renewal Revenue (Rs)', 'Total Package Revenue (Rs)'
+        ]);
         applyHeaderStyle(s15, 1, headerStyle);
 
-        const sortedDocs = Object.values(m.doctorMap).sort((a, b) => {
-          if (b.painMgmtCount !== a.painMgmtCount) return b.painMgmtCount - a.painMgmtCount;
-          return b.painMgmtRevenue - a.painMgmtRevenue;
-        });
+        const sortedDocs = Object.values(m.doctorMap || {})
+          .filter(d => d.doctor && d.consultation > 0)
+          .sort((a, b) => (b.totalPackageRevenue || 0) - (a.totalPackageRevenue || 0));
 
         sortedDocs.forEach((d, idx) => {
-          const breakdownStr = Object.entries(d.pmBreakdown)
-            .sort((a, b) => b[1] - a[1])
-            .map(([name, count]) => `${name}: ${count}`)
-            .join(' | ') || 'None';
+          const docPkgTotalRev = d.totalPackageRevenue || (d.painMgmtRevenue + d.bmskRevenue + d.shockwaveRevenue + d.roboticSpineRevenue + d.wellnessRevenue) || 0;
 
           s15.addRow([
             idx + 1,
             d.doctor,
-            d.consultation,
-            d.totalPackages,
-            d.painMgmtCount,
-            d.painMgmtConvPct.toFixed(1) + '%',
-            d.painMgmtRevenue,
-            breakdownStr
+            d.consultation || 0,
+            d.convertedAfterConsult || 0,
+            d.nonConverted || 0,
+            `${(d.overallConvPct || 0).toFixed(1)}%`,
+            d.painMgmtCount || 0,
+            d.painMgmtRevenue || 0,
+            d.bmskCount || 0,
+            d.bmskRevenue || 0,
+            d.shockwaveCount || 0,
+            d.shockwaveRevenue || 0,
+            d.roboticSpineCount || 0,
+            d.roboticSpineRevenue || 0,
+            d.wellnessCount || 0,
+            d.wellnessRevenue || 0,
+            d.renewalCount || 0,
+            d.renewalRevenue || 0,
+            docPkgTotalRev
           ]);
         });
-        s15.getColumn(7).numFmt = '#,##0.00';
+        [8, 10, 12, 14, 16, 18, 19].forEach(c => s15.getColumn(c).numFmt = '#,##0.00');
 
         // Write and download
         const buffer = await wb.xlsx.writeBuffer();
