@@ -7838,7 +7838,7 @@
         const totPrevRenRev = doctors.reduce((s, d) => s + (d.prevMonthRenewalRevenue || 0), 0);
         const totTotalPkgRev = doctors.reduce((s, d) => s + (d.totalPackageRevenue || (d.painMgmtRevenue + d.bmskRevenue + d.shockwaveRevenue + d.roboticSpineRevenue + d.wellnessRevenue) || 0), 0);
 
-        tfoot.innerHTML = `<tr style="background: rgba(15, 23, 42, 0.95); border-top: 2px solid var(--border); border-bottom: 2px solid var(--border); font-weight: 800;">
+        tfoot.innerHTML = `<tr style="background: var(--bg-card-solid); border-top: 2px solid var(--border); border-bottom: 2px solid var(--border); font-weight: 800;">
           <td style="font-weight:800; color:var(--cyan); text-align:center;">∑</td>
           <td style="font-weight:800; color:var(--text-primary); letter-spacing:0.5px;">TOTAL / CLINIC SUMMARY</td>
           <td style="text-align:center; font-weight:800; color:var(--text-primary);">${totConsult}</td>
