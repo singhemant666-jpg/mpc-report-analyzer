@@ -7993,15 +7993,32 @@
         ];
         applyHeaderStyle(wsPrevRen, 1, headerStyle);
 
-        // Collect all Only Package / non-consultation package patients
-        let prevRenRows = [];
+        // Group patients without consult who have packages
         const ptSource = filteredPatients || allPatients || {};
-        for (const p of Object.values(ptSource)) {
+        const prevRenPatients = Object.values(ptSource).filter(p => {
           const hasConsult = (p.services || []).some(s => s.type === 'consultation');
-          if (hasConsult) continue; // Skip same-month consult patients
-          
+          if (hasConsult) return false;
           const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          return pkgSvcs.length > 0;
+        });
+
+        // Sort patients by total package paid descending
+        prevRenPatients.sort((a, b) => {
+          const sumA = (a.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName)).reduce((s, x) => s + (x.proportionalPaid || x.amountPaid || 0), 0);
+          const sumB = (b.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName)).reduce((s, x) => s + (x.proportionalPaid || x.amountPaid || 0), 0);
+          return sumB - sumA;
+        });
+
+        let ptSerial = 1;
+        let totalPkgsCount = 0;
+        let totalPkgRevenue = 0;
+
+        for (const p of prevRenPatients) {
+          const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          const startRow = wsPrevRen.lastRow ? wsPrevRen.lastRow.number + 1 : 2;
+
           for (const svc of pkgSvcs) {
+            totalPkgsCount++;
             const pkgName = svc.packageName || 'Unknown';
             let cat = 'Pain Management';
             const lower = pkgName.toLowerCase();
@@ -8010,49 +8027,91 @@
             else if (lower.includes('robotic spine') || lower.includes('decompression')) cat = 'Robotic Spine';
             else if (lower.includes('wellness') || lower.includes('w&r')) cat = 'Wellness & Recovery';
 
-            prevRenRows.push({
-              patientName: p.name,
-              doctor: svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned'),
-              packageName: pkgName,
-              category: cat,
-              amountPaid: svc.proportionalPaid || svc.amountPaid || 0,
-              paymentDate: svc.paymentDate ? formatDate(svc.paymentDate) : '-',
-              paymentMode: svc.paymentMode || '-',
-              agent: svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-'),
-              invoiceNo: svc.invoiceNo || '-',
-              classification: 'Previous Month Renewal (Only Package Tab)'
-            });
+            const amt = svc.proportionalPaid || svc.amountPaid || 0;
+            totalPkgRevenue += amt;
+
+            const doc = svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned');
+            const agent = svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-');
+
+            const row = wsPrevRen.addRow([
+              ptSerial,
+              p.name,
+              doc,
+              pkgName,
+              cat,
+              amt,
+              svc.paymentDate ? formatDate(svc.paymentDate) : '-',
+              svc.paymentMode || '-',
+              agent,
+              svc.invoiceNo || '-',
+              'Previous Month Renewal (Only Package Tab)'
+            ]);
+            row.getCell(6).numFmt = '#,##0';
           }
+
+          const endRow = wsPrevRen.lastRow ? wsPrevRen.lastRow.number : startRow;
+          if (endRow > startRow) {
+            // Merge duplicate patient cells
+            [1, 2, 11].forEach(colIdx => {
+              try {
+                wsPrevRen.mergeCells(startRow, colIdx, endRow, colIdx);
+                const cell = wsPrevRen.getCell(startRow, colIdx);
+                cell.alignment = { vertical: 'middle', horizontal: colIdx === 2 ? 'left' : 'center' };
+              } catch(e) {}
+            });
+
+            const docs = pkgSvcs.map(s => s.doctor || (p.doctors && p.doctors[0])).filter(Boolean);
+            if (new Set(docs).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 3, endRow, 3);
+                wsPrevRen.getCell(startRow, 3).alignment = { vertical: 'middle', horizontal: 'left' };
+              } catch(e) {}
+            }
+
+            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
+            if (new Set(dates).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 7, endRow, 7);
+                wsPrevRen.getCell(startRow, 7).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
+            const modes = pkgSvcs.map(s => s.paymentMode || '-').filter(Boolean);
+            if (new Set(modes).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 8, endRow, 8);
+                wsPrevRen.getCell(startRow, 8).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
+            const agents = pkgSvcs.map(s => s.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-')).filter(Boolean);
+            if (new Set(agents).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 9, endRow, 9);
+                wsPrevRen.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'left' };
+              } catch(e) {}
+            }
+
+            const invs = pkgSvcs.map(s => s.invoiceNo || '-').filter(Boolean);
+            if (new Set(invs).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 10, endRow, 10);
+                wsPrevRen.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+          }
+
+          ptSerial++;
         }
 
-        prevRenRows.sort((a, b) => (b.amountPaid || 0) - (a.amountPaid || 0));
-
-        prevRenRows.forEach((r, idx) => {
-          const row = wsPrevRen.addRow([
-            idx + 1,
-            r.patientName,
-            r.doctor,
-            r.packageName,
-            r.category,
-            r.amountPaid,
-            r.paymentDate,
-            r.paymentMode,
-            r.agent,
-            r.invoiceNo,
-            r.classification
-          ]);
-          row.getCell(6).numFmt = '#,##0';
-        });
-
         // Add summary row for Previous Month Renewals
-        const totPrevRenPaid = prevRenRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
         const prevRenSummaryRow = wsPrevRen.addRow([
           '',
           'TOTAL PREVIOUS MONTH RENEWALS',
           '',
-          `${prevRenRows.length} Packages`,
+          `${totalPkgsCount} Packages`,
           '',
-          totPrevRenPaid,
+          totalPkgRevenue,
           '',
           '',
           '',
@@ -10108,12 +10167,24 @@
         ]);
         applyHeaderStyle(s16, 1, headerStyle);
 
-        let masterPrevRenRows = [];
-        for (const p of Object.values(filteredPatients || allPatients || {})) {
+        const masterPrevRenPatients = Object.values(filteredPatients || allPatients || {}).filter(p => {
           const hasConsult = (p.services || []).some(s => s.type === 'consultation');
-          if (hasConsult) continue;
-          
+          if (hasConsult) return false;
           const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          return pkgSvcs.length > 0;
+        });
+
+        masterPrevRenPatients.sort((a, b) => {
+          const sumA = (a.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName)).reduce((s, x) => s + (x.proportionalPaid || x.amountPaid || 0), 0);
+          const sumB = (b.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName)).reduce((s, x) => s + (x.proportionalPaid || x.amountPaid || 0), 0);
+          return sumB - sumA;
+        });
+
+        let masterPtSerial = 1;
+        for (const p of masterPrevRenPatients) {
+          const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          const startRow = s16.lastRow ? s16.lastRow.number + 1 : 2;
+
           for (const svc of pkgSvcs) {
             const pkgName = svc.packageName || 'Unknown';
             let cat = 'Pain Management';
@@ -10123,38 +10194,78 @@
             else if (lower.includes('robotic spine') || lower.includes('decompression')) cat = 'Robotic Spine';
             else if (lower.includes('wellness') || lower.includes('w&r')) cat = 'Wellness & Recovery';
 
-            masterPrevRenRows.push({
-              patientName: p.name,
-              doctor: svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned'),
-              packageName: pkgName,
-              category: cat,
-              amountPaid: svc.proportionalPaid || svc.amountPaid || 0,
-              paymentDate: svc.paymentDate ? formatDate(svc.paymentDate) : '-',
-              paymentMode: svc.paymentMode || '-',
-              agent: svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-'),
-              invoiceNo: svc.invoiceNo || '-',
-              classification: 'Previous Month Renewal (Only Package Tab)'
-            });
+            const amt = svc.proportionalPaid || svc.amountPaid || 0;
+            const doc = svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned');
+            const agent = svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-');
+
+            s16.addRow([
+              masterPtSerial,
+              p.name,
+              doc,
+              pkgName,
+              cat,
+              amt,
+              svc.paymentDate ? formatDate(svc.paymentDate) : '-',
+              svc.paymentMode || '-',
+              agent,
+              svc.invoiceNo || '-',
+              'Previous Month Renewal (Only Package Tab)'
+            ]);
           }
+
+          const endRow = s16.lastRow ? s16.lastRow.number : startRow;
+          if (endRow > startRow) {
+            [1, 2, 11].forEach(colIdx => {
+              try {
+                s16.mergeCells(startRow, colIdx, endRow, colIdx);
+                const cell = s16.getCell(startRow, colIdx);
+                cell.alignment = { vertical: 'middle', horizontal: colIdx === 2 ? 'left' : 'center' };
+              } catch(e) {}
+            });
+
+            const docs = pkgSvcs.map(s => s.doctor || (p.doctors && p.doctors[0])).filter(Boolean);
+            if (new Set(docs).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 3, endRow, 3);
+                s16.getCell(startRow, 3).alignment = { vertical: 'middle', horizontal: 'left' };
+              } catch(e) {}
+            }
+
+            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
+            if (new Set(dates).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 7, endRow, 7);
+                s16.getCell(startRow, 7).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
+            const modes = pkgSvcs.map(s => s.paymentMode || '-').filter(Boolean);
+            if (new Set(modes).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 8, endRow, 8);
+                s16.getCell(startRow, 8).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
+            const agents = pkgSvcs.map(s => s.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-')).filter(Boolean);
+            if (new Set(agents).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 9, endRow, 9);
+                s16.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'left' };
+              } catch(e) {}
+            }
+
+            const invs = pkgSvcs.map(s => s.invoiceNo || '-').filter(Boolean);
+            if (new Set(invs).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 10, endRow, 10);
+                s16.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+          }
+
+          masterPtSerial++;
         }
-
-        masterPrevRenRows.sort((a, b) => (b.amountPaid || 0) - (a.amountPaid || 0));
-
-        masterPrevRenRows.forEach((r, idx) => {
-          s16.addRow([
-            idx + 1,
-            r.patientName,
-            r.doctor,
-            r.packageName,
-            r.category,
-            r.amountPaid,
-            r.paymentDate,
-            r.paymentMode,
-            r.agent,
-            r.invoiceNo,
-            r.classification
-          ]);
-        });
         s16.getColumn(6).numFmt = '#,##0.00';
 
         // Write and download
