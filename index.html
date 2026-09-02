@@ -3167,7 +3167,7 @@
     function isWellnessPackage(packageName) {
       if (!packageName) return false;
       const lower = packageName.toLowerCase();
-      return lower.includes('wellness') || lower.includes('w&r') || lower.includes('wellness & recovery') || lower.includes('wellness and recovery');
+      return lower.includes('wellness') || lower.includes('w&r') || lower.includes('wellness & recovery') || lower.includes('wellness and recovery') || lower.includes('womens health') || lower.includes("women's health");
     }
 
     function isRoboticSpinePackage(packageName) {
@@ -3995,7 +3995,7 @@
                 const isBmsk = lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
                 const isShock = lower.includes('shockwave') || lower.includes('eswt') || lower.includes('acoustic wave');
                 const isSpine = lower.includes('robotic spine') || lower.includes('spine aligner') || lower.includes('spine decompression') || lower.includes('decompression');
-                const isWell = lower.includes('wellness') || lower.includes('w&r');
+                const isWell = lower.includes('wellness') || lower.includes('w&r') || lower.includes('womens health') || lower.includes("women's health");
                 const isPm = (lower.includes('pain management') || lower.includes('pain mgmt') || lower.startsWith('pm-') || lower.includes('pain recovery')) && !isBmsk && !isShock && !isSpine && !isWell;
 
                 if (isBmsk) {
@@ -4015,8 +4015,10 @@
                   dMap.painMgmtRevenue += amt;
                   dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
                 } else {
-                  dMap.otherPackageCount++;
-                  dMap.otherPackageRevenue += amt;
+                  // Default unmapped packages to Pain Management
+                  dMap.painMgmtCount++;
+                  dMap.painMgmtRevenue += amt;
+                  dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1;
                 }
               }
             }
