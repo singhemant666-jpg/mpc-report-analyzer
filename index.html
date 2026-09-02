@@ -2158,6 +2158,7 @@
                 </tr>
               </thead>
               <tbody id="doctor-incentive-tbody"></tbody>
+              <tfoot id="doctor-incentive-tfoot"></tfoot>
             </table>
           </div>
         </div>
@@ -7760,8 +7761,10 @@
         }
       });
 
+      const tfoot = document.getElementById('doctor-incentive-tfoot');
       if (doctors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="20" class="no-data">No doctor data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="22" class="no-data">No doctor data available</td></tr>';
+        if (tfoot) tfoot.innerHTML = '';
         return;
       }
 
@@ -7813,6 +7816,58 @@
           <td style="text-align:center;"><span class="badge ${badgeClass}">${rankBadge}</span></td>
         </tr>`;
       }).join('');
+
+      if (tfoot) {
+        const totConsult = doctors.reduce((s, d) => s + (d.consultation || 0), 0);
+        const totConv = doctors.reduce((s, d) => s + (d.convertedAfterConsult || 0), 0);
+        const totNonConv = doctors.reduce((s, d) => s + (d.nonConverted || 0), 0);
+        const totOverallPct = totConsult > 0 ? (totConv / totConsult * 100) : 0;
+        const totPainCount = doctors.reduce((s, d) => s + (d.painMgmtCount || 0), 0);
+        const totPainRev = doctors.reduce((s, d) => s + (d.painMgmtRevenue || 0), 0);
+        const totBmskCount = doctors.reduce((s, d) => s + (d.bmskCount || 0), 0);
+        const totBmskRev = doctors.reduce((s, d) => s + (d.bmskRevenue || 0), 0);
+        const totShockwaveCount = doctors.reduce((s, d) => s + (d.shockwaveCount || 0), 0);
+        const totShockwaveRev = doctors.reduce((s, d) => s + (d.shockwaveRevenue || 0), 0);
+        const totRoboticSpineCount = doctors.reduce((s, d) => s + (d.roboticSpineCount || 0), 0);
+        const totRoboticSpineRev = doctors.reduce((s, d) => s + (d.roboticSpineRevenue || 0), 0);
+        const totWellnessCount = doctors.reduce((s, d) => s + (d.wellnessCount || 0), 0);
+        const totWellnessRev = doctors.reduce((s, d) => s + (d.wellnessRevenue || 0), 0);
+        const totSameRenCount = doctors.reduce((s, d) => s + (d.sameMonthRenewalCount || 0), 0);
+        const totSameRenRev = doctors.reduce((s, d) => s + (d.sameMonthRenewalRevenue || 0), 0);
+        const totPrevRenCount = doctors.reduce((s, d) => s + (d.prevMonthRenewalCount || 0), 0);
+        const totPrevRenRev = doctors.reduce((s, d) => s + (d.prevMonthRenewalRevenue || 0), 0);
+        const totTotalPkgRev = doctors.reduce((s, d) => s + (d.totalPackageRevenue || (d.painMgmtRevenue + d.bmskRevenue + d.shockwaveRevenue + d.roboticSpineRevenue + d.wellnessRevenue) || 0), 0);
+
+        tfoot.innerHTML = `<tr style="background: rgba(15, 23, 42, 0.95); border-top: 2px solid var(--border); border-bottom: 2px solid var(--border); font-weight: 800;">
+          <td style="font-weight:800; color:var(--cyan); text-align:center;">∑</td>
+          <td style="font-weight:800; color:var(--text-primary); letter-spacing:0.5px;">TOTAL / CLINIC SUMMARY</td>
+          <td style="text-align:center; font-weight:800; color:var(--text-primary);">${totConsult}</td>
+          <td style="text-align:center; font-weight:800; color:var(--emerald);">${totConv}</td>
+          <td style="text-align:center; font-weight:800; color:var(--rose);">${totNonConv}</td>
+          <td style="text-align:center;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+              <span style="font-weight:800; color:var(--emerald); min-width:45px;">${totOverallPct.toFixed(1)}%</span>
+              <div class="gauge" style="width:45px;"><div class="gauge-fill" style="width:${Math.min(totOverallPct, 100)}%; background:linear-gradient(90deg, #10b981, #34d399);"></div></div>
+            </div>
+          </td>
+          <td style="text-align:center; font-weight:800; color:var(--emerald);">${totPainCount}</td>
+          <td style="text-align:center; font-weight:800; color:var(--emerald);">${formatCurrency(totPainRev)}</td>
+          <td style="text-align:center; font-weight:800; color:#fb923c;">${totBmskCount}</td>
+          <td style="text-align:center; font-weight:800; color:#fb923c;">${formatCurrency(totBmskRev)}</td>
+          <td style="text-align:center; font-weight:800; color:var(--cyan);">${totShockwaveCount}</td>
+          <td style="text-align:center; font-weight:800; color:var(--cyan);">${formatCurrency(totShockwaveRev)}</td>
+          <td style="text-align:center; font-weight:800; color:var(--rose);">${totRoboticSpineCount}</td>
+          <td style="text-align:center; font-weight:800; color:var(--rose);">${formatCurrency(totRoboticSpineRev)}</td>
+          <td style="text-align:center; font-weight:800; color:var(--purple);">${totWellnessCount}</td>
+          <td style="text-align:center; font-weight:800; color:var(--purple);">${formatCurrency(totWellnessRev)}</td>
+          <td style="text-align:center; font-weight:800; color:var(--purple);">${totSameRenCount}</td>
+          <td style="text-align:center; font-weight:800; color:var(--purple);">${formatCurrency(totSameRenRev)}</td>
+          <td style="text-align:center; font-weight:800; color:#38bdf8;">${totPrevRenCount}</td>
+          <td style="text-align:center; font-weight:800; color:#38bdf8;">${formatCurrency(totPrevRenRev)}</td>
+          <td style="text-align:center; font-weight:900; color:var(--emerald); font-size:1.05em;">${formatCurrency(totTotalPkgRev)}</td>
+          <td style="text-align:center;"><span class="badge badge-cyan" style="font-weight:700;">🏥 Clinic Total</span></td>
+        </tr>`;
+      }
     }
 
     async function exportDoctorIncentiveExcel() {
