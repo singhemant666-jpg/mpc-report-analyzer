@@ -7984,11 +7984,14 @@
           { header: 'Consulting Doctor', width: 28 },
           { header: 'Package Name', width: 28 },
           { header: 'Package Category', width: 22 },
+          { header: 'Userplan ID', width: 15 },
+          { header: 'Cart ID', width: 15 },
           { header: 'Amount Paid (Rs)', width: 18 },
           { header: 'Payment Date', width: 16 },
-          { header: 'Payment Mode', width: 16 },
+          { header: 'Payment Mode', width: 18 },
           { header: 'Agent / Counsellor', width: 22 },
-          { header: 'Invoice No.', width: 18 },
+          { header: 'Invoice No.', width: 24 },
+          { header: 'Payment / Installment Audit', width: 34 },
           { header: 'Renewal Classification', width: 34 }
         ];
         applyHeaderStyle(wsPrevRen, 1, headerStyle);
@@ -8033,26 +8036,36 @@
             const doc = svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned');
             const agent = svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-');
 
+            let auditStatus = 'Single Full Payment';
+            if (svc.invoiceNos && svc.invoiceNos.length > 1) {
+              auditStatus = `⚡ Merged Installment (${svc.invoiceNos.length} partial payments)`;
+            } else if (pkgSvcs.length > 1) {
+              auditStatus = `📦 Multi-Package Purchase (Plan #${svc.userplanId || '-'})`;
+            }
+
             const row = wsPrevRen.addRow([
               ptSerial,
               p.name,
               doc,
               pkgName,
               cat,
+              svc.userplanId || '-',
+              svc.cartId || '-',
               amt,
               svc.paymentDate ? formatDate(svc.paymentDate) : '-',
               svc.paymentMode || '-',
               agent,
               svc.invoiceNo || '-',
+              auditStatus,
               'Previous Month Renewal (Only Package Tab)'
             ]);
-            row.getCell(6).numFmt = '#,##0';
+            row.getCell(8).numFmt = '#,##0';
           }
 
           const endRow = wsPrevRen.lastRow ? wsPrevRen.lastRow.number : startRow;
           if (endRow > startRow) {
             // Merge duplicate patient cells
-            [1, 2, 11].forEach(colIdx => {
+            [1, 2, 14].forEach(colIdx => {
               try {
                 wsPrevRen.mergeCells(startRow, colIdx, endRow, colIdx);
                 const cell = wsPrevRen.getCell(startRow, colIdx);
@@ -8068,35 +8081,35 @@
               } catch(e) {}
             }
 
-            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
-            if (new Set(dates).size <= 1) {
+            const carts = pkgSvcs.map(s => s.cartId || '-').filter(Boolean);
+            if (new Set(carts).size <= 1) {
               try {
                 wsPrevRen.mergeCells(startRow, 7, endRow, 7);
                 wsPrevRen.getCell(startRow, 7).alignment = { vertical: 'middle', horizontal: 'center' };
               } catch(e) {}
             }
 
+            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
+            if (new Set(dates).size <= 1) {
+              try {
+                wsPrevRen.mergeCells(startRow, 9, endRow, 9);
+                wsPrevRen.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
             const modes = pkgSvcs.map(s => s.paymentMode || '-').filter(Boolean);
             if (new Set(modes).size <= 1) {
               try {
-                wsPrevRen.mergeCells(startRow, 8, endRow, 8);
-                wsPrevRen.getCell(startRow, 8).alignment = { vertical: 'middle', horizontal: 'center' };
+                wsPrevRen.mergeCells(startRow, 10, endRow, 10);
+                wsPrevRen.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
               } catch(e) {}
             }
 
             const agents = pkgSvcs.map(s => s.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-')).filter(Boolean);
             if (new Set(agents).size <= 1) {
               try {
-                wsPrevRen.mergeCells(startRow, 9, endRow, 9);
-                wsPrevRen.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'left' };
-              } catch(e) {}
-            }
-
-            const invs = pkgSvcs.map(s => s.invoiceNo || '-').filter(Boolean);
-            if (new Set(invs).size <= 1) {
-              try {
-                wsPrevRen.mergeCells(startRow, 10, endRow, 10);
-                wsPrevRen.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
+                wsPrevRen.mergeCells(startRow, 11, endRow, 11);
+                wsPrevRen.getCell(startRow, 11).alignment = { vertical: 'middle', horizontal: 'left' };
               } catch(e) {}
             }
           }
@@ -8111,7 +8124,10 @@
           '',
           `${totalPkgsCount} Packages`,
           '',
+          '',
+          '',
           totalPkgRevenue,
+          '',
           '',
           '',
           '',
@@ -8124,7 +8140,7 @@
           cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
           cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
         });
-        prevRenSummaryRow.getCell(6).numFmt = '#,##0';
+        prevRenSummaryRow.getCell(8).numFmt = '#,##0';
 
         const buf = await wb.xlsx.writeBuffer();
         const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -10161,9 +10177,15 @@
           { width: 22 }, { width: 18 }, { width: 16 }, { width: 16 },
           { width: 22 }, { width: 18 }, { width: 34 }
         ];
+        s16.columns = [
+          { width: 6 }, { width: 26 }, { width: 28 }, { width: 28 },
+          { width: 22 }, { width: 15 }, { width: 15 }, { width: 18 },
+          { width: 16 }, { width: 18 }, { width: 22 }, { width: 24 }, { width: 34 }, { width: 34 }
+        ];
         s16.addRow([
           '#', 'Patient Name', 'Consulting Doctor', 'Package Name', 'Package Category',
-          'Amount Paid (Rs)', 'Payment Date', 'Payment Mode', 'Agent / Counsellor', 'Invoice No.', 'Renewal Classification'
+          'Userplan ID', 'Cart ID', 'Amount Paid (Rs)', 'Payment Date', 'Payment Mode',
+          'Agent / Counsellor', 'Invoice No.', 'Payment / Installment Audit', 'Renewal Classification'
         ]);
         applyHeaderStyle(s16, 1, headerStyle);
 
@@ -10198,24 +10220,34 @@
             const doc = svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned');
             const agent = svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-');
 
+            let auditStatus = 'Single Full Payment';
+            if (svc.invoiceNos && svc.invoiceNos.length > 1) {
+              auditStatus = `⚡ Merged Installment (${svc.invoiceNos.length} partial payments)`;
+            } else if (pkgSvcs.length > 1) {
+              auditStatus = `📦 Multi-Package Purchase (Plan #${svc.userplanId || '-'})`;
+            }
+
             s16.addRow([
               masterPtSerial,
               p.name,
               doc,
               pkgName,
               cat,
+              svc.userplanId || '-',
+              svc.cartId || '-',
               amt,
               svc.paymentDate ? formatDate(svc.paymentDate) : '-',
               svc.paymentMode || '-',
               agent,
               svc.invoiceNo || '-',
+              auditStatus,
               'Previous Month Renewal (Only Package Tab)'
             ]);
           }
 
           const endRow = s16.lastRow ? s16.lastRow.number : startRow;
           if (endRow > startRow) {
-            [1, 2, 11].forEach(colIdx => {
+            [1, 2, 14].forEach(colIdx => {
               try {
                 s16.mergeCells(startRow, colIdx, endRow, colIdx);
                 const cell = s16.getCell(startRow, colIdx);
@@ -10231,42 +10263,42 @@
               } catch(e) {}
             }
 
-            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
-            if (new Set(dates).size <= 1) {
+            const carts = pkgSvcs.map(s => s.cartId || '-').filter(Boolean);
+            if (new Set(carts).size <= 1) {
               try {
                 s16.mergeCells(startRow, 7, endRow, 7);
                 s16.getCell(startRow, 7).alignment = { vertical: 'middle', horizontal: 'center' };
               } catch(e) {}
             }
 
+            const dates = pkgSvcs.map(s => s.paymentDate ? formatDate(s.paymentDate) : '-').filter(Boolean);
+            if (new Set(dates).size <= 1) {
+              try {
+                s16.mergeCells(startRow, 9, endRow, 9);
+                s16.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'center' };
+              } catch(e) {}
+            }
+
             const modes = pkgSvcs.map(s => s.paymentMode || '-').filter(Boolean);
             if (new Set(modes).size <= 1) {
               try {
-                s16.mergeCells(startRow, 8, endRow, 8);
-                s16.getCell(startRow, 8).alignment = { vertical: 'middle', horizontal: 'center' };
+                s16.mergeCells(startRow, 10, endRow, 10);
+                s16.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
               } catch(e) {}
             }
 
             const agents = pkgSvcs.map(s => s.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-')).filter(Boolean);
             if (new Set(agents).size <= 1) {
               try {
-                s16.mergeCells(startRow, 9, endRow, 9);
-                s16.getCell(startRow, 9).alignment = { vertical: 'middle', horizontal: 'left' };
-              } catch(e) {}
-            }
-
-            const invs = pkgSvcs.map(s => s.invoiceNo || '-').filter(Boolean);
-            if (new Set(invs).size <= 1) {
-              try {
-                s16.mergeCells(startRow, 10, endRow, 10);
-                s16.getCell(startRow, 10).alignment = { vertical: 'middle', horizontal: 'center' };
+                s16.mergeCells(startRow, 11, endRow, 11);
+                s16.getCell(startRow, 11).alignment = { vertical: 'middle', horizontal: 'left' };
               } catch(e) {}
             }
           }
 
           masterPtSerial++;
         }
-        s16.getColumn(6).numFmt = '#,##0.00';
+        s16.getColumn(8).numFmt = '#,##0.00';
 
         // Write and download
         const buffer = await wb.xlsx.writeBuffer();
