@@ -4074,9 +4074,11 @@
                 };
               }
               const dMap = doctorMap[doc];
-              dMap.renewalCount += allPkgSvcs.length;
-              dMap.renewalRevenue += allPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
-              dMap.totalRevenue += p.totalPaid;
+              const docPkgSvcs = allPkgSvcs.filter(s => (s.doctor === doc) || (!s.doctor && docSet.has(doc)));
+              const pkgRevOnly = docPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+              dMap.renewalCount += docPkgSvcs.length;
+              dMap.renewalRevenue += pkgRevOnly;
+              dMap.totalRevenue += pkgRevOnly; // Strictly package revenue only (excludes any Single Session amount)
             }
           }
         }
