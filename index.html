@@ -3949,10 +3949,10 @@
         ? (converted / totalConsultationPatients * 100) : 0;
 
       // Doctor-wise metrics & Pain Management Incentive Breakdown
-      // Rule: ONLY count patients who had a Consultation with this doctor for Consultation & Conversion metrics
+      // Rule: ONLY count patients who had an OPD Consultation with this doctor for Consultation & Conversion metrics (Women's Health consultations excluded)
       const doctorMap = {};
       for (const p of pList) {
-        const consultSvcs = (p.services || []).filter(s => s.type === 'consultation');
+        const consultSvcs = (p.services || []).filter(s => s.type === 'consultation' && !isWomensHealthPackage(s.packageName));
         const initialPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !s.isRenewal && !isWomensHealthPackage(s.packageName));
         const renPkgSvcs = (p.services || []).filter(s => s.type === 'package' && s.isRenewal && !isWomensHealthPackage(s.packageName));
         const isConverted = initialPkgSvcs.length > 0;
@@ -4048,12 +4048,59 @@
               }
             }
           }
-        } else {
-          // Past month renewals (from Only Package / Pkg+SS patients) -> attribute to doctor's renewal metrics
-          const allPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
-          if (allPkgSvcs.length > 0) {
-            const docSet = new Set();
-            allPkgSvcs.forEach(s => { if (s.doctor) docSet.add(s.doctor); });
+        } else if (initialPkgSvcs.length > 0 || renPkgSvcs.length > 0) {
+          // Patient has NO OPD consultation, but bought packages
+          const hasWHConsult = (p.services || []).some(s => s.type === 'consultation' && isWomensHealthPackage(s.packageName));
+          if (hasWHConsult) {
+            // Patient visited via Women's Health consultation and bought regular packages (e.g. Deepak Shelke, Aliya Khan, Widad Sayyed)
+            // Attributes their regular packages to doctor's package revenue (initial conversion) without counting an OPD consultation
+            const allDocSvcs = [...initialPkgSvcs, ...renPkgSvcs];
+            const docSet = new Set(allDocSvcs.map(s => s.doctor).filter(Boolean));
+            if (docSet.size === 0 && p.doctors) p.doctors.forEach(d => docSet.add(d));
+
+            for (const doc of docSet) {
+              if (!doctorMap[doc]) {
+                doctorMap[doc] = {
+                  doctor: doc, consultation: 0, convertedAfterConsult: 0, totalPackages: 0, totalPackageRevenue: 0,
+                  painMgmtCount: 0, painMgmtRevenue: 0, bmskCount: 0, bmskRevenue: 0, shockwaveCount: 0, shockwaveRevenue: 0,
+                  roboticSpineCount: 0, roboticSpineRevenue: 0, wellnessCount: 0, wellnessRevenue: 0, otherPackageCount: 0,
+                  otherPackageRevenue: 0, sameMonthRenewalCount: 0, sameMonthRenewalRevenue: 0, prevMonthRenewalCount: 0,
+                  prevMonthRenewalRevenue: 0, renewalCount: 0, renewalRevenue: 0, singleSessionCount: 0, totalRevenue: 0, pmBreakdown: {}
+                };
+              }
+              const dMap = doctorMap[doc];
+              dMap.totalPackages += initialPkgSvcs.length;
+
+              for (const svc of initialPkgSvcs) {
+                const amt = svc.proportionalPaid || 0;
+                const pkgName = svc.packageName || 'Unknown';
+                const lower = pkgName.toLowerCase();
+                dMap.totalPackageRevenue += amt;
+
+                const isBmsk = lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
+                const isShock = lower.includes('shockwave') || lower.includes('eswt') || lower.includes('acoustic wave');
+                const isSpine = lower.includes('robotic spine') || lower.includes('spine aligner') || lower.includes('spine decompression') || lower.includes('decompression');
+                const isWell = lower.includes('wellness') || lower.includes('w&r');
+                const isPm = (lower.includes('pain management') || lower.includes('pain mgmt') || lower.startsWith('pm-') || lower.includes('pain recovery')) && !isBmsk && !isShock && !isSpine && !isWell;
+
+                if (isBmsk) { dMap.bmskCount++; dMap.bmskRevenue += amt; }
+                else if (isShock) { dMap.shockwaveCount++; dMap.shockwaveRevenue += amt; }
+                else if (isSpine) { dMap.roboticSpineCount++; dMap.roboticSpineRevenue += amt; }
+                else if (isWell) { dMap.wellnessCount++; dMap.wellnessRevenue += amt; }
+                else if (isPm) { dMap.painMgmtCount++; dMap.painMgmtRevenue += amt; dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1; }
+                else { dMap.painMgmtCount++; dMap.painMgmtRevenue += amt; dMap.pmBreakdown[pkgName] = (dMap.pmBreakdown[pkgName] || 0) + 1; }
+              }
+
+              const sameMonthRenRev = renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+              dMap.sameMonthRenewalCount += renPkgSvcs.length;
+              dMap.sameMonthRenewalRevenue += sameMonthRenRev;
+              dMap.renewalCount += renPkgSvcs.length;
+              dMap.renewalRevenue += sameMonthRenRev;
+            }
+          } else {
+            // Truly Only Package patients (from Only Package tab) -> attribute to doctor's previous month renewal metrics
+            const allPkgSvcs = [...initialPkgSvcs, ...renPkgSvcs];
+            const docSet = new Set(allPkgSvcs.map(s => s.doctor).filter(Boolean));
             if (docSet.size === 0 && p.doctors) p.doctors.forEach(d => docSet.add(d));
 
             for (const doc of docSet) {
@@ -8660,6 +8707,10 @@
                            (p.services && p.services.some(s => s.doctor === doctorName));
         if (!matchesDoc) continue;
 
+        const hasOPDConsult = (p.services || []).some(s => s.type === 'consultation' && !isWomensHealthPackage(s.packageName) && s.doctor === doctorName);
+        const hasOPDPkg = (p.services || []).some(s => s.type === 'package' && !isWomensHealthPackage(s.packageName) && (s.doctor === doctorName || (!s.doctor && matchesDoc)));
+        if (!hasOPDConsult && !hasOPDPkg) continue;
+
         // If a package filter is active, enforce that patient MUST have a matching package for this doctor
         if (selectedPkgFilter) {
           const hasMatchingPkgSvc = p.services && p.services.some(s => 
@@ -8668,7 +8719,7 @@
           if (!hasMatchingPkgSvc) continue;
         }
 
-        const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
+        const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
         
         let initSvc;
         if (selectedPkgFilter) {
@@ -8741,8 +8792,8 @@
           renewalRevenue: renRevenue,
           totalPaid: pkgTotalPaid,
           hasRenewal: renSvcs.length > 0,
-          hasPackage: p.hasPackage,
-          hasConsultOnly: p.hasConsultation && !p.hasPackage,
+          hasPackage: hasOPDPkg,
+          hasConsultOnly: hasOPDConsult && !hasOPDPkg,
           stageBadge: stageBadge,
           rawPatient: p
         });
