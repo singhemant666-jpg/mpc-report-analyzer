@@ -2149,8 +2149,10 @@
                   <th style="cursor:pointer; user-select:none;" data-sort="roboticSpineRevenue" data-title="Robotic Spine Rev (₹)" onclick="sortDoctorLeaderboard('roboticSpineRevenue')">Robotic Spine Rev (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="wellnessCount" data-title="Wellness Pkgs" onclick="sortDoctorLeaderboard('wellnessCount')">Wellness Pkgs</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="wellnessRevenue" data-title="Wellness Rev (₹)" onclick="sortDoctorLeaderboard('wellnessRevenue')">Wellness Rev (₹)</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="renewalCount" data-title="Same Month Renewals Sold" onclick="sortDoctorLeaderboard('renewalCount')">Same Month Renewals Sold</th>
-                  <th style="cursor:pointer; user-select:none;" data-sort="renewalRevenue" data-title="Same Month Renewal Rev (₹)" onclick="sortDoctorLeaderboard('renewalRevenue')">Same Month Renewal Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="sameMonthRenewalCount" data-title="Same Month Renewals Sold" onclick="sortDoctorLeaderboard('sameMonthRenewalCount')">Same Month Renewals Sold</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="sameMonthRenewalRevenue" data-title="Same Month Renewal Rev (₹)" onclick="sortDoctorLeaderboard('sameMonthRenewalRevenue')">Same Month Renewal Rev (₹)</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="prevMonthRenewalCount" data-title="Previous Month Renewals Sold" onclick="sortDoctorLeaderboard('prevMonthRenewalCount')">Previous Month Renewals Sold</th>
+                  <th style="cursor:pointer; user-select:none;" data-sort="prevMonthRenewalRevenue" data-title="Previous Month Renewal Rev (₹)" onclick="sortDoctorLeaderboard('prevMonthRenewalRevenue')">Previous Month Renewal Rev (₹)</th>
                   <th style="cursor:pointer; user-select:none;" data-sort="totalPackageRevenue" data-title="Total Package Rev (₹)" onclick="sortDoctorLeaderboard('totalPackageRevenue')">Total Package Rev (₹)</th>
                   <th style="text-align:center;">Incentive Rank</th>
                 </tr>
@@ -3976,6 +3978,10 @@
                 wellnessRevenue: 0,
                 otherPackageCount: 0,
                 otherPackageRevenue: 0,
+                sameMonthRenewalCount: 0,
+                sameMonthRenewalRevenue: 0,
+                prevMonthRenewalCount: 0,
+                prevMonthRenewalRevenue: 0,
                 renewalCount: 0,
                 renewalRevenue: 0,
                 singleSessionCount: 0,
@@ -4029,8 +4035,11 @@
               }
             }
 
+            const sameMonthRenRev = renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+            dMap.sameMonthRenewalCount += renPkgSvcs.length;
+            dMap.sameMonthRenewalRevenue += sameMonthRenRev;
             dMap.renewalCount += renPkgSvcs.length;
-            dMap.renewalRevenue += renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+            dMap.renewalRevenue += sameMonthRenRev;
 
             for (const svc of p.services) {
               if (svc.type === 'single_session') {
@@ -4066,6 +4075,10 @@
                   wellnessRevenue: 0,
                   otherPackageCount: 0,
                   otherPackageRevenue: 0,
+                  sameMonthRenewalCount: 0,
+                  sameMonthRenewalRevenue: 0,
+                  prevMonthRenewalCount: 0,
+                  prevMonthRenewalRevenue: 0,
                   renewalCount: 0,
                   renewalRevenue: 0,
                   singleSessionCount: 0,
@@ -4076,6 +4089,8 @@
               const dMap = doctorMap[doc];
               const docPkgSvcs = allPkgSvcs.filter(s => (s.doctor === doc) || (!s.doctor && docSet.has(doc)));
               const pkgRevOnly = docPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+              dMap.prevMonthRenewalCount += docPkgSvcs.length;
+              dMap.prevMonthRenewalRevenue += pkgRevOnly;
               dMap.renewalCount += docPkgSvcs.length;
               dMap.renewalRevenue += pkgRevOnly;
               dMap.totalRevenue += pkgRevOnly; // Strictly package revenue only (excludes any Single Session amount)
@@ -7790,8 +7805,10 @@
           <td style="text-align:center; font-weight:700; color:var(--rose);">${formatCurrency(d.roboticSpineRevenue)}</td>
           <td style="text-align:center; font-weight:700; color:var(--purple);">${d.wellnessCount}</td>
           <td style="text-align:center; font-weight:700; color:var(--purple);">${formatCurrency(d.wellnessRevenue)}</td>
-          <td style="text-align:center; font-weight:700; color:var(--purple);">${d.renewalCount}</td>
-          <td style="text-align:center; font-weight:700; color:var(--purple);">${formatCurrency(d.renewalRevenue)}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${d.sameMonthRenewalCount || 0}</td>
+          <td style="text-align:center; font-weight:700; color:var(--purple);">${formatCurrency(d.sameMonthRenewalRevenue || 0)}</td>
+          <td style="text-align:center; font-weight:700; color:#38bdf8;">${d.prevMonthRenewalCount || 0}</td>
+          <td style="text-align:center; font-weight:700; color:#38bdf8;">${formatCurrency(d.prevMonthRenewalRevenue || 0)}</td>
           <td style="text-align:center; font-weight:800; color:var(--emerald);">${formatCurrency(docPkgTotalRev)}</td>
           <td style="text-align:center;"><span class="badge ${badgeClass}">${rankBadge}</span></td>
         </tr>`;
@@ -7845,6 +7862,8 @@
           { header: 'Wellness Revenue (Rs)', width: 22 },
           { header: 'Same Month Renewals Sold', width: 24 },
           { header: 'Same Month Renewal Revenue (Rs)', width: 26 },
+          { header: 'Previous Month Renewals Sold', width: 26 },
+          { header: 'Previous Month Renewal Revenue (Rs)', width: 28 },
           { header: 'Total Package Revenue (Rs)', width: 25 },
           { header: 'Incentive Tier', width: 18 }
         ];
@@ -7887,8 +7906,10 @@
             d.roboticSpineRevenue || 0,
             d.wellnessCount || 0,
             d.wellnessRevenue || 0,
-            d.renewalCount || 0,
-            d.renewalRevenue || 0,
+            d.sameMonthRenewalCount || 0,
+            d.sameMonthRenewalRevenue || 0,
+            d.prevMonthRenewalCount || 0,
+            d.prevMonthRenewalRevenue || 0,
             docPkgTotalRev,
             tierBadge
           ]);
@@ -7899,7 +7920,8 @@
           row.getCell(14).numFmt = '#,##0';
           row.getCell(16).numFmt = '#,##0';
           row.getCell(18).numFmt = '#,##0';
-          row.getCell(19).numFmt = '#,##0';
+          row.getCell(20).numFmt = '#,##0';
+          row.getCell(21).numFmt = '#,##0';
         });
 
         // Summary Total Row
@@ -7916,8 +7938,10 @@
         const totRoboticRev = doctors.reduce((s, d) => s + (d.roboticSpineRevenue || 0), 0);
         const totWellCount = doctors.reduce((s, d) => s + (d.wellnessCount || 0), 0);
         const totWellRev = doctors.reduce((s, d) => s + (d.wellnessRevenue || 0), 0);
-        const totRenCount = doctors.reduce((s, d) => s + (d.renewalCount || 0), 0);
-        const totRenRev = doctors.reduce((s, d) => s + (d.renewalRevenue || 0), 0);
+        const totSameRenCount = doctors.reduce((s, d) => s + (d.sameMonthRenewalCount || 0), 0);
+        const totSameRenRev = doctors.reduce((s, d) => s + (d.sameMonthRenewalRevenue || 0), 0);
+        const totPrevRenCount = doctors.reduce((s, d) => s + (d.prevMonthRenewalCount || 0), 0);
+        const totPrevRenRev = doctors.reduce((s, d) => s + (d.prevMonthRenewalRevenue || 0), 0);
         const totPkgRev = doctors.reduce((s, d) => s + (d.totalPackageRevenue || 0), 0);
         const overallConv = totConsult > 0 ? ((totConv / totConsult) * 100).toFixed(1) + '%' : '0%';
 
@@ -7938,8 +7962,10 @@
           totRoboticRev,
           totWellCount,
           totWellRev,
-          totRenCount,
-          totRenRev,
+          totSameRenCount,
+          totSameRenRev,
+          totPrevRenCount,
+          totPrevRenRev,
           totPkgRev,
           ''
         ]);
@@ -10026,13 +10052,13 @@
           { width: 8 }, { width: 28 }, { width: 15 }, { width: 16 }, { width: 15 }, { width: 15 },
           { width: 16 }, { width: 22 }, { width: 16 }, { width: 22 },
           { width: 16 }, { width: 22 }, { width: 18 }, { width: 24 },
-          { width: 16 }, { width: 22 }, { width: 22 }, { width: 26 }, { width: 25 }
+          { width: 16 }, { width: 22 }, { width: 22 }, { width: 26 }, { width: 24 }, { width: 28 }, { width: 25 }
         ];
         s15.addRow([
           'Rank', 'Doctor', 'Consultation', 'Converted (Pkgs)', 'Non-Converted', 'Overall Conv %',
           'Pain Mgmt Pkgs', 'Pain Mgmt Revenue (Rs)', 'Basic MSK Pkgs', 'Basic MSK Revenue (Rs)',
           'Shockwave Pkgs', 'Shockwave Revenue (Rs)', 'Robotic Spine Pkgs', 'Robotic Spine Revenue (Rs)',
-          'Wellness Pkgs', 'Wellness Revenue (Rs)', 'Same Month Renewals Sold', 'Same Month Renewal Revenue (Rs)', 'Total Package Revenue (Rs)'
+          'Wellness Pkgs', 'Wellness Revenue (Rs)', 'Same Month Renewals Sold', 'Same Month Renewal Revenue (Rs)', 'Previous Month Renewals Sold', 'Previous Month Renewal Revenue (Rs)', 'Total Package Revenue (Rs)'
         ]);
         applyHeaderStyle(s15, 1, headerStyle);
 
@@ -10060,12 +10086,14 @@
             d.roboticSpineRevenue || 0,
             d.wellnessCount || 0,
             d.wellnessRevenue || 0,
-            d.renewalCount || 0,
-            d.renewalRevenue || 0,
+            d.sameMonthRenewalCount || 0,
+            d.sameMonthRenewalRevenue || 0,
+            d.prevMonthRenewalCount || 0,
+            d.prevMonthRenewalRevenue || 0,
             docPkgTotalRev
           ]);
         });
-        [8, 10, 12, 14, 16, 18, 19].forEach(c => s15.getColumn(c).numFmt = '#,##0.00');
+        [8, 10, 12, 14, 16, 18, 20, 21].forEach(c => s15.getColumn(c).numFmt = '#,##0.00');
 
         // Sheet 16: Previous Month Renewals (Only Package Tab)
         const s16 = wb.addWorksheet('Previous Month Renewals');
