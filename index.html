@@ -7948,11 +7948,102 @@
           cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
         });
 
+        // ==================== WORKSHEET 2: PREVIOUS MONTH RENEWALS (ONLY PACKAGE) ====================
+        const wsPrevRen = wb.addWorksheet('Previous Month Renewals');
+        wsPrevRen.columns = [
+          { header: '#', width: 6 },
+          { header: 'Patient Name', width: 26 },
+          { header: 'Consulting Doctor', width: 28 },
+          { header: 'Package Name', width: 28 },
+          { header: 'Package Category', width: 22 },
+          { header: 'Amount Paid (Rs)', width: 18 },
+          { header: 'Payment Date', width: 16 },
+          { header: 'Payment Mode', width: 16 },
+          { header: 'Agent / Counsellor', width: 22 },
+          { header: 'Invoice No.', width: 18 },
+          { header: 'Renewal Classification', width: 34 }
+        ];
+        applyHeaderStyle(wsPrevRen, 1, headerStyle);
+
+        // Collect all Only Package / non-consultation package patients
+        let prevRenRows = [];
+        const ptSource = filteredPatients || allPatients || {};
+        for (const p of Object.values(ptSource)) {
+          const hasConsult = (p.services || []).some(s => s.type === 'consultation');
+          if (hasConsult) continue; // Skip same-month consult patients
+          
+          const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          for (const svc of pkgSvcs) {
+            const pkgName = svc.packageName || 'Unknown';
+            let cat = 'Pain Management';
+            const lower = pkgName.toLowerCase();
+            if (lower.includes('bmsk') || lower.includes('basic physio')) cat = 'Basic MSK';
+            else if (lower.includes('shockwave') || lower.includes('eswt')) cat = 'Shockwave Therapy';
+            else if (lower.includes('robotic spine') || lower.includes('decompression')) cat = 'Robotic Spine';
+            else if (lower.includes('wellness') || lower.includes('w&r')) cat = 'Wellness & Recovery';
+
+            prevRenRows.push({
+              patientName: p.name,
+              doctor: svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned'),
+              packageName: pkgName,
+              category: cat,
+              amountPaid: svc.proportionalPaid || svc.amountPaid || 0,
+              paymentDate: svc.paymentDate ? formatDate(svc.paymentDate) : '-',
+              paymentMode: svc.paymentMode || '-',
+              agent: svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-'),
+              invoiceNo: svc.invoiceNo || '-',
+              classification: 'Previous Month Renewal (Only Package Tab)'
+            });
+          }
+        }
+
+        prevRenRows.sort((a, b) => (b.amountPaid || 0) - (a.amountPaid || 0));
+
+        prevRenRows.forEach((r, idx) => {
+          const row = wsPrevRen.addRow([
+            idx + 1,
+            r.patientName,
+            r.doctor,
+            r.packageName,
+            r.category,
+            r.amountPaid,
+            r.paymentDate,
+            r.paymentMode,
+            r.agent,
+            r.invoiceNo,
+            r.classification
+          ]);
+          row.getCell(6).numFmt = '#,##0';
+        });
+
+        // Add summary row for Previous Month Renewals
+        const totPrevRenPaid = prevRenRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+        const prevRenSummaryRow = wsPrevRen.addRow([
+          '',
+          'TOTAL PREVIOUS MONTH RENEWALS',
+          '',
+          `${prevRenRows.length} Packages`,
+          '',
+          totPrevRenPaid,
+          '',
+          '',
+          '',
+          '',
+          ''
+        ]);
+        prevRenSummaryRow.font = { bold: true };
+        prevRenSummaryRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+        prevRenSummaryRow.eachCell(cell => {
+          cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+          cell.border = { top: { style: 'medium' }, bottom: { style: 'medium' } };
+        });
+        prevRenSummaryRow.getCell(6).numFmt = '#,##0';
+
         const buf = await wb.xlsx.writeBuffer();
         const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         downloadBlob(blob, `MPC_Doctor_Incentive_Conversion_Leaderboard_${new Date().toISOString().split('T')[0]}.xlsx`);
         hideLoading();
-        showToast('Doctor Leaderboard Excel exported successfully!', 'success');
+        showToast('Doctor Leaderboard Excel exported successfully with 2 Sub-Sheets!', 'success');
       } catch (err) {
         hideLoading();
         console.error('Error exporting Doctor Leaderboard Excel:', err);
@@ -9933,13 +10024,13 @@
           { width: 8 }, { width: 28 }, { width: 15 }, { width: 16 }, { width: 15 }, { width: 15 },
           { width: 16 }, { width: 22 }, { width: 16 }, { width: 22 },
           { width: 16 }, { width: 22 }, { width: 18 }, { width: 24 },
-          { width: 16 }, { width: 22 }, { width: 15 }, { width: 22 }, { width: 25 }
+          { width: 16 }, { width: 22 }, { width: 22 }, { width: 26 }, { width: 25 }
         ];
         s15.addRow([
           'Rank', 'Doctor', 'Consultation', 'Converted (Pkgs)', 'Non-Converted', 'Overall Conv %',
           'Pain Mgmt Pkgs', 'Pain Mgmt Revenue (Rs)', 'Basic MSK Pkgs', 'Basic MSK Revenue (Rs)',
           'Shockwave Pkgs', 'Shockwave Revenue (Rs)', 'Robotic Spine Pkgs', 'Robotic Spine Revenue (Rs)',
-          'Wellness Pkgs', 'Wellness Revenue (Rs)', 'Renewals Sold', 'Renewal Revenue (Rs)', 'Total Package Revenue (Rs)'
+          'Wellness Pkgs', 'Wellness Revenue (Rs)', 'Same Month Renewals Sold', 'Same Month Renewal Revenue (Rs)', 'Total Package Revenue (Rs)'
         ]);
         applyHeaderStyle(s15, 1, headerStyle);
 
@@ -9974,11 +10065,73 @@
         });
         [8, 10, 12, 14, 16, 18, 19].forEach(c => s15.getColumn(c).numFmt = '#,##0.00');
 
+        // Sheet 16: Previous Month Renewals (Only Package Tab)
+        const s16 = wb.addWorksheet('Previous Month Renewals');
+        s16.columns = [
+          { width: 6 }, { width: 26 }, { width: 28 }, { width: 28 },
+          { width: 22 }, { width: 18 }, { width: 16 }, { width: 16 },
+          { width: 22 }, { width: 18 }, { width: 34 }
+        ];
+        s16.addRow([
+          '#', 'Patient Name', 'Consulting Doctor', 'Package Name', 'Package Category',
+          'Amount Paid (Rs)', 'Payment Date', 'Payment Mode', 'Agent / Counsellor', 'Invoice No.', 'Renewal Classification'
+        ]);
+        applyHeaderStyle(s16, 1, headerStyle);
+
+        let masterPrevRenRows = [];
+        for (const p of Object.values(filteredPatients || allPatients || {})) {
+          const hasConsult = (p.services || []).some(s => s.type === 'consultation');
+          if (hasConsult) continue;
+          
+          const pkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          for (const svc of pkgSvcs) {
+            const pkgName = svc.packageName || 'Unknown';
+            let cat = 'Pain Management';
+            const lower = pkgName.toLowerCase();
+            if (lower.includes('bmsk') || lower.includes('basic physio')) cat = 'Basic MSK';
+            else if (lower.includes('shockwave') || lower.includes('eswt')) cat = 'Shockwave Therapy';
+            else if (lower.includes('robotic spine') || lower.includes('decompression')) cat = 'Robotic Spine';
+            else if (lower.includes('wellness') || lower.includes('w&r')) cat = 'Wellness & Recovery';
+
+            masterPrevRenRows.push({
+              patientName: p.name,
+              doctor: svc.doctor || (p.doctors && p.doctors.length > 0 ? p.doctors[0] : 'Unassigned'),
+              packageName: pkgName,
+              category: cat,
+              amountPaid: svc.proportionalPaid || svc.amountPaid || 0,
+              paymentDate: svc.paymentDate ? formatDate(svc.paymentDate) : '-',
+              paymentMode: svc.paymentMode || '-',
+              agent: svc.agent || (p.agents ? (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', ')) : '-'),
+              invoiceNo: svc.invoiceNo || '-',
+              classification: 'Previous Month Renewal (Only Package Tab)'
+            });
+          }
+        }
+
+        masterPrevRenRows.sort((a, b) => (b.amountPaid || 0) - (a.amountPaid || 0));
+
+        masterPrevRenRows.forEach((r, idx) => {
+          s16.addRow([
+            idx + 1,
+            r.patientName,
+            r.doctor,
+            r.packageName,
+            r.category,
+            r.amountPaid,
+            r.paymentDate,
+            r.paymentMode,
+            r.agent,
+            r.invoiceNo,
+            r.classification
+          ]);
+        });
+        s16.getColumn(6).numFmt = '#,##0.00';
+
         // Write and download
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         downloadBlob(blob, 'Daily_Collection_Analysis.xlsx');
-        showToast('Excel report downloaded (15 sheets)', 'success');
+        showToast('Excel report downloaded (16 sheets including Previous Month Renewals)', 'success');
       } catch (err) {
         console.error(err);
         showToast('Error generating Excel: ' + err.message, 'error');
