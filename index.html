@@ -4038,6 +4038,47 @@
               }
             }
           }
+        } else {
+          // Past month renewals (from Only Package / Pkg+SS patients) -> attribute to doctor's renewal metrics
+          const allPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !isWomensHealthPackage(s.packageName));
+          if (allPkgSvcs.length > 0) {
+            const docSet = new Set();
+            allPkgSvcs.forEach(s => { if (s.doctor) docSet.add(s.doctor); });
+            if (docSet.size === 0 && p.doctors) p.doctors.forEach(d => docSet.add(d));
+
+            for (const doc of docSet) {
+              if (!doctorMap[doc]) {
+                doctorMap[doc] = {
+                  doctor: doc,
+                  consultation: 0,
+                  convertedAfterConsult: 0,
+                  totalPackages: 0,
+                  totalPackageRevenue: 0,
+                  painMgmtCount: 0,
+                  painMgmtRevenue: 0,
+                  bmskCount: 0,
+                  bmskRevenue: 0,
+                  shockwaveCount: 0,
+                  shockwaveRevenue: 0,
+                  roboticSpineCount: 0,
+                  roboticSpineRevenue: 0,
+                  wellnessCount: 0,
+                  wellnessRevenue: 0,
+                  otherPackageCount: 0,
+                  otherPackageRevenue: 0,
+                  renewalCount: 0,
+                  renewalRevenue: 0,
+                  singleSessionCount: 0,
+                  totalRevenue: 0,
+                  pmBreakdown: {}
+                };
+              }
+              const dMap = doctorMap[doc];
+              dMap.renewalCount += allPkgSvcs.length;
+              dMap.renewalRevenue += allPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+              dMap.totalRevenue += p.totalPaid;
+            }
+          }
         }
       }
 
