@@ -3167,7 +3167,13 @@
     function isWellnessPackage(packageName) {
       if (!packageName) return false;
       const lower = packageName.toLowerCase();
-      return lower.includes('wellness') || lower.includes('w&r') || lower.includes('wellness & recovery') || lower.includes('wellness and recovery') || lower.includes('womens health') || lower.includes("women's health");
+      return lower.includes('wellness') || lower.includes('w&r') || lower.includes('wellness & recovery') || lower.includes('wellness and recovery');
+    }
+
+    function isWomensHealthPackage(packageName) {
+      if (!packageName) return false;
+      const lower = packageName.toLowerCase();
+      return lower.includes('womens health') || lower.includes("women's health") || lower.includes('womens-health') || lower.includes("women's-health");
     }
 
     function isRoboticSpinePackage(packageName) {
@@ -3944,8 +3950,8 @@
       const doctorMap = {};
       for (const p of pList) {
         const consultSvcs = (p.services || []).filter(s => s.type === 'consultation');
-        const initialPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !s.isRenewal);
-        const renPkgSvcs = (p.services || []).filter(s => s.type === 'package' && s.isRenewal);
+        const initialPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !s.isRenewal && !isWomensHealthPackage(s.packageName));
+        const renPkgSvcs = (p.services || []).filter(s => s.type === 'package' && s.isRenewal && !isWomensHealthPackage(s.packageName));
         const isConverted = initialPkgSvcs.length > 0;
 
         if (consultSvcs.length > 0) {
@@ -3995,7 +4001,7 @@
                 const isBmsk = lower.includes('bmsk') || lower.includes('basic physio') || lower.includes('basic physiotherapy');
                 const isShock = lower.includes('shockwave') || lower.includes('eswt') || lower.includes('acoustic wave');
                 const isSpine = lower.includes('robotic spine') || lower.includes('spine aligner') || lower.includes('spine decompression') || lower.includes('decompression');
-                const isWell = lower.includes('wellness') || lower.includes('w&r') || lower.includes('womens health') || lower.includes("women's health");
+                const isWell = lower.includes('wellness') || lower.includes('w&r');
                 const isPm = (lower.includes('pain management') || lower.includes('pain mgmt') || lower.startsWith('pm-') || lower.includes('pain recovery')) && !isBmsk && !isShock && !isSpine && !isWell;
 
                 if (isBmsk) {
