@@ -2369,6 +2369,16 @@
           <div class="chart-container"><div id="chart-agent" style="width:100%; height:100%;"></div></div>
         </div>
 
+        <!-- Lead Source Section Header & Export Button -->
+        <div class="chart-card full-width" style="margin-bottom: -10px; background: transparent; border: none; padding: 0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding: 8px 0 4px 0;">
+            <div class="section-title" style="margin:0;"><span class="icon">🎯</span> Lead Source Performance &amp; Channel Conversion Analytics</div>
+            <button class="btn btn-success btn-sm" onclick="exportLeadSourceExcel()" id="btn-export-lead-excel" style="background:linear-gradient(135deg, #059669, #10b981); color:#fff; font-weight:700; border:none; box-shadow:0 2px 8px rgba(16,185,129,0.3); display:inline-flex; align-items:center; gap:6px;">
+              📥 Download Lead Source Analysis Excel
+            </button>
+          </div>
+        </div>
+
         <div class="chart-card">
           <div class="chart-header">
             <div class="chart-title"><div class="dot"></div>Lead Source Conversion Share (%)</div>
@@ -2657,7 +2667,13 @@
       <div class="section-title"><span class="icon">💾</span> Export Reports</div>
       <div class="export-section">
         <button class="btn btn-success" onclick="exportExcel()" id="export-excel-btn">
-          📥 Download Excel Report (15 Sheets)
+          📥 Download Master Excel (18 Sheets)
+        </button>
+        <button class="btn btn-primary" onclick="exportDoctorIncentiveExcel()" id="export-doc-btn">
+          🏆 Download Doctor Leaderboard Excel
+        </button>
+        <button class="btn btn-emerald" onclick="exportLeadSourceExcel()" id="export-lead-source-btn" style="background:linear-gradient(135deg, #059669, #10b981); color:#fff; font-weight:700;">
+          🎯 Download Lead Source Analysis Excel
         </button>
         <button class="btn" onclick="exportCSV()" id="export-csv-btn">📄 Export CSV</button>
         <button class="btn" onclick="exportPDF()" id="export-pdf-btn">📑 Export PDF Summary</button>
@@ -8256,6 +8272,893 @@
       }
     }
 
+    // ==================== LEAD SOURCE & DOCTOR ANALYTICS EXCEL EXPORT ====================
+    async function exportLeadSourceExcel() {
+      showLoading('Generating Comprehensive Lead Source & Doctor Analytics Excel...');
+      try {
+        await new Promise(r => setTimeout(r, 60));
+
+        const pList = Object.values(filteredPatients || allPatients || {});
+        if (!pList || pList.length === 0) {
+          hideLoading();
+          showToast('No patient records found to export', 'error');
+          return;
+        }
+
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'MPC Clinic Analytics';
+        wb.created = new Date();
+
+        // 1. Data Structures for Aggregations
+        const sourceStats = {};
+        const sourceDocStats = {};
+        const docSourceStats = {};
+        const patientAuditRows = [];
+
+        let grandTotalConsults = 0;
+        let grandTotalConverted = 0;
+        let grandTotalPkgs = 0;
+        let grandTotalPkgRev = 0;
+        let grandTotalConsultRev = 0;
+        let grandTotalSSRev = 0;
+        let grandTotalRev = 0;
+
+        for (const p of pList) {
+          const consultSvcs = (p.services || []).filter(s => s.type === 'consultation' && !isWomensHealthPackage(s.packageName));
+          const initPkgSvcs = (p.services || []).filter(s => s.type === 'package' && !s.isRenewal && !isWomensHealthPackage(s.packageName));
+          const renPkgSvcs = (p.services || []).filter(s => s.type === 'package' && s.isRenewal && !isWomensHealthPackage(s.packageName));
+          const allPkgSvcs = [...initPkgSvcs, ...renPkgSvcs];
+          const ssSvcs = (p.services || []).filter(s => s.type === 'single_session');
+
+          let primarySrc = (consultSvcs[0] && consultSvcs[0].leadSource) || 
+                           (p.services && p.services[0] && p.services[0].leadSource) || 
+                           (p.leadSources && p.leadSources[0]) || 'Unknown';
+          if (primarySrc.toLowerCase().includes('referral') || primarySrc.toLowerCase().includes('word of mouth')) {
+            primarySrc = 'Referral & Word of Mouth';
+          }
+
+          let primaryDoc = (consultSvcs[0] && consultSvcs[0].doctor) || 
+                           (initPkgSvcs[0] && initPkgSvcs[0].doctor) || 
+                           (allPkgSvcs[0] && allPkgSvcs[0].doctor) || 
+                           (p.doctors && p.doctors[0]) || 'Unassigned';
+
+          const hasConsult = consultSvcs.length > 0;
+          const isConverted = hasConsult && initPkgSvcs.length > 0;
+
+          const consultDateStr = consultSvcs[0] && consultSvcs[0].paymentDate ? formatDate(consultSvcs[0].paymentDate) : '-';
+          const consultPaid = consultSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+          const initPkgPaid = initPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+          const renPkgPaid = renPkgSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+          const ssPaid = ssSvcs.reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+          const totalPaid = p.totalPaid || (consultPaid + initPkgPaid + renPkgPaid + ssPaid);
+
+          patientAuditRows.push({
+            patientName: p.name,
+            leadSource: primarySrc,
+            doctor: primaryDoc,
+            hasConsult: hasConsult ? 'Yes' : 'No',
+            consultDate: consultDateStr,
+            consultPaid: consultPaid,
+            converted: isConverted ? 'Yes' : (hasConsult ? 'No' : 'N/A (No Consult)'),
+            initPkgNames: initPkgSvcs.map(s => s.packageName).join('; ') || '-',
+            initPkgPaid: initPkgPaid,
+            renPkgCount: renPkgSvcs.length,
+            renPkgNames: renPkgSvcs.map(s => s.packageName).join('; ') || '-',
+            renPkgPaid: renPkgPaid,
+            totalPkgPaid: initPkgPaid + renPkgPaid,
+            ssCount: ssSvcs.length,
+            ssPaid: ssPaid,
+            totalPaid: totalPaid,
+            status: p.status || '-',
+            agent: (p.agents && (Array.isArray(p.agents) ? p.agents.join(', ') : [...p.agents].join(', '))) || '-'
+          });
+
+          // Service-level financial aggregation
+          (p.services || []).forEach(s => {
+            let src = s.leadSource || primarySrc || 'Unknown';
+            if (src.toLowerCase().includes('referral') || src.toLowerCase().includes('word of mouth')) {
+              src = 'Referral & Word of Mouth';
+            }
+            const doc = s.doctor || primaryDoc || 'Unassigned';
+            const amt = s.proportionalPaid || 0;
+
+            if (!sourceStats[src]) {
+              sourceStats[src] = {
+                source: src,
+                patientSet: new Set(),
+                consultPatients: new Set(),
+                convertedPatients: new Set(),
+                consultCount: 0,
+                consultRev: 0,
+                initPkgCount: 0,
+                initPkgRev: 0,
+                renPkgCount: 0,
+                renPkgRev: 0,
+                totalPkgCount: 0,
+                totalPkgRev: 0,
+                ssCount: 0,
+                ssRev: 0,
+                totalRev: 0,
+                doctorPerformance: {}
+              };
+            }
+            const st = sourceStats[src];
+            st.patientSet.add(p.name);
+            st.totalRev += amt;
+            grandTotalRev += amt;
+
+            if (!st.doctorPerformance[doc]) {
+              st.doctorPerformance[doc] = { consults: 0, converted: 0, initPkgCount: 0, initPkgRev: 0, renPkgCount: 0, renPkgRev: 0, totalPkgCount: 0, pkgRev: 0, consultRev: 0, ssRev: 0, totalRev: 0 };
+            }
+            st.doctorPerformance[doc].totalRev += amt;
+
+            if (s.type === 'consultation') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                st.consultCount++;
+                grandTotalConsults++;
+                st.consultPatients.add(p.name);
+                st.doctorPerformance[doc].consults++;
+                if (initPkgSvcs.length > 0) {
+                  st.convertedPatients.add(p.name);
+                  st.doctorPerformance[doc].converted++;
+                  grandTotalConverted++;
+                }
+              }
+              st.consultRev += amt;
+              grandTotalConsultRev += amt;
+              st.doctorPerformance[doc].consultRev += amt;
+            } else if (s.type === 'package') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                if (s.isRenewal) {
+                  st.renPkgCount++;
+                  st.renPkgRev += amt;
+                  st.doctorPerformance[doc].renPkgCount++;
+                  st.doctorPerformance[doc].renPkgRev += amt;
+                } else {
+                  st.initPkgCount++;
+                  st.initPkgRev += amt;
+                  st.doctorPerformance[doc].initPkgCount++;
+                  st.doctorPerformance[doc].initPkgRev += amt;
+                }
+                st.totalPkgCount++;
+                st.totalPkgRev += amt;
+                st.doctorPerformance[doc].totalPkgCount++;
+                st.doctorPerformance[doc].pkgRev += amt;
+                grandTotalPkgs++;
+                grandTotalPkgRev += amt;
+              }
+            } else if (s.type === 'single_session') {
+              st.ssCount++;
+              st.ssRev += amt;
+              grandTotalSSRev += amt;
+              st.doctorPerformance[doc].ssRev += amt;
+            }
+
+            // Lead Source x Doctor Map
+            const sdKey = `${src}___${doc}`;
+            if (!sourceDocStats[sdKey]) {
+              sourceDocStats[sdKey] = {
+                source: src,
+                doctor: doc,
+                consultCount: 0,
+                convertedPatients: new Set(),
+                consultPatients: new Set(),
+                initPkgCount: 0,
+                initPkgRev: 0,
+                renPkgCount: 0,
+                renPkgRev: 0,
+                totalPkgCount: 0,
+                totalPkgRev: 0,
+                consultRev: 0,
+                ssRev: 0,
+                totalRev: 0
+              };
+            }
+            const sd = sourceDocStats[sdKey];
+            sd.totalRev += amt;
+            if (s.type === 'consultation') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                sd.consultCount++;
+                sd.consultPatients.add(p.name);
+                if (initPkgSvcs.length > 0) sd.convertedPatients.add(p.name);
+              }
+              sd.consultRev += amt;
+            } else if (s.type === 'package') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                if (s.isRenewal) {
+                  sd.renPkgCount++;
+                  sd.renPkgRev += amt;
+                } else {
+                  sd.initPkgCount++;
+                  sd.initPkgRev += amt;
+                }
+                sd.totalPkgCount++;
+                sd.totalPkgRev += amt;
+              }
+            } else if (s.type === 'single_session') {
+              sd.ssRev += amt;
+            }
+
+            // Doctor x Lead Source Map
+            const dsKey = `${doc}___${src}`;
+            if (!docSourceStats[dsKey]) {
+              docSourceStats[dsKey] = {
+                doctor: doc,
+                source: src,
+                consultCount: 0,
+                convertedPatients: new Set(),
+                consultPatients: new Set(),
+                initPkgCount: 0,
+                initPkgRev: 0,
+                renPkgCount: 0,
+                renPkgRev: 0,
+                totalPkgCount: 0,
+                totalPkgRev: 0,
+                consultRev: 0,
+                ssRev: 0,
+                totalRev: 0
+              };
+            }
+            const ds = docSourceStats[dsKey];
+            ds.totalRev += amt;
+            if (s.type === 'consultation') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                ds.consultCount++;
+                ds.consultPatients.add(p.name);
+                if (initPkgSvcs.length > 0) ds.convertedPatients.add(p.name);
+              }
+              ds.consultRev += amt;
+            } else if (s.type === 'package') {
+              if (!isWomensHealthPackage(s.packageName)) {
+                if (s.isRenewal) {
+                  ds.renPkgCount++;
+                  ds.renPkgRev += amt;
+                } else {
+                  ds.initPkgCount++;
+                  ds.initPkgRev += amt;
+                }
+                ds.totalPkgCount++;
+                ds.totalPkgRev += amt;
+              }
+            } else if (s.type === 'single_session') {
+              ds.ssRev += amt;
+            }
+          });
+        }
+
+        // Styles
+        const navyHeaderStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF334155' } },
+            bottom: { style: 'thin', color: { argb: 'FF334155' } },
+            left: { style: 'thin', color: { argb: 'FF334155' } },
+            right: { style: 'thin', color: { argb: 'FF334155' } }
+          }
+        };
+
+        const subHeaderStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 10.5, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          border: {
+            top: { style: 'thin', color: { argb: 'FF475569' } },
+            bottom: { style: 'thin', color: { argb: 'FF475569' } },
+            left: { style: 'thin', color: { argb: 'FF475569' } },
+            right: { style: 'thin', color: { argb: 'FF475569' } }
+          }
+        };
+
+        const groupBannerStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } },
+          alignment: { horizontal: 'left', vertical: 'middle' }
+        };
+
+        const subtotalRowStyle = {
+          font: { bold: true, color: { argb: 'FF0F172A' }, size: 10.5, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } },
+          border: {
+            top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+            bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+          }
+        };
+
+        const grandTotalRowStyle = {
+          font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } },
+          border: {
+            top: { style: 'medium', color: { argb: 'FF0F172A' } },
+            bottom: { style: 'double', color: { argb: 'FF0F172A' } }
+          }
+        };
+
+        // ==================== WORKSHEET 1: Lead Source Executive Summary ====================
+        const ws1 = wb.addWorksheet('Lead Source Summary');
+        ws1.columns = [
+          { header: 'Rank', width: 8 },
+          { header: 'Lead Source', width: 28 },
+          { header: 'Total Unique Patients', width: 16 },
+          { header: 'OPD Consultations', width: 16 },
+          { header: 'Converted (Pkgs)', width: 16 },
+          { header: 'Non-Converted', width: 15 },
+          { header: 'Conversion Rate %', width: 16 },
+          { header: 'Initial Pkgs Sold', width: 15 },
+          { header: 'Initial Pkg Rev (Rs)', width: 20 },
+          { header: 'Renewal Pkgs Sold', width: 16 },
+          { header: 'Renewal Pkg Rev (Rs)', width: 20 },
+          { header: 'Total Pkgs Sold', width: 15 },
+          { header: 'Total Package Revenue (Rs)', width: 24 },
+          { header: 'Single Sessions', width: 15 },
+          { header: 'Single Session Rev (Rs)', width: 22 },
+          { header: 'Consultation Rev (Rs)', width: 20 },
+          { header: 'Total Clinic Revenue (Rs)', width: 24 },
+          { header: 'Revenue Share %', width: 16 },
+          { header: 'Avg Rev / Patient (Rs)', width: 20 },
+          { header: 'Top Converting Doctor', width: 28 }
+        ];
+        applyHeaderStyle(ws1, 1, navyHeaderStyle);
+        ws1.getRow(1).height = 28;
+
+        const sortedSources = Object.values(sourceStats).sort((a, b) => b.totalRev - a.totalRev);
+
+        sortedSources.forEach((s, idx) => {
+          const convPatients = s.convertedPatients.size;
+          const nonConverted = Math.max(0, s.consultCount - convPatients);
+          const convPct = s.consultCount > 0 ? (convPatients / s.consultCount * 100) : 0;
+          const revShare = grandTotalRev > 0 ? (s.totalRev / grandTotalRev * 100) : 0;
+          const avgRev = s.patientSet.size > 0 ? Math.round(s.totalRev / s.patientSet.size) : 0;
+
+          let topDocName = '-';
+          let topDocRev = -1;
+          Object.entries(s.doctorPerformance || {}).forEach(([dName, dPerf]) => {
+            if (dPerf.totalRev > topDocRev && dName !== 'Unassigned') {
+              topDocRev = dPerf.totalRev;
+              topDocName = dName;
+            }
+          });
+
+          const row = ws1.addRow([
+            idx + 1,
+            s.source,
+            s.patientSet.size,
+            s.consultCount,
+            convPatients,
+            nonConverted,
+            `${convPct.toFixed(1)}%`,
+            s.initPkgCount,
+            Math.round(s.initPkgRev),
+            s.renPkgCount,
+            Math.round(s.renPkgRev),
+            s.totalPkgCount,
+            Math.round(s.totalPkgRev),
+            s.ssCount,
+            Math.round(s.ssRev),
+            Math.round(s.consultRev),
+            Math.round(s.totalRev),
+            `${revShare.toFixed(1)}%`,
+            avgRev,
+            topDocName
+          ]);
+
+          row.getCell(9).numFmt = '#,##0';
+          row.getCell(11).numFmt = '#,##0';
+          row.getCell(13).numFmt = '#,##0';
+          row.getCell(15).numFmt = '#,##0';
+          row.getCell(16).numFmt = '#,##0';
+          row.getCell(17).numFmt = '#,##0';
+          row.getCell(19).numFmt = '#,##0';
+        });
+
+        const totRow1 = ws1.addRow([
+          '∑',
+          'TOTAL / CLINIC SUMMARY',
+          pList.length,
+          grandTotalConsults,
+          grandTotalConverted,
+          Math.max(0, grandTotalConsults - grandTotalConverted),
+          `${grandTotalConsults > 0 ? (grandTotalConverted / grandTotalConsults * 100).toFixed(1) : '0.0'}%`,
+          sortedSources.reduce((s, x) => s + x.initPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.initPkgRev, 0)),
+          sortedSources.reduce((s, x) => s + x.renPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.renPkgRev, 0)),
+          grandTotalPkgs,
+          Math.round(grandTotalPkgRev),
+          sortedSources.reduce((s, x) => s + x.ssCount, 0),
+          Math.round(grandTotalSSRev),
+          Math.round(grandTotalConsultRev),
+          Math.round(grandTotalRev),
+          '100.0%',
+          pList.length > 0 ? Math.round(grandTotalRev / pList.length) : 0,
+          'All Doctors'
+        ]);
+        totRow1.height = 24;
+        totRow1.eachCell(cell => { Object.assign(cell, grandTotalRowStyle); });
+        totRow1.getCell(9).numFmt = '#,##0';
+        totRow1.getCell(11).numFmt = '#,##0';
+        totRow1.getCell(13).numFmt = '#,##0';
+        totRow1.getCell(15).numFmt = '#,##0';
+        totRow1.getCell(16).numFmt = '#,##0';
+        totRow1.getCell(17).numFmt = '#,##0';
+        totRow1.getCell(19).numFmt = '#,##0';
+        ws1.autoFilter = { from: { row: 1, column: 1 }, to: { row: sortedSources.length + 1, column: 20 } };
+
+        // ==================== WORKSHEET 2: Lead Source x Doctor Matrix ====================
+        const ws2 = wb.addWorksheet('Lead Source x Doctor Matrix');
+        ws2.columns = [
+          { header: 'Lead Source', width: 26 },
+          { header: 'Consulting Doctor', width: 28 },
+          { header: 'Consultations', width: 14 },
+          { header: 'Converted Patients', width: 16 },
+          { header: 'Doctor Conv %', width: 15 },
+          { header: 'Initial Pkgs', width: 13 },
+          { header: 'Initial Pkg Rev (Rs)', width: 19 },
+          { header: 'Renewal Pkgs', width: 14 },
+          { header: 'Renewal Pkg Rev (Rs)', width: 19 },
+          { header: 'Total Pkgs', width: 13 },
+          { header: 'Total Package Rev (Rs)', width: 22 },
+          { header: 'Consultation Rev (Rs)', width: 20 },
+          { header: 'Total Revenue (Rs)', width: 22 },
+          { header: '% Share of Source Rev', width: 20 }
+        ];
+        applyHeaderStyle(ws2, 1, navyHeaderStyle);
+        ws2.getRow(1).height = 28;
+
+        for (const s of sortedSources) {
+          const bannerRow = ws2.addRow([
+            `🎯 LEAD SOURCE: ${s.source.toUpperCase()} (Total Patients: ${s.patientSet.size} | Total Revenue: Rs ${Math.round(s.totalRev).toLocaleString('en-IN')})`
+          ]);
+          bannerRow.height = 24;
+          ws2.mergeCells(bannerRow.number, 1, bannerRow.number, 14);
+          bannerRow.getCell(1).style = groupBannerStyle;
+
+          const docEntries = Object.entries(s.doctorPerformance || {}).sort((a, b) => b[1].totalRev - a[1].totalRev);
+          let subConsults = 0;
+          let subConverted = 0;
+          let subInitPkgs = 0;
+          let subInitRev = 0;
+          let subRenPkgs = 0;
+          let subRenRev = 0;
+          let subTotalPkgs = 0;
+          let subPkgRev = 0;
+          let subConsultRev = 0;
+          let subTotalRev = 0;
+
+          docEntries.forEach(([docName, dPerf]) => {
+            const convPct = dPerf.consults > 0 ? (dPerf.converted / dPerf.consults * 100) : 0;
+            const shareOfSource = s.totalRev > 0 ? (dPerf.totalRev / s.totalRev * 100) : 0;
+
+            subConsults += dPerf.consults;
+            subConverted += dPerf.converted;
+            subInitPkgs += dPerf.initPkgCount || 0;
+            subInitRev += dPerf.initPkgRev || 0;
+            subRenPkgs += dPerf.renPkgCount || 0;
+            subRenRev += dPerf.renPkgRev || 0;
+            subTotalPkgs += dPerf.totalPkgCount;
+            subPkgRev += dPerf.pkgRev;
+            subConsultRev += dPerf.consultRev;
+            subTotalRev += dPerf.totalRev;
+
+            const r = ws2.addRow([
+              s.source,
+              docName,
+              dPerf.consults,
+              dPerf.converted,
+              `${convPct.toFixed(1)}%`,
+              dPerf.initPkgCount || 0,
+              Math.round(dPerf.initPkgRev || 0),
+              dPerf.renPkgCount || 0,
+              Math.round(dPerf.renPkgRev || 0),
+              dPerf.totalPkgCount,
+              Math.round(dPerf.pkgRev),
+              Math.round(dPerf.consultRev),
+              Math.round(dPerf.totalRev),
+              `${shareOfSource.toFixed(1)}%`
+            ]);
+
+            r.getCell(7).numFmt = '#,##0';
+            r.getCell(9).numFmt = '#,##0';
+            r.getCell(11).numFmt = '#,##0';
+            r.getCell(12).numFmt = '#,##0';
+            r.getCell(13).numFmt = '#,##0';
+          });
+
+          const subRow = ws2.addRow([
+            `Subtotal - ${s.source}`,
+            'All Doctors',
+            subConsults,
+            subConverted,
+            `${subConsults > 0 ? (subConverted / subConsults * 100).toFixed(1) : '0.0'}%`,
+            subInitPkgs,
+            Math.round(subInitRev),
+            subRenPkgs,
+            Math.round(subRenRev),
+            subTotalPkgs,
+            Math.round(subPkgRev),
+            Math.round(subConsultRev),
+            Math.round(subTotalRev),
+            '100.0%'
+          ]);
+          subRow.height = 22;
+          subRow.eachCell(cell => { Object.assign(cell, subtotalRowStyle); });
+          subRow.getCell(7).numFmt = '#,##0';
+          subRow.getCell(9).numFmt = '#,##0';
+          subRow.getCell(11).numFmt = '#,##0';
+          subRow.getCell(12).numFmt = '#,##0';
+          subRow.getCell(13).numFmt = '#,##0';
+
+          ws2.addRow([]);
+        }
+
+        const gtRow2 = ws2.addRow([
+          'GRAND TOTAL',
+          'All Sources & Doctors',
+          grandTotalConsults,
+          grandTotalConverted,
+          `${grandTotalConsults > 0 ? (grandTotalConverted / grandTotalConsults * 100).toFixed(1) : '0.0'}%`,
+          sortedSources.reduce((s, x) => s + x.initPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.initPkgRev, 0)),
+          sortedSources.reduce((s, x) => s + x.renPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.renPkgRev, 0)),
+          grandTotalPkgs,
+          Math.round(grandTotalPkgRev),
+          Math.round(grandTotalConsultRev),
+          Math.round(grandTotalRev),
+          '100.0%'
+        ]);
+        gtRow2.height = 24;
+        gtRow2.eachCell(cell => { Object.assign(cell, grandTotalRowStyle); });
+        gtRow2.getCell(7).numFmt = '#,##0';
+        gtRow2.getCell(9).numFmt = '#,##0';
+        gtRow2.getCell(11).numFmt = '#,##0';
+        gtRow2.getCell(12).numFmt = '#,##0';
+        gtRow2.getCell(13).numFmt = '#,##0';
+
+        // ==================== WORKSHEET 3: Doctor x Lead Source Matrix ====================
+        const ws3 = wb.addWorksheet('Doctor x Lead Source Matrix');
+        ws3.columns = [
+          { header: 'Consulting Doctor', width: 28 },
+          { header: 'Lead Source', width: 26 },
+          { header: 'Consultations', width: 14 },
+          { header: 'Converted Patients', width: 16 },
+          { header: 'Doctor Conv %', width: 15 },
+          { header: 'Initial Pkgs', width: 13 },
+          { header: 'Initial Pkg Rev (Rs)', width: 19 },
+          { header: 'Renewal Pkgs', width: 14 },
+          { header: 'Renewal Pkg Rev (Rs)', width: 19 },
+          { header: 'Total Pkgs', width: 13 },
+          { header: 'Total Package Rev (Rs)', width: 22 },
+          { header: 'Consultation Rev (Rs)', width: 20 },
+          { header: 'Total Revenue (Rs)', width: 22 },
+          { header: '% Share of Doctor Rev', width: 20 }
+        ];
+        applyHeaderStyle(ws3, 1, navyHeaderStyle);
+        ws3.getRow(1).height = 28;
+
+        const docGroups = {};
+        Object.values(docSourceStats).forEach(ds => {
+          if (!docGroups[ds.doctor]) {
+            docGroups[ds.doctor] = { doctor: ds.doctor, totalRev: 0, sources: [] };
+          }
+          docGroups[ds.doctor].totalRev += ds.totalRev;
+          docGroups[ds.doctor].sources.push(ds);
+        });
+
+        const sortedDoctors = Object.values(docGroups).sort((a, b) => b.totalRev - a.totalRev);
+
+        for (const dg of sortedDoctors) {
+          const bannerRow = ws3.addRow([
+            `🩺 DOCTOR: ${dg.doctor.toUpperCase()} (Total Revenue: Rs ${Math.round(dg.totalRev).toLocaleString('en-IN')})`
+          ]);
+          bannerRow.height = 24;
+          ws3.mergeCells(bannerRow.number, 1, bannerRow.number, 14);
+          bannerRow.getCell(1).style = groupBannerStyle;
+
+          dg.sources.sort((a, b) => b.totalRev - a.totalRev);
+          let subConsults = 0;
+          let subConverted = 0;
+          let subInitPkgs = 0;
+          let subInitRev = 0;
+          let subRenPkgs = 0;
+          let subRenRev = 0;
+          let subTotalPkgs = 0;
+          let subPkgRev = 0;
+          let subConsultRev = 0;
+          let subTotalRev = 0;
+
+          dg.sources.forEach(ds => {
+            const convPatients = ds.convertedPatients.size;
+            const convPct = ds.consultCount > 0 ? (convPatients / ds.consultCount * 100) : 0;
+            const shareOfDoc = dg.totalRev > 0 ? (ds.totalRev / dg.totalRev * 100) : 0;
+
+            subConsults += ds.consultCount;
+            subConverted += convPatients;
+            subInitPkgs += ds.initPkgCount || 0;
+            subInitRev += ds.initPkgRev || 0;
+            subRenPkgs += ds.renPkgCount || 0;
+            subRenRev += ds.renPkgRev || 0;
+            subTotalPkgs += ds.totalPkgCount;
+            subPkgRev += ds.totalPkgRev;
+            subConsultRev += ds.consultRev;
+            subTotalRev += ds.totalRev;
+
+            const r = ws3.addRow([
+              dg.doctor,
+              ds.source,
+              ds.consultCount,
+              convPatients,
+              `${convPct.toFixed(1)}%`,
+              ds.initPkgCount || 0,
+              Math.round(ds.initPkgRev || 0),
+              ds.renPkgCount || 0,
+              Math.round(ds.renPkgRev || 0),
+              ds.totalPkgCount,
+              Math.round(ds.totalPkgRev),
+              Math.round(ds.consultRev),
+              Math.round(ds.totalRev),
+              `${shareOfDoc.toFixed(1)}%`
+            ]);
+
+            r.getCell(7).numFmt = '#,##0';
+            r.getCell(9).numFmt = '#,##0';
+            r.getCell(11).numFmt = '#,##0';
+            r.getCell(12).numFmt = '#,##0';
+            r.getCell(13).numFmt = '#,##0';
+          });
+
+          const subRow = ws3.addRow([
+            `Subtotal - ${dg.doctor}`,
+            'All Sources',
+            subConsults,
+            subConverted,
+            `${subConsults > 0 ? (subConverted / subConsults * 100).toFixed(1) : '0.0'}%`,
+            subInitPkgs,
+            Math.round(subInitRev),
+            subRenPkgs,
+            Math.round(subRenRev),
+            subTotalPkgs,
+            Math.round(subPkgRev),
+            Math.round(subConsultRev),
+            Math.round(subTotalRev),
+            '100.0%'
+          ]);
+          subRow.height = 22;
+          subRow.eachCell(cell => { Object.assign(cell, subtotalRowStyle); });
+          subRow.getCell(7).numFmt = '#,##0';
+          subRow.getCell(9).numFmt = '#,##0';
+          subRow.getCell(11).numFmt = '#,##0';
+          subRow.getCell(12).numFmt = '#,##0';
+          subRow.getCell(13).numFmt = '#,##0';
+
+          ws3.addRow([]);
+        }
+
+        const gtRow3 = ws3.addRow([
+          'GRAND TOTAL',
+          'All Doctors & Sources',
+          grandTotalConsults,
+          grandTotalConverted,
+          `${grandTotalConsults > 0 ? (grandTotalConverted / grandTotalConsults * 100).toFixed(1) : '0.0'}%`,
+          sortedSources.reduce((s, x) => s + x.initPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.initPkgRev, 0)),
+          sortedSources.reduce((s, x) => s + x.renPkgCount, 0),
+          Math.round(sortedSources.reduce((s, x) => s + x.renPkgRev, 0)),
+          grandTotalPkgs,
+          Math.round(grandTotalPkgRev),
+          Math.round(grandTotalConsultRev),
+          Math.round(grandTotalRev),
+          '100.0%'
+        ]);
+        gtRow3.height = 24;
+        gtRow3.eachCell(cell => { Object.assign(cell, grandTotalRowStyle); });
+        gtRow3.getCell(7).numFmt = '#,##0';
+        gtRow3.getCell(9).numFmt = '#,##0';
+        gtRow3.getCell(11).numFmt = '#,##0';
+        gtRow3.getCell(12).numFmt = '#,##0';
+        gtRow3.getCell(13).numFmt = '#,##0';
+
+        // ==================== WORKSHEET 4: Lead Source x Doctor Pivot Grid ====================
+        const ws4 = wb.addWorksheet('Lead Source x Doctor 2D Grid');
+        ws4.columns = [
+          { header: 'Lead Source', width: 28 },
+          { header: 'Dr. Gladys Swamy', width: 20 },
+          { header: 'Dr. Chinmay Bajaj', width: 20 },
+          { header: 'Dr. Khushboo Vira', width: 20 },
+          { header: 'Dr. Krishna Dass', width: 20 },
+          { header: 'Dr. Zenia Irani', width: 20 },
+          { header: 'Other Doctors', width: 18 },
+          { header: 'Total (All Doctors)', width: 22 }
+        ];
+
+        const pivotDoctors = [
+          'Dr. Gladys Swamy Consulting',
+          'Dr. Chinmay Bajaj Consulting',
+          'Dr. Khushboo Vira Consulting',
+          'Dr. Krishna Dass Consulting',
+          'Dr. Zenia Irani Consulting'
+        ];
+
+        // --- GRID 1: Consultation Volume ---
+        const g1Title = ws4.addRow(['📊 1. CONSULTATION VOLUME (LEAD SOURCE × DOCTOR)']);
+        g1Title.height = 26;
+        ws4.mergeCells(g1Title.number, 1, g1Title.number, 8);
+        g1Title.getCell(1).style = groupBannerStyle;
+
+        const g1Hdr = ws4.addRow(['Lead Source', 'Dr. Gladys Swamy', 'Dr. Chinmay Bajaj', 'Dr. Khushboo Vira', 'Dr. Krishna Dass', 'Dr. Zenia Irani', 'Other Doctors', 'Total Consultations']);
+        g1Hdr.height = 24;
+        g1Hdr.eachCell(cell => { Object.assign(cell, subHeaderStyle); });
+
+        const colTotalsConsults = [0, 0, 0, 0, 0, 0];
+        sortedSources.forEach(s => {
+          let otherConsults = 0;
+          const rowVals = [s.source];
+          pivotDoctors.forEach((dName, dIdx) => {
+            const c = (s.doctorPerformance[dName] && s.doctorPerformance[dName].consults) || 0;
+            rowVals.push(c);
+            colTotalsConsults[dIdx] += c;
+          });
+          Object.entries(s.doctorPerformance || {}).forEach(([dName, dPerf]) => {
+            if (!pivotDoctors.includes(dName)) otherConsults += (dPerf.consults || 0);
+          });
+          rowVals.push(otherConsults);
+          colTotalsConsults[5] += otherConsults;
+          rowVals.push(s.consultCount);
+          ws4.addRow(rowVals);
+        });
+
+        const g1Tot = ws4.addRow(['Total Consultations', ...colTotalsConsults, grandTotalConsults]);
+        g1Tot.height = 22;
+        g1Tot.eachCell(cell => { Object.assign(cell, subtotalRowStyle); });
+
+        ws4.addRow([]);
+        ws4.addRow([]);
+
+        // --- GRID 2: Package Revenue (Rs) ---
+        const g2Title = ws4.addRow(['💰 2. PACKAGE REVENUE (Rs) (LEAD SOURCE × DOCTOR)']);
+        g2Title.height = 26;
+        ws4.mergeCells(g2Title.number, 1, g2Title.number, 8);
+        g2Title.getCell(1).style = groupBannerStyle;
+
+        const g2Hdr = ws4.addRow(['Lead Source', 'Dr. Gladys Swamy', 'Dr. Chinmay Bajaj', 'Dr. Khushboo Vira', 'Dr. Krishna Dass', 'Dr. Zenia Irani', 'Other Doctors', 'Total Package Rev (Rs)']);
+        g2Hdr.height = 24;
+        g2Hdr.eachCell(cell => { Object.assign(cell, subHeaderStyle); });
+
+        const colTotalsPkgRev = [0, 0, 0, 0, 0, 0];
+        sortedSources.forEach(s => {
+          let otherPkgRev = 0;
+          const rowVals = [s.source];
+          pivotDoctors.forEach((dName, dIdx) => {
+            const rev = Math.round((s.doctorPerformance[dName] && s.doctorPerformance[dName].pkgRev) || 0);
+            rowVals.push(rev);
+            colTotalsPkgRev[dIdx] += rev;
+          });
+          Object.entries(s.doctorPerformance || {}).forEach(([dName, dPerf]) => {
+            if (!pivotDoctors.includes(dName)) otherPkgRev += Math.round(dPerf.pkgRev || 0);
+          });
+          rowVals.push(otherPkgRev);
+          colTotalsPkgRev[5] += otherPkgRev;
+          rowVals.push(Math.round(s.totalPkgRev));
+          const r = ws4.addRow(rowVals);
+          for (let col = 2; col <= 8; col++) r.getCell(col).numFmt = '#,##0';
+        });
+
+        const g2Tot = ws4.addRow(['Total Package Revenue (Rs)', ...colTotalsPkgRev, Math.round(grandTotalPkgRev)]);
+        g2Tot.height = 22;
+        g2Tot.eachCell(cell => { Object.assign(cell, subtotalRowStyle); });
+        for (let col = 2; col <= 8; col++) g2Tot.getCell(col).numFmt = '#,##0';
+
+        ws4.addRow([]);
+        ws4.addRow([]);
+
+        // --- GRID 3: Total Clinic Revenue (Rs) ---
+        const g3Title = ws4.addRow(['🏆 3. TOTAL CLINIC REVENUE (Rs) (LEAD SOURCE × DOCTOR)']);
+        g3Title.height = 26;
+        ws4.mergeCells(g3Title.number, 1, g3Title.number, 8);
+        g3Title.getCell(1).style = groupBannerStyle;
+
+        const g3Hdr = ws4.addRow(['Lead Source', 'Dr. Gladys Swamy', 'Dr. Chinmay Bajaj', 'Dr. Khushboo Vira', 'Dr. Krishna Dass', 'Dr. Zenia Irani', 'Other Doctors', 'Total Revenue (Rs)']);
+        g3Hdr.height = 24;
+        g3Hdr.eachCell(cell => { Object.assign(cell, subHeaderStyle); });
+
+        const colTotalsRev = [0, 0, 0, 0, 0, 0];
+        sortedSources.forEach(s => {
+          let otherRev = 0;
+          const rowVals = [s.source];
+          pivotDoctors.forEach((dName, dIdx) => {
+            const rev = Math.round((s.doctorPerformance[dName] && s.doctorPerformance[dName].totalRev) || 0);
+            rowVals.push(rev);
+            colTotalsRev[dIdx] += rev;
+          });
+          Object.entries(s.doctorPerformance || {}).forEach(([dName, dPerf]) => {
+            if (!pivotDoctors.includes(dName)) otherRev += Math.round(dPerf.totalRev || 0);
+          });
+          rowVals.push(otherRev);
+          colTotalsRev[5] += otherRev;
+          rowVals.push(Math.round(s.totalRev));
+          const r = ws4.addRow(rowVals);
+          for (let col = 2; col <= 8; col++) r.getCell(col).numFmt = '#,##0';
+        });
+
+        const g3Tot = ws4.addRow(['Total Clinic Revenue (Rs)', ...colTotalsRev, Math.round(grandTotalRev)]);
+        g3Tot.height = 22;
+        g3Tot.eachCell(cell => { Object.assign(cell, subtotalRowStyle); });
+        for (let col = 2; col <= 8; col++) g3Tot.getCell(col).numFmt = '#,##0';
+
+        // ==================== WORKSHEET 5: Patient Lead Source Audit ====================
+        const ws5 = wb.addWorksheet('Patient Lead Source Audit');
+        ws5.columns = [
+          { header: 'Sr.', width: 6 },
+          { header: 'Patient Name', width: 26 },
+          { header: 'Primary Lead Source', width: 24 },
+          { header: 'Consulting Doctor', width: 26 },
+          { header: 'Has Consult?', width: 14 },
+          { header: 'Consult Date', width: 14 },
+          { header: 'Consult Paid (Rs)', width: 16 },
+          { header: 'Converted to Pkg?', width: 18 },
+          { header: 'Initial Package Purchased', width: 28 },
+          { header: 'Initial Pkg Paid (Rs)', width: 18 },
+          { header: 'Renewal Pkgs Count', width: 16 },
+          { header: 'Renewal Package Names', width: 30 },
+          { header: 'Renewal Pkg Paid (Rs)', width: 18 },
+          { header: 'Total Package Paid (Rs)', width: 20 },
+          { header: 'Single Session Paid (Rs)', width: 20 },
+          { header: 'Total Paid (Rs)', width: 18 },
+          { header: 'Journey Status', width: 24 },
+          { header: 'Agent / Counselor', width: 22 }
+        ];
+
+        applyHeaderStyle(ws5, 1, navyHeaderStyle);
+        ws5.getRow(1).height = 28;
+        ws5.views = [{ state: 'frozen', ySplit: 1 }];
+
+        patientAuditRows.forEach((r, idx) => {
+          const row = ws5.addRow([
+            idx + 1,
+            r.patientName,
+            r.leadSource,
+            r.doctor,
+            r.hasConsult,
+            r.consultDate,
+            r.consultPaid,
+            r.converted,
+            r.initPkgNames,
+            r.initPkgPaid,
+            r.renPkgCount,
+            r.renPkgNames,
+            r.renPkgPaid,
+            r.totalPkgPaid,
+            r.ssPaid,
+            r.totalPaid,
+            r.status,
+            r.agent
+          ]);
+
+          row.getCell(7).numFmt = '#,##0';
+          row.getCell(10).numFmt = '#,##0';
+          row.getCell(13).numFmt = '#,##0';
+          row.getCell(14).numFmt = '#,##0';
+          row.getCell(15).numFmt = '#,##0';
+          row.getCell(16).numFmt = '#,##0';
+        });
+
+        ws5.autoFilter = { from: { row: 1, column: 1 }, to: { row: patientAuditRows.length + 1, column: 18 } };
+
+        // Save & Download
+        const buf = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const dateStr = new Date().toISOString().split('T')[0];
+        downloadBlob(blob, `MPC_Lead_Source_Doctor_Performance_Analysis_${dateStr}.xlsx`);
+        hideLoading();
+        showToast('Lead Source & Doctor Analysis Excel exported successfully with 5 detailed sheets!', 'success');
+      } catch (err) {
+        hideLoading();
+        console.error('Error exporting Lead Source Excel:', err);
+        showToast('Error exporting Lead Source Excel: ' + err.message, 'error');
+      }
+    }
+
     // ==================== PACKAGE RENEWAL LEADERBOARD ====================
     let packageRenewalSortState = { key: 'renewalCount', dir: 'desc' };
 
@@ -10139,13 +11042,24 @@
 
         // Sheet 11: Lead Source Summary
         const s11 = wb.addWorksheet('Lead Source Summary');
-        s11.columns = [{ width: 30 }, { width: 18 }, { width: 18 }, { width: 18 }];
-        s11.addRow(['Lead Source', 'Consultation', 'Package', 'Conversion %']);
+        s11.columns = [
+          { header: 'Rank', width: 8 },
+          { header: 'Lead Source', width: 28 },
+          { header: 'Consultations', width: 16 },
+          { header: 'Packages Sold', width: 16 },
+          { header: 'Conversion %', width: 16 },
+          { header: 'Total Revenue (Rs)', width: 22 },
+          { header: 'Revenue Share %', width: 16 }
+        ];
         applyHeaderStyle(s11, 1, headerStyle);
-        s11.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 4 } };
-        for (const [src, data] of Object.entries(m.sourceMap).sort((a,b) => b[1].total - a[1].total)) {
-          const conv = data.consultation > 0 ? ((data.package / data.consultation) * 100).toFixed(1) + '%' : '0%';
-          s11.addRow([src, data.consultation, data.package, conv]);
+        s11.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 7 } };
+        const totalSrcRev = Object.values(m.sourceMap || {}).reduce((sum, d) => sum + (d.revenue || 0), 0);
+        let srcIdx = 1;
+        for (const [src, data] of Object.entries(m.sourceMap || {}).sort((a,b) => (b[1].revenue || 0) - (a[1].revenue || 0))) {
+          const conv = data.consultation > 0 ? ((data.package / data.consultation) * 100).toFixed(1) + '%' : '0.0%';
+          const share = totalSrcRev > 0 ? ((data.revenue / totalSrcRev) * 100).toFixed(1) + '%' : '0.0%';
+          const r = s11.addRow([srcIdx++, src, data.consultation || 0, data.package || 0, conv, Math.round(data.revenue || 0), share]);
+          r.getCell(6).numFmt = '#,##0';
         }
 
         // Sheet 12: Package Summary
