@@ -821,8 +821,66 @@
     let rawLeadsData = [];
     let filteredLeads = [];
     let chartInstances = {};
-    let countdownSec = 15;
+    let countdownSec = 60;
     let timerInterval = null;
+    let syncElapsedInterval = null;
+
+    // ── INDEXEDDB FAST LOCAL CACHE ENGINE ─────────────────────────────────────
+    const DB_NAME = 'MPC_LEADS_DATABASE';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'leads_cache';
+
+    function openLeadsDB() {
+      return new Promise((resolve) => {
+        if (!window.indexedDB) return resolve(null);
+        try {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              db.createObjectStore(STORE_NAME);
+            }
+          };
+          request.onsuccess = (e) => resolve(e.target.result);
+          request.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+
+    async function saveLeadsToCache(rawRows, meta) {
+      try {
+        const db = await openLeadsDB();
+        if (!db) return;
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put({
+          rows: rawRows,
+          meta: meta,
+          savedAt: Date.now(),
+          timeStr: new Date().toLocaleTimeString()
+        }, 'cached_leads');
+      } catch (e) {
+        console.warn('Cache save warning:', e);
+      }
+    }
+
+    async function loadLeadsFromCache() {
+      try {
+        const db = await openLeadsDB();
+        if (!db) return null;
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.get('cached_leads');
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
 
     // Always returns the current active URL — no pop-up, no config needed.
     function getApiUrl() {
@@ -1283,6 +1341,32 @@
 
     const safeStr = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
 
+    // Validator: Filter out headers and blank/corrupt leads
+    function isValidLead(item) {
+      if (!item || typeof item !== 'object') return false;
+      const safe = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
+      const name = safe(item.full_name) || safe(item.Name) || safe(item.name) || safe(item['Lead Name']) || safe(item['First Name']) || safe(item['Patient Name']);
+      const phone = safe(item.phone_number) || safe(item.Phone) || safe(item.phone) || safe(item['Phone Number']) || safe(item.Number) || safe(item.Contact);
+      
+      // Must have at least a Name or a Phone Number
+      if (!name && !phone) return false;
+      
+      const nameClean = name.toLowerCase().replace(/[\s_\-]+/g, '');
+      const phoneClean = phone.toLowerCase().replace(/[\s_\-]+/g, '');
+      
+      // Blacklist of repeated table header strings
+      const invalidHeaders = ['fullname', 'name', 'firstname', 'lastname', 'phonenumber', 'phone', 'phoneno', 'number', 'mobilenumber', 'mobile', 'contact', 'leadname', 'leadstatus', 'whatissueareyoufacing', 'email', 'date', 'callername', 'id', 'createdtime'];
+      if (invalidHeaders.includes(nameClean) || invalidHeaders.includes(phoneClean)) return false;
+      
+      const digitsCount = (phone.match(/\d/g) || []).length;
+      const hasRealPhone = digitsCount >= 6;
+      const hasRealName = /[a-zA-Z]/.test(name) && !invalidHeaders.some(h => nameClean.includes(h));
+      
+      if (!hasRealPhone && !hasRealName) return false;
+      
+      return true;
+    }
+
     // Helper: Normalize & Categorize Lead Data
     function normalizeLead(item, index) {
       if (!item || typeof item !== 'object') item = {};
@@ -1571,12 +1655,45 @@
       const dot = document.getElementById('sync-dot');
       const statusText = document.getElementById('sync-status-text');
       if (dot) dot.classList.add('syncing');
-      if (statusText) statusText.textContent = 'Syncing Live Data from Google Sheet...';
+      
+      let syncSeconds = 0;
+      if (statusText) statusText.textContent = 'Connecting to Google Sheets...';
+      
+      if (syncElapsedInterval) clearInterval(syncElapsedInterval);
+      syncElapsedInterval = setInterval(() => {
+        syncSeconds++;
+        if (statusText && isFetchingLeads) {
+          statusText.textContent = `Syncing Live Data from Google Sheet (${syncSeconds}s)...`;
+        }
+      }, 1000);
 
       try {
         const baseUrl = getApiUrl();
-        const response = await fetch(baseUrl, { cache: 'no-store' });
-        const json = await response.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
+        let response = null;
+        let json = null;
+
+        try {
+          // Direct fetch to Google Apps Script Web App
+          response = await fetch(baseUrl, {
+            method: 'GET',
+            signal: controller.signal
+          });
+          json = await response.json();
+        } catch (fetchErr) {
+          // Fallback to local /api/leads proxy if available on web server
+          if (window.location.protocol.startsWith('http')) {
+            const proxyUrl = `/api/leads?url=${encodeURIComponent(baseUrl)}`;
+            const proxyResp = await fetch(proxyUrl, { signal: controller.signal });
+            json = await proxyResp.json();
+          } else {
+            throw fetchErr;
+          }
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         // Support both old plain-array response AND new { success, data, meta } envelope
         let rows = null;
@@ -1591,61 +1708,81 @@
           throw new Error('API Error: ' + (json.error || 'Unknown server error'));
         }
 
-        function isValidLead(item) {
-          if (!item || typeof item !== 'object') return false;
-          const safe = (v) => (v !== null && v !== undefined) ? String(v).trim() : '';
-          const name = safe(item.full_name) || safe(item.Name) || safe(item.name) || safe(item['Lead Name']) || safe(item['First Name']) || safe(item['Patient Name']);
-          const phone = safe(item.phone_number) || safe(item.Phone) || safe(item.phone) || safe(item['Phone Number']) || safe(item.Number) || safe(item.Contact);
-          
-          // Must have at least a Name or a Phone Number
-          if (!name && !phone) return false;
-          
-          const nameClean = name.toLowerCase().replace(/[\s_\-]+/g, '');
-          const phoneClean = phone.toLowerCase().replace(/[\s_\-]+/g, '');
-          
-          // Blacklist of repeated table header strings (like row 678 in Form-2)
-          const invalidHeaders = ['fullname', 'name', 'firstname', 'lastname', 'phonenumber', 'phone', 'phoneno', 'number', 'mobilenumber', 'mobile', 'contact', 'leadname', 'leadstatus', 'whatissueareyoufacing', 'email', 'date', 'callername', 'id', 'createdtime'];
-          if (invalidHeaders.includes(nameClean) || invalidHeaders.includes(phoneClean)) return false;
-          
-          // Must have either a valid phone number (at least 6 digits) OR a genuine human name (contains letters and is not a header string)
-          const digitsCount = (phone.match(/\d/g) || []).length;
-          const hasRealPhone = digitsCount >= 6;
-          const hasRealName = /[a-zA-Z]/.test(name) && !invalidHeaders.some(h => nameClean.includes(h));
-          
-          if (!hasRealPhone && !hasRealName) return false;
-          
-          return true;
-        }
-
         if (rows !== null && rows.length > 0) {
+          // Save to IndexedDB cache for instant offline / reopen access
+          saveLeadsToCache(rows, json ? json.meta : null);
+
           rawLeadsData = rows.filter(isValidLead).map((item, idx) => normalizeLead(item, idx));
           populateFilterOptions(rawLeadsData);
+
+          // If "Today" preset matches 0 leads, intelligently default to "All Time" so user immediately sees all records
+          const datePresetEl = document.getElementById('filter-date-preset');
+          if (datePresetEl && datePresetEl.value === 'today') {
+            const todayStr = toLocalInputDateStr(new Date());
+            const todayCount = rawLeadsData.filter(l => {
+              if (!l.leadDate) return false;
+              const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
+              return ymd === todayStr;
+            }).length;
+
+            if (todayCount === 0 && rawLeadsData.length > 0) {
+              datePresetEl.value = 'all';
+              const startIn = document.getElementById('filter-start-date');
+              const endIn = document.getElementById('filter-end-date');
+              if (startIn) startIn.value = '';
+              if (endIn) endIn.value = '';
+            }
+          }
+
           applyFilters();
 
           if (dot) dot.classList.remove('syncing');
-          if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Total Leads Across All Sheets)`;
-          document.getElementById('last-sync-time').textContent = `• Updated ${new Date().toLocaleTimeString()}`;
+          const sheetsCount = [...new Set(rawLeadsData.map(l => l.sheetName).filter(Boolean))].length || 19;
+          if (statusText) statusText.textContent = `Connected Live (${rawLeadsData.length} Total Leads Across ${sheetsCount} Sheets)`;
+          const lastSyncEl = document.getElementById('last-sync-time');
+          if (lastSyncEl) lastSyncEl.textContent = `• Updated ${new Date().toLocaleTimeString()}`;
+        } else {
+          if (statusText) statusText.textContent = 'Connected (0 leads in sheet)';
+          if (dot) dot.classList.remove('syncing');
         }
 
       } catch (err) {
         console.error('Error fetching live leads:', err);
         if (dot) dot.classList.remove('syncing');
-        if (statusText) statusText.textContent = 'Sync Warning (Check Script URL)';
+        if (statusText) {
+          if (rawLeadsData.length > 0) {
+            statusText.textContent = `⚡ Live sync paused (${rawLeadsData.length} leads loaded from cache) • Click 'Sync Now' to retry`;
+          } else {
+            statusText.textContent = `⚠️ Sync Issue (${err.message || 'Check Script URL'}) • Click 'Sync Now' to retry`;
+          }
+        }
       } finally {
         isFetchingLeads = false;
+        if (syncElapsedInterval) {
+          clearInterval(syncElapsedInterval);
+          syncElapsedInterval = null;
+        }
+        if (dot) dot.classList.remove('syncing');
+        resetTimer();
       }
-
-      resetTimer();
     }
 
     function resetTimer() {
-      countdownSec = 45;
+      countdownSec = 60;
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         if (autoRefreshPaused) return;
         countdownSec--;
         const el = document.getElementById('countdown-text');
-        if (el) el.textContent = autoRefreshPaused ? 'Auto-refresh Paused' : `Auto-refresh in ${countdownSec}s`;
+        if (el) {
+          if (autoRefreshPaused) {
+            el.textContent = 'Auto-refresh Paused';
+          } else if (isFetchingLeads) {
+            el.textContent = 'Sync in progress...';
+          } else {
+            el.textContent = `Auto-refresh in ${countdownSec}s`;
+          }
+        }
         if (countdownSec <= 0) {
           clearInterval(timerInterval);
           timerInterval = null;
@@ -1675,7 +1812,7 @@
 
       if (sheetSel) {
         const curr = sheetSel.value;
-        sheetSel.innerHTML = '<option value="">All Sheets (8 Sheets)</option>' + sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+        sheetSel.innerHTML = `<option value="">All Sheets (${sheets.length} Sheets)</option>` + sheets.map(s => `<option value="${s}">${s}</option>`).join('');
         sheetSel.value = curr;
       }
       if (agentSel) {
@@ -2378,9 +2515,6 @@
         let badge = '<span class="badge badge-muted">Caller</span>';
         if (idx === 0) badge = '<span class="badge badge-emerald">⭐ Top Converter</span>';
         else if (idx === 1 || idx === 2) badge = '<span class="badge badge-purple">🔥 High Performer</span>';
-
-        const todayBooked = a.booked - a.yesterdayBooked;
-        const yesterdayBookedLabel = a.yesterdayBooked > 0 ? `<div style="font-size:0.65rem; color:var(--amber); font-weight:600; margin-top:1px;">📅 ${todayBooked} Today + ${a.yesterdayBooked} Prev</div>` : '';
 
         return `
           <div class="agent-card">
@@ -3246,11 +3380,50 @@ Strictly present mathematical audit facts only. Zero suggestions, zero advice. U
       XLSX.writeFile(wb, `MPC_Calling_Leads_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // On Load - Always fetch live from Google Sheet
-    document.addEventListener('DOMContentLoaded', () => {
-      try { localStorage.removeItem('mpc_cached_leads_data'); } catch(e) {}
+    // On Load - Instant Cache Render + Background Live Sync
+    document.addEventListener('DOMContentLoaded', async () => {
       initTheme();
       applyDatePreset();
+
+      // 1. Instant Cache Render: load immediately from IndexedDB so user doesn't wait
+      try {
+        const cached = await loadLeadsFromCache();
+        if (cached && Array.isArray(cached.rows) && cached.rows.length > 0) {
+          rawLeadsData = cached.rows.filter(isValidLead).map((item, idx) => normalizeLead(item, idx));
+          populateFilterOptions(rawLeadsData);
+
+          // If "Today" preset matches 0 leads in cache, default to "All Time"
+          const datePresetEl = document.getElementById('filter-date-preset');
+          if (datePresetEl && datePresetEl.value === 'today') {
+            const todayStr = toLocalInputDateStr(new Date());
+            const todayCount = rawLeadsData.filter(l => {
+              if (!l.leadDate) return false;
+              const ymd = `${l.leadDate.getFullYear()}-${String(l.leadDate.getMonth() + 1).padStart(2, '0')}-${String(l.leadDate.getDate()).padStart(2, '0')}`;
+              return ymd === todayStr;
+            }).length;
+
+            if (todayCount === 0 && rawLeadsData.length > 0) {
+              datePresetEl.value = 'all';
+              const startIn = document.getElementById('filter-start-date');
+              const endIn = document.getElementById('filter-end-date');
+              if (startIn) startIn.value = '';
+              if (endIn) endIn.value = '';
+            }
+          }
+
+          applyFilters();
+
+          const statusText = document.getElementById('sync-status-text');
+          const lastSyncEl = document.getElementById('last-sync-time');
+          const sheetsCount = [...new Set(rawLeadsData.map(l => l.sheetName).filter(Boolean))].length || 19;
+          if (statusText) statusText.textContent = `⚡ Loaded from Cache (${rawLeadsData.length} Leads Across ${sheetsCount} Sheets)`;
+          if (lastSyncEl && cached.timeStr) lastSyncEl.textContent = `• Cached ${cached.timeStr}`;
+        }
+      } catch (cacheErr) {
+        console.warn('Cache initial load notice:', cacheErr);
+      }
+
+      // 2. Fetch fresh live leads from Google Sheet in background
       fetchLiveLeads();
     });
   </script>
