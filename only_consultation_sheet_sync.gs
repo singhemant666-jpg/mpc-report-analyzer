@@ -12,23 +12,14 @@
 // 6. DAILY SCHEDULE: Runs every morning automatically at 8:00 AM.
 //
 // ===================================================================================
-// 🛠️ HOW TO INSTALL IN YOUR GOOGLE SHEET:
-// ===================================================================================
-// 1. In your Google Sheet ("Only Consultation Conversion"), click:
-//    Extensions → Apps Script
-// 2. Delete any existing code, and PASTE this entire script.
-// 3. Click the Save icon (💾 or Ctrl+S).
-// 4. Click the Run button with function "onOpen" selected, or simply refresh your Google Sheet.
-// 5. You will see a new menu at the top: "⚡ MPC Automation".
-//    - Click: ⚡ MPC Automation → 🔄 Sync Only Consultation Patients Now
-//    - Click: ⚡ MPC Automation → ⏰ Setup Daily Auto-Sync (8:00 AM)
-// ===================================================================================
 
 const MPC_CONFIG = {
   loginUrl: 'https://api.mypainclinicglobal.com/api/login',
   reportsUrl: 'https://api.mypainclinicglobal.com/api/reports/daily-collection',
   email: 'analytics@mypainclinicglobal.com',
   pass: 'mpc@mpc12345',
+  // Active Bearer token (pre-authenticated 1-year token, auto-refreshed if expired)
+  bearerToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NDIsInJvbGUiOjEsIm5hbWUiOiJhbmFseXRpY3NAbXlwYWluY2xpbmljZ2xvYmFsLmNvbSIsImlhdCI6MTc5NDkxNzE4NSwiZXhwIjoxODI2NDc0Nzg1fQ.Dos69PfYhWoRqxuefTgNky10zmS3zSn_d_-qpc_V46E',
   defaultSyncDaysBack: 1 // 1 = Yesterday & Today (captures yesterday's consultations for next-day calling)
 };
 
@@ -36,16 +27,21 @@ const MPC_CONFIG = {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⚡ MPC Automation')
-    .addItem('🔄 Sync Only Consultation Patients (Yesterday & Today)', 'syncOnlyConsultationPatients')
+    .addItem('🔄 Sync Only Consultation Patients (Yesterday & Today)', 'menuSyncYesterdayAndToday')
     .addItem('📅 Sync Custom Date Range...', 'promptSyncCustomDateRange')
     .addSeparator()
+    .addItem('🔍 Test API Connection', 'testMpcConnection')
     .addItem('⏰ Setup Daily Auto-Sync (Runs Every Morning 8 AM)', 'setupDailyTrigger')
     .addToUi();
 }
 
+// Menu wrapper to prevent Google Sheets event object from being passed as a date
+function menuSyncYesterdayAndToday() {
+  syncOnlyConsultationPatients();
+}
+
 // ── Daily Trigger Setup ───────────────────────────────────────────────────────
 function setupDailyTrigger() {
-  // Clear any old triggers to avoid duplicates
   const triggers = ScriptApp.getProjectTriggers();
   for (let i = 0; i < triggers.length; i++) {
     if (triggers[i].getHandlerFunction() === 'syncOnlyConsultationPatients') {
@@ -53,7 +49,7 @@ function setupDailyTrigger() {
     }
   }
 
-  // Create new trigger: runs every day at 8:00 AM (Asia/Kolkata)
+  // Runs every day at 8:00 AM (Asia/Kolkata)
   ScriptApp.newTrigger('syncOnlyConsultationPatients')
     .timeBased()
     .everyDays(1)
@@ -64,11 +60,32 @@ function setupDailyTrigger() {
   SpreadsheetApp.getUi().alert('✅ Success!\n\nDaily Auto-Sync is now active. It will run every morning at 8:00 AM and automatically add new Only Consultation patients to this sheet.');
 }
 
+// ── Connection Test ───────────────────────────────────────────────────────────
+function testMpcConnection() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const today = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd');
+    const token = getMpcAuthToken();
+    if (!token) {
+      ui.alert('❌ Authentication failed: Could not get valid token.');
+      return;
+    }
+
+    const rows = fetchDailyCollectionReport(token, today, today);
+    ui.alert(`✅ Connection Successful!\n\nAuthenticated with MPC Cloud API.\nFound ${rows.length} live records for today (${today}).`);
+  } catch (err) {
+    ui.alert(`❌ Connection Test Error:\n\n${err.message}`);
+  }
+}
+
 // ── Main Sync Function ────────────────────────────────────────────────────────
-function syncOnlyConsultationPatients(startDateStr, endDateStr) {
+function syncOnlyConsultationPatients(startArg, endArg) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   
-  // Calculate date range if not provided (default: yesterday to today)
+  // Safely parse date arguments (handle string vs Apps Script event object)
+  let startDateStr = (typeof startArg === 'string' && startArg.trim()) ? startArg.trim() : null;
+  let endDateStr = (typeof endArg === 'string' && endArg.trim()) ? endArg.trim() : null;
+
   if (!startDateStr || !endDateStr) {
     const today = new Date();
     const yesterday = new Date();
@@ -81,21 +98,31 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
   Logger.log(`[MPC] Fetching live data from ${startDateStr} to ${endDateStr}...`);
 
   // 1. Authenticate with MPC API
-  const token = getMpcAuthToken();
+  let token = getMpcAuthToken();
   if (!token) {
-    SpreadsheetApp.getUi().alert('❌ Could not authenticate with MPC API. Please check your credentials.');
+    SpreadsheetApp.getUi().alert('❌ Could not authenticate with MPC API. Please verify network access.');
     return;
   }
 
   // 2. Fetch raw collection rows
-  const rawRows = fetchDailyCollectionReport(token, startDateStr, endDateStr);
+  let rawRows = fetchDailyCollectionReport(token, startDateStr, endDateStr);
+  
+  // If token was expired, refresh once and retry
+  if (!rawRows || rawRows.length === 0) {
+    const freshToken = refreshMpcLogin();
+    if (freshToken) {
+      token = freshToken;
+      rawRows = fetchDailyCollectionReport(token, startDateStr, endDateStr);
+    }
+  }
+
   if (!rawRows || rawRows.length === 0) {
     SpreadsheetApp.getActiveSpreadsheet().toast(`No collection records found for ${startDateStr} to ${endDateStr}`, 'MPC Sync', 4);
     return;
   }
 
   // 3. Filter for "Only Consultation" Patients
-  // Patient who had a consultation on these dates and did NOT buy any package
+  // Patients who had a consultation on these dates and did NOT buy any package
   const patientGroups = {};
   for (let i = 0; i < rawRows.length; i++) {
     const r = rawRows[i];
@@ -120,7 +147,6 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
 
     if (isConsult) {
       patientGroups[normKey].hasConsultation = true;
-      // Preserve consultation doctor and payment date
       if (r.consulting_doctor) patientGroups[normKey].doctor = r.consulting_doctor;
       if (r.payment_date) patientGroups[normKey].paymentDate = r.payment_date;
     }
@@ -133,7 +159,7 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
   const onlyConsultPatients = Object.values(patientGroups).filter(p => p.hasConsultation && !p.hasPackage);
 
   if (onlyConsultPatients.length === 0) {
-    SpreadsheetApp.getActiveSpreadsheet().toast('No new Only Consultation patients found in this period.', 'MPC Sync', 4);
+    SpreadsheetApp.getActiveSpreadsheet().toast('No Only Consultation patients found in this period.', 'MPC Sync', 4);
     return;
   }
 
@@ -152,6 +178,8 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
 
   // 5. Prepare New Rows to Append
   const rowsToAdd = [];
+  const addedNamesList = [];
+
   for (let i = 0; i < onlyConsultPatients.length; i++) {
     const p = onlyConsultPatients[i];
     const normKey = p.name.toLowerCase().replace(/\s+/g, ' ');
@@ -189,6 +217,7 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
     ]);
 
     existingNames.add(normKey); // prevent dupes within the same batch
+    addedNamesList.push(cleanName);
   }
 
   // 6. Append New Rows
@@ -196,7 +225,7 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
     const targetStartRow = lastRow + 1;
     sheet.getRange(targetStartRow, 1, rowsToAdd.length, 8).setValues(rowsToAdd);
     
-    // Style new rows cleanly
+    // Clean styling
     sheet.getRange(targetStartRow, 1, rowsToAdd.length, 8)
       .setFontFamily('Arial')
       .setFontSize(10)
@@ -205,7 +234,8 @@ function syncOnlyConsultationPatients(startDateStr, endDateStr) {
     sheet.getRange(targetStartRow, 1, rowsToAdd.length, 1).setHorizontalAlignment('center'); // Date
     sheet.getRange(targetStartRow, 2, rowsToAdd.length, 2).setHorizontalAlignment('left');   // Name, Doctor
 
-    SpreadsheetApp.getActiveSpreadsheet().toast(`✅ Successfully added ${rowsToAdd.length} new Only Consultation patients!`, 'MPC Sync', 5);
+    const preview = addedNamesList.slice(0, 3).join(', ') + (addedNamesList.length > 3 ? ` +${addedNamesList.length - 3} more` : '');
+    SpreadsheetApp.getActiveSpreadsheet().toast(`✅ Added ${rowsToAdd.length} new patients: ${preview}`, 'MPC Sync', 6);
   } else {
     SpreadsheetApp.getActiveSpreadsheet().toast('All Only Consultation patients are already in the sheet. No duplicates added.', 'MPC Sync', 4);
   }
@@ -232,6 +262,22 @@ function promptSyncCustomDateRange() {
 
 // ── API Authentication ────────────────────────────────────────────────────────
 function getMpcAuthToken() {
+  // 1. Check cached script properties token
+  try {
+    const cached = PropertiesService.getScriptProperties().getProperty('MPC_BEARER_TOKEN');
+    if (cached) return cached;
+  } catch (e) {}
+
+  // 2. Check static default token
+  if (MPC_CONFIG.bearerToken && MPC_CONFIG.bearerToken.length > 20) {
+    return MPC_CONFIG.bearerToken;
+  }
+
+  // 3. Fallback: Authenticate via login URL
+  return refreshMpcLogin();
+}
+
+function refreshMpcLogin() {
   try {
     const payload = {
       email: MPC_CONFIG.email,
@@ -240,16 +286,26 @@ function getMpcAuthToken() {
     const options = {
       method: 'post',
       contentType: 'application/json',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     };
     const res = UrlFetchApp.fetch(MPC_CONFIG.loginUrl, options);
-    const json = JSON.parse(res.getContentText());
+    const text = res.getContentText();
+    const json = JSON.parse(text);
     if (json && json.data && json.data.token) {
+      try {
+        PropertiesService.getScriptProperties().setProperty('MPC_BEARER_TOKEN', json.data.token);
+      } catch (e) {}
       return json.data.token;
+    } else {
+      Logger.log('Login failed response: ' + text);
     }
   } catch (e) {
-    Logger.log('Auth error: ' + e.message);
+    Logger.log('Auth exception: ' + e.message);
   }
   return null;
 }
@@ -262,7 +318,8 @@ function fetchDailyCollectionReport(token, startDate, endDate) {
       method: 'get',
       headers: {
         'Authorization': 'Bearer ' + token,
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
       muteHttpExceptions: true
     };
