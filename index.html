@@ -6732,111 +6732,389 @@
     // 📈 MONTH-OVER-MONTH (MoM) GROWTH ANALYTICS
     // ═══════════════════════════════════════════════════════════
 
-    const HISTORICAL_MOM_MONTHS = [
-      {
-        month: '2026-09',
-        label: 'September 2026',
-        patients: 519,
-        footBadge: '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>',
-        consultations: 347,
-        packages: 832,
-        renewals: 16,
-        pendingAmount: 493499,
-        revenue: 6661976,
-        revBadge: '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>'
-      },
-      {
-        month: '2026-10',
-        label: 'October 2026',
-        patients: 522,
-        footBadge: '<span class="mom-badge-pos">▲ +0.6% MoM</span>',
-        consultations: 343,
-        packages: 787,
-        renewals: 18,
-        pendingAmount: 416575,
-        revenue: 6987692,
-        revBadge: '<span class="mom-badge-pos">▲ +4.9% MoM</span>'
+    let historicalMonthsCache = null;
+    let isHistoricalLoading = false;
+
+    async function ensureHistoricalMonthsData() {
+      if (historicalMonthsCache) return historicalMonthsCache;
+      if (isHistoricalLoading) return null;
+      isHistoricalLoading = true;
+
+      // 1. Try sessionStorage
+      try {
+        const cached = sessionStorage.getItem('mpc_historical_months_v2');
+        if (cached) {
+          historicalMonthsCache = JSON.parse(cached);
+          isHistoricalLoading = false;
+          return historicalMonthsCache;
+        }
+      } catch (e) {}
+
+      // 2. Try static local file
+      try {
+        const res = await fetch('/historical_mom_data.json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data['2026-09'] && data['2026-10']) {
+            historicalMonthsCache = data;
+            try { sessionStorage.setItem('mpc_historical_months_v2', JSON.stringify(data)); } catch (e) {}
+            isHistoricalLoading = false;
+            return historicalMonthsCache;
+          }
+        }
+      } catch (e) {
+        console.warn('[MoM] Static historical file fetch failed, falling back to live API:', e);
       }
-    ];
+
+      // 3. Fallback: Fetch directly from API
+      try {
+        let tok = localStorage.getItem('mpc_api_bearer_token') || activeLiveToken;
+        const fetchMonthApi = async (s, e) => {
+          const q = `startDate=${s}&endDate=${e}`;
+          let rows = [];
+          try {
+            const directUrl = `https://api.mypainclinicglobal.com/api/reports/daily-collection?${q}`;
+            let r = await fetch(directUrl, { headers: { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/json' } });
+            let j = await r.json();
+            rows = j.data && j.data.rows ? j.data.rows : (Array.isArray(j.data) ? j.data : []);
+          } catch (err) {
+            const proxyUrl = `http://localhost:3001/api/mpc-cloud?${q}`;
+            let r = await fetch(proxyUrl);
+            let j = await r.json();
+            rows = j.data && j.data.rows ? j.data.rows : (Array.isArray(j.data) ? j.data : []);
+          }
+          return rows;
+        };
+
+        const [sepRaw, octRaw] = await Promise.all([
+          fetchMonthApi('2026-09-01', '2026-09-30'),
+          fetchMonthApi('2026-10-01', '2026-10-31')
+        ]);
+
+        const normalize = (rows) => {
+          const paylogGroups = {};
+          rows.forEach(r => {
+            const plId = r.paylog_id || r.invoice_no || Math.random();
+            if (!paylogGroups[plId]) paylogGroups[plId] = [];
+            paylogGroups[plId].push(r);
+          });
+          const normalized = [];
+          Object.values(paylogGroups).forEach(group => {
+            if (group.length <= 1) {
+              normalized.push(group[0]);
+            } else {
+              const groupOut = group.reduce((max, r) => Math.max(max, parseNumber(r.outstanding_amount ?? r.outstandingAmount)), 0);
+              group.forEach((r, idx) => {
+                const isLast = (idx === group.length - 1);
+                normalized.push({
+                  ...r,
+                  amount_paid: isLast ? r.amount_paid : 0,
+                  total_cost_of_package: isLast ? r.total_cost_of_package : 0,
+                  outstanding_amount: isLast ? groupOut : 0
+                });
+              });
+            }
+          });
+          return normalized.map(r => ({
+            name: (r.patient_name || r.patientName || r.name || '').trim(),
+            doc: (r.consulting_doctor || r.doctor || '').trim(),
+            agent: (r.agent_name || r.agent || '').trim(),
+            source: (r.lead_source || r.leadSource || '').trim(),
+            pkg: (r.package_name || r.packageName || '').trim(),
+            date: (r.payment_date ? new Date(r.payment_date).toISOString().split('T')[0] : ''),
+            day: r.payment_date ? new Date(r.payment_date).getDate() : 1,
+            paid: parseNumber(r.amount_paid ?? r.amountPaid),
+            cost: parseNumber(r.package_cost ?? r.packageCost),
+            totCost: parseNumber(r.total_cost_of_package ?? r.totalPackageCost),
+            out: parseNumber(r.outstanding_amount ?? r.outstandingAmount),
+            pm: r.payment_mode || '',
+            inv: r.invoice_no || ''
+          }));
+        };
+
+        if (sepRaw.length && octRaw.length) {
+          historicalMonthsCache = {
+            '2026-09': normalize(sepRaw),
+            '2026-10': normalize(octRaw)
+          };
+          try { sessionStorage.setItem('mpc_historical_months_v2', JSON.stringify(historicalMonthsCache)); } catch (e) {}
+          isHistoricalLoading = false;
+          return historicalMonthsCache;
+        }
+      } catch (err) {
+        console.error('[MoM] API historical fetch failed:', err);
+      }
+
+      isHistoricalLoading = false;
+      return null;
+    }
+
+    function computeDynamicHistoricalMonthMetrics(rawMonthRows, activeFilters) {
+      if (!rawMonthRows || !rawMonthRows.length) {
+        return { patients: 0, consultations: 0, packages: 0, renewals: 0, pendingAmount: 0, revenue: 0 };
+      }
+
+      const { startDay, endDay, doctor, agent, source, pkg, status } = activeFilters;
+
+      // Map to standard internal format
+      const standardRows = rawMonthRows.map(r => ({
+        patientName: r.name,
+        name: r.name,
+        doctor: r.doc,
+        agent: r.agent,
+        leadSource: r.source,
+        packageName: r.pkg,
+        paymentDate: r.date ? new Date(r.date + 'T12:00:00') : null,
+        packageCost: r.cost,
+        amountPaid: r.paid,
+        totalPackageCost: r.totCost,
+        outstandingAmount: r.out,
+        paymentMode: r.pm,
+        invoiceNo: r.inv
+      }));
+
+      const monthPatients = groupPatients(standardRows);
+
+      // Filter patients
+      const filtered = {};
+      for (const [key, p] of Object.entries(monthPatients)) {
+        const matchingServices = (p.services || []).filter(s => {
+          if (startDay !== undefined && endDay !== undefined) {
+            if (!s.paymentDate) return false;
+            const rd = s.paymentDate instanceof Date ? s.paymentDate : new Date(s.paymentDate);
+            if (isNaN(rd.getTime())) return false;
+            const day = rd.getDate();
+            if (day < startDay || day > endDay) return false;
+          }
+          if (doctor && (!s.doctor || s.doctor.trim().toLowerCase() !== doctor.toLowerCase())) return false;
+          if (agent && (!s.agent || s.agent.trim().toLowerCase() !== agent.toLowerCase())) return false;
+          if (source && (!s.leadSource || s.leadSource.trim().toLowerCase() !== source.toLowerCase())) return false;
+          if (pkg && (!s.packageName || s.packageName.trim().toLowerCase() !== pkg.toLowerCase())) return false;
+          return true;
+        });
+
+        if (matchingServices.length === 0) continue;
+
+        const hasC = matchingServices.some(s => s.type === 'consultation');
+        const hasPk = matchingServices.some(s => s.type === 'package');
+        const hasSS = matchingServices.some(s => s.type === 'single_session');
+        const newStatus = determineStatus({ hasConsultation: hasC, hasPackage: hasPk, hasSingleSession: hasSS });
+
+        if (status) {
+          if (status === 'Package Renewal') {
+            if (!matchingServices.some(s => s.isRenewal)) continue;
+          } else {
+            if (newStatus.toLowerCase() !== status.toLowerCase()) continue;
+          }
+        }
+
+        const filteredTotalPaid = matchingServices.reduce((sum, s) => sum + (s.proportionalPaid || s.amountPaid || 0), 0);
+        const filteredPending = matchingServices.reduce((sum, s) => sum + (s.outstandingAmount || 0), 0);
+
+        filtered[key] = {
+          ...p,
+          services: matchingServices,
+          totalPaid: filteredTotalPaid,
+          pendingAmount: filteredPending,
+          hasConsultation: hasC,
+          hasPackage: hasPk,
+          hasSingleSession: hasSS,
+          status: newStatus
+        };
+      }
+
+      const pList = Object.values(filtered);
+      return {
+        patients: pList.length,
+        consultations: pList.reduce((sum, p) => sum + (p.services || []).filter(s => s.type === 'consultation').length, 0),
+        packages: pList.reduce((sum, p) => sum + (p.services || []).filter(s => s.type === 'package').length, 0),
+        renewals: pList.reduce((sum, p) => sum + (p.services || []).filter(s => s.isRenewal).length, 0),
+        pendingAmount: pList.reduce((sum, p) => sum + (p.pendingAmount || 0), 0),
+        revenue: pList.reduce((sum, p) => sum + (p.totalPaid || 0), 0)
+      };
+    }
 
     function renderMoMAnalytics(m) {
       const tbody = document.getElementById('mom-analytics-tbody');
       if (!tbody) return;
 
+      // If cache isn't ready yet, kick off fetch and re-render when done
+      if (!historicalMonthsCache) {
+        ensureHistoricalMonthsData().then(cache => {
+          if (cache) renderMoMAnalytics(m);
+        });
+      }
+
       const dateFromVal = document.getElementById('filter-date-from')?.value;
       const dateToVal = document.getElementById('filter-date-to')?.value;
       const monthSelectVal = document.getElementById('filter-month-select')?.value;
+      const doctor = (document.getElementById('filter-doctor')?.value || '').trim();
+      const agent = (document.getElementById('filter-agent')?.value || '').trim();
+      const source = (document.getElementById('filter-source')?.value || '').trim();
+      const pkg = (document.getElementById('filter-package')?.value || '').trim();
+      const status = (document.getElementById('filter-status')?.value || '').trim();
 
-      let diffDays = 1;
-      if (dateFromVal && dateToVal) {
+      let startDay = 1;
+      let endDay = 31;
+      let isSingleDay = false;
+      let isWeek = false;
+
+      if (monthSelectVal === 'today') {
+        const today = new Date();
+        startDay = today.getDate();
+        endDay = today.getDate();
+        isSingleDay = true;
+      } else if (dateFromVal && dateToVal) {
         const d1 = new Date(dateFromVal + 'T12:00:00');
         const d2 = new Date(dateToVal + 'T12:00:00');
-        diffDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
-      } else if (monthSelectVal === '2026-11') {
-        diffDays = 30;
+        const diff = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
+        if (diff === 1) {
+          startDay = d1.getDate();
+          endDay = d1.getDate();
+          isSingleDay = true;
+        } else if (diff > 1 && diff <= 7) {
+          startDay = d1.getDate();
+          endDay = d2.getDate();
+          if (endDay < startDay) { startDay = 1; endDay = 31; }
+          isWeek = true;
+        } else if (diff < 28) {
+          startDay = d1.getDate();
+          endDay = d2.getDate();
+          if (endDay < startDay) { startDay = 1; endDay = 31; }
+        } else {
+          startDay = 1;
+          endDay = 31;
+        }
       }
 
-      const curPatients = m.totalPatients || 0;
+      const activeFilters = {
+        startDay,
+        endDay,
+        doctor,
+        agent,
+        source,
+        pkg,
+        status
+      };
+
+      // 1. Dynamic September metrics
+      let sepMetrics = { patients: 519, consultations: 347, packages: 832, renewals: 16, pendingAmount: 493499, revenue: 6661976 };
+      if (historicalMonthsCache && historicalMonthsCache['2026-09']) {
+        sepMetrics = computeDynamicHistoricalMonthMetrics(historicalMonthsCache['2026-09'], activeFilters);
+      }
+
+      // 2. Dynamic October metrics
+      let octMetrics = { patients: 522, consultations: 343, packages: 787, renewals: 18, pendingAmount: 416575, revenue: 6987692 };
+      if (historicalMonthsCache && historicalMonthsCache['2026-10']) {
+        octMetrics = computeDynamicHistoricalMonthMetrics(historicalMonthsCache['2026-10'], activeFilters);
+      }
+
+      // 3. Current month metrics from active dashboard data
+      const fList = Object.values(filteredPatients || {});
+      const curPatients = m.totalPatients || fList.length || 0;
       const curRevenue = m.totalRevenue || 0;
-      const curConsults = m.totalConsultationRecords || m.totalConsultationPatients || 0;
-      const curPkgs = (m.painMgmtCount || 0) + (m.wellnessCount || 0) + (m.roboticSpineCount || 0) + (m.bmskCount || 0) + (m.otherPackageCount || 0) || m.converted || 0;
-      const curRenewals = m.renewalCount || 0;
-      const curPending = m.totalPendingAmount || 0;
+      const curConsults = fList.length ? fList.reduce((sum, p) => sum + (p.services || []).filter(s => s.type === 'consultation').length, 0) : (m.totalConsultationRecords || m.totalConsultationPatients || 0);
+      const curPkgs = fList.length ? fList.reduce((sum, p) => sum + (p.services || []).filter(s => s.type === 'package').length, 0) : ((m.painMgmtCount || 0) + (m.wellnessCount || 0) + (m.roboticSpineCount || 0) + (m.bmskCount || 0) + (m.otherPackageCount || 0) || m.converted || 0);
+      const curRenewals = fList.length ? fList.reduce((sum, p) => sum + (p.services || []).filter(s => s.isRenewal).length, 0) : (m.renewalCount || 0);
+      const curPending = m.totalPendingAmount || (fList.length ? fList.reduce((sum, p) => sum + (p.pendingAmount || 0), 0) : 0);
 
-      let currentLabel = 'November 2026';
-      let footBadge = '';
-      let revBadge = '';
+      // Row labels
+      let sepLabel = 'September 2026';
+      let octLabel = 'October 2026';
+      let curLabel = 'November 2026';
 
-      if (diffDays === 1 || monthSelectVal === 'today') {
-        currentLabel = dateFromVal ? `⚡ Today (${dateFromVal})` : '⚡ Today';
-        const octDailyPat = 522 / 31;
-        const octDailyRev = 6987692 / 31;
-        const fGrowth = ((curPatients - octDailyPat) / octDailyPat) * 100;
-        const rGrowth = ((curRevenue - octDailyRev) / octDailyRev) * 100;
-        footBadge = fGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October daily average of ${octDailyPat.toFixed(1)} patients/day">▲ +${fGrowth.toFixed(1)}% vs Oct Day Avg</span>`
-          : `<span class="mom-badge-neg" title="vs October daily average of ${octDailyPat.toFixed(1)} patients/day">▼ ${fGrowth.toFixed(1)}% vs Oct Day Avg</span>`;
-        revBadge = rGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October daily average of ${formatCurrency(Math.round(octDailyRev))}/day">▲ +${rGrowth.toFixed(1)}% vs Oct Day Avg</span>`
-          : `<span class="mom-badge-neg" title="vs October daily average of ${formatCurrency(Math.round(octDailyRev))}/day">▼ ${rGrowth.toFixed(1)}% vs Oct Day Avg</span>`;
-      } else if (diffDays > 1 && diffDays <= 7) {
-        currentLabel = `📅 Current Week (${dateFromVal} → ${dateToVal})`;
-        const octWkPat = 522 / (31 / 7);
-        const octWkRev = 6987692 / (31 / 7);
-        const fGrowth = ((curPatients - octWkPat) / octWkPat) * 100;
-        const rGrowth = ((curRevenue - octWkRev) / octWkRev) * 100;
-        footBadge = fGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October weekly average">▲ +${fGrowth.toFixed(1)}% vs Oct Wk Avg</span>`
-          : `<span class="mom-badge-neg" title="vs October weekly average">▼ ${fGrowth.toFixed(1)}% vs Oct Wk Avg</span>`;
-        revBadge = rGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October weekly average">▲ +${rGrowth.toFixed(1)}% vs Oct Wk Avg</span>`
-          : `<span class="mom-badge-neg" title="vs October weekly average">▼ ${rGrowth.toFixed(1)}% vs Oct Wk Avg</span>`;
-      } else {
-        currentLabel = (monthSelectVal && monthSelectVal !== 'custom') 
+      if (isSingleDay) {
+        sepLabel = `September 2026 (Day ${startDay})`;
+        octLabel = `October 2026 (Day ${startDay})`;
+        curLabel = dateFromVal ? `⚡ Today (${dateFromVal})` : `⚡ Today (Day ${startDay})`;
+      } else if (isWeek) {
+        sepLabel = `September 2026 (Days ${startDay}–${endDay})`;
+        octLabel = `October 2026 (Days ${startDay}–${endDay})`;
+        curLabel = `📅 Current Week (${dateFromVal} → ${dateToVal})`;
+      } else if (startDay > 1 || endDay < 30) {
+        sepLabel = `September 2026 (Days ${startDay}–${endDay})`;
+        octLabel = `October 2026 (Days ${startDay}–${endDay})`;
+        curLabel = (monthSelectVal && monthSelectVal !== 'custom') 
           ? (monthSelectVal === '2026-11' ? 'November 2026 (MTD)' : monthSelectVal) 
           : `Selected Range (${dateFromVal || ''} → ${dateToVal || ''})`;
-        const fGrowth = ((curPatients - 522) / 522) * 100;
-        const rGrowth = ((curRevenue - 6987692) / 6987692) * 100;
-        footBadge = fGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October full month">▲ +${fGrowth.toFixed(1)}% MoM</span>`
-          : `<span class="mom-badge-neg" title="vs October full month">▼ ${fGrowth.toFixed(1)}% MoM</span>`;
-        revBadge = rGrowth >= 0
-          ? `<span class="mom-badge-pos" title="vs October full month">▲ +${rGrowth.toFixed(1)}% MoM</span>`
-          : `<span class="mom-badge-neg" title="vs October full month">▼ ${rGrowth.toFixed(1)}% MoM</span>`;
+      } else {
+        curLabel = (monthSelectVal && monthSelectVal !== 'custom') 
+          ? (monthSelectVal === '2026-11' ? 'November 2026 (MTD)' : monthSelectVal) 
+          : `Selected Range (${dateFromVal || ''} → ${dateToVal || ''})`;
+      }
+
+      // Badges
+      // Sep: Base Month
+      const sepFootBadge = '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>';
+      const sepRevBadge = '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>';
+
+      // Oct vs Sep
+      let octFootBadge = '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+      let octRevBadge = '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+      if (sepMetrics.patients > 0) {
+        const growth = ((octMetrics.patients - sepMetrics.patients) / sepMetrics.patients) * 100;
+        octFootBadge = growth >= 0 
+          ? `<span class="mom-badge-pos">▲ +${growth.toFixed(1)}% MoM</span>` 
+          : `<span class="mom-badge-neg">▼ ${growth.toFixed(1)}% MoM</span>`;
+      }
+      if (sepMetrics.revenue > 0) {
+        const growth = ((octMetrics.revenue - sepMetrics.revenue) / sepMetrics.revenue) * 100;
+        octRevBadge = growth >= 0 
+          ? `<span class="mom-badge-pos">▲ +${growth.toFixed(1)}% MoM</span>` 
+          : `<span class="mom-badge-neg">▼ ${growth.toFixed(1)}% MoM</span>`;
+      }
+
+      // Cur vs Oct
+      let curFootBadge = '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+      let curRevBadge = '<span style="color:var(--text-muted);font-size:11px;">-</span>';
+      if (octMetrics.patients > 0) {
+        const growth = ((curPatients - octMetrics.patients) / octMetrics.patients) * 100;
+        curFootBadge = growth >= 0 
+          ? `<span class="mom-badge-pos">▲ +${growth.toFixed(1)}% MoM</span>` 
+          : `<span class="mom-badge-neg">▼ ${growth.toFixed(1)}% MoM</span>`;
+      }
+      if (octMetrics.revenue > 0) {
+        const growth = ((curRevenue - octMetrics.revenue) / octMetrics.revenue) * 100;
+        curRevBadge = growth >= 0 
+          ? `<span class="mom-badge-pos">▲ +${growth.toFixed(1)}% MoM</span>` 
+          : `<span class="mom-badge-neg">▼ ${growth.toFixed(1)}% MoM</span>`;
       }
 
       const rows = [
-        ...HISTORICAL_MOM_MONTHS,
         {
-          label: currentLabel,
+          label: sepLabel,
+          patients: sepMetrics.patients,
+          footBadge: sepFootBadge,
+          consultations: sepMetrics.consultations,
+          packages: sepMetrics.packages,
+          renewals: sepMetrics.renewals,
+          pendingAmount: sepMetrics.pendingAmount,
+          revenue: sepMetrics.revenue,
+          revBadge: sepRevBadge,
+          isCurrent: false
+        },
+        {
+          label: octLabel,
+          patients: octMetrics.patients,
+          footBadge: octFootBadge,
+          consultations: octMetrics.consultations,
+          packages: octMetrics.packages,
+          renewals: octMetrics.renewals,
+          pendingAmount: octMetrics.pendingAmount,
+          revenue: octMetrics.revenue,
+          revBadge: octRevBadge,
+          isCurrent: false
+        },
+        {
+          label: curLabel,
           patients: curPatients,
-          footBadge: footBadge,
+          footBadge: curFootBadge,
           consultations: curConsults,
           packages: curPkgs,
           renewals: curRenewals,
           pendingAmount: curPending,
           revenue: curRevenue,
-          revBadge: revBadge,
+          revBadge: curRevBadge,
           isCurrent: true
         }
       ];
@@ -6848,13 +7126,13 @@
           : 'font-weight:700;color:var(--text-primary);';
         const rowBg = isCur ? 'background:rgba(6,182,212,0.06);' : '';
         return `<tr style="${rowBg}">
-          <td style="${labelStyle}">${d.label || d.month}</td>
+          <td style="${labelStyle}">${d.label}</td>
           <td style="text-align:center;font-weight:700;">${d.patients}</td>
           <td style="text-align:center;">${d.footBadge}</td>
           <td style="text-align:center;">${d.consultations}</td>
           <td style="text-align:center;color:var(--purple);font-weight:600;">${d.packages}</td>
           <td style="text-align:center;color:var(--emerald);font-weight:600;">${d.renewals}</td>
-          <td style="text-align:center;color:var(--rose);font-weight:700;">${formatCurrency(d.pendingAmount || 0)}</td>
+          <td style="text-align:center;font-weight:700;color:var(--amber);">${formatCurrency(d.pendingAmount)}</td>
           <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(d.revenue)}</td>
           <td style="text-align:center;">${d.revBadge}</td>
         </tr>`;
@@ -7484,12 +7762,11 @@
           <th class="th-left">Current Package</th>
           <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('doctor')">Consulting Doctor ⬍</th>
           <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('totalSpent')">Total Spent ⬍</th>
-          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('pendingAmount')">Pending Amount ⬍</th>
           <th class="th-left">Direct Action</th>
         </tr>`;
 
         if (pageItems.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No package renewal records available in this filter/search.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No package renewal records available in this filter/search.</td></tr>';
           return;
         }
 
@@ -7503,14 +7780,6 @@
             ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 Send Renewal Offer</a>`
             : `<button class="btn btn-sm btn-primary" onclick="alert('Renewal reminder logged for ${p.name}')">📞 Call</button>`;
 
-          const pendingAmt = p.pendingAmount || 0;
-          const pendingDisplay = pendingAmt > 0 
-            ? `<div style="font-size:10.5px; color:var(--amber); font-weight:700; line-height:1.3;">
-                <div>Balance: <strong style="color:var(--rose);">${formatCurrency(pendingAmt)}</strong></div>
-                <div style="font-size:9.5px; color:var(--text-muted); font-weight:500;">of ${formatCurrency(p.pkgCost || 0)}</div>
-              </div>`
-            : `<div style="font-size:10.5px; color:var(--emerald); font-weight:700;">Fully Paid</div>`;
-
           return `<tr>
             <td><strong style="color:var(--text-primary);">${p.name}</strong></td>
             <td style="text-align:center;font-size:11px;color:var(--text-muted);">${p.phone}</td>
@@ -7519,7 +7788,6 @@
             <td style="font-size:11.5px;color:var(--purple);font-weight:600;">${p.currentPackage}</td>
             <td style="font-size:11.5px;">${p.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
             <td style="text-align:center;font-weight:700;color:var(--emerald);">${formatCurrency(p.totalSpent)}</td>
-            <td style="text-align:center;">${pendingDisplay}</td>
             <td>${actionBtn}</td>
           </tr>`;
         }).join('');
@@ -14081,7 +14349,8 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
         if (dateToEl) dateToEl.value = range.endDate;
       }
 
-      // 3. Automatically fetch the live collection report for today's date
+      // 3. Automatically fetch the live collection report for today's date & warm up MoM historical data
+      ensureHistoricalMonthsData().catch(err => console.warn('[MoM] Background prefetch note:', err));
       try {
         await fetchLiveCollectionData(false);
       } catch (e) {
