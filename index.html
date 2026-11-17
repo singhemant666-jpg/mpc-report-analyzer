@@ -9,13 +9,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <script src="env.js"></script>
   <script>window.ENV = window.ENV || {};</script>
-  <!-- Theme: apply saved preference instantly to prevent flash; default = light -->
+  <!-- Theme: default = light -->
   <script>
-    (function() {
-      var t = localStorage.getItem('mpc_theme');
-      if (!t) { t = 'light'; localStorage.setItem('mpc_theme', 'light'); }
-      document.documentElement.setAttribute('data-theme', t);
-    })();
+    document.documentElement.setAttribute('data-theme', 'light');
   </script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- CanvasJS & Highcharts Visualization Libraries -->
@@ -2001,6 +1997,110 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
+  <!-- Live Database & Cloud API Connection Modal -->
+  <div class="modal-overlay" id="mysql-db-modal">
+    <div class="modal" style="max-width:540px; width:92vw;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="modal-title" style="margin-bottom:0; display:flex; align-items:center; gap:8px;">
+          <span>🔗</span> Live Database &amp; API Connection
+        </div>
+        <button class="btn btn-icon" onclick="closeDbConfigModal()" style="font-size:14px; padding:4px 8px;">✕</button>
+      </div>
+
+      <!-- Tab Switcher (Cloud API vs Local MySQL) -->
+      <div style="display:flex; gap:6px; background:var(--surface2); padding:4px; border-radius:8px; margin-bottom:16px;">
+        <button id="tab-source-cloud" onclick="switchApiSource('cloud')" style="flex:1; border:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer; background:var(--primary); color:#fff; transition:all 0.2s;">
+          🌐 MPC Global Cloud API
+        </button>
+        <button id="tab-source-mysql" onclick="switchApiSource('mysql')" style="flex:1; border:none; padding:8px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-muted); transition:all 0.2s;">
+          🗄️ Local MySQL Database
+        </button>
+      </div>
+
+      <!-- Cloud API Form Fields -->
+      <div id="cloud-api-fields">
+        <div class="config-group" style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div class="config-label" style="margin-bottom:0;">MPC Cloud API Endpoint</div>
+            <button class="btn btn-sm" onclick="resetDefaultCloudUrl()" style="font-size:11px; padding:2px 8px;">Reset Default</button>
+          </div>
+          <input type="text" id="api-endpoint-input" value="https://api.mypainclinicglobal.com/api/reports/daily-collection" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-family:monospace;">
+        </div>
+
+        <div class="config-group" style="margin-bottom:12px;">
+          <div class="config-label" style="margin-bottom:6px;">Bearer Authorization Token</div>
+          <div style="position:relative;">
+            <input type="password" id="api-token-input" placeholder="Auto-managed or paste token here" style="width:100%; padding:10px 36px 10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-family:monospace;">
+            <button type="button" onclick="toggleTokenVisibility()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:14px;" id="token-eye-btn">👁️</button>
+          </div>
+          <span style="font-size:11px; color:#10b981; display:block; margin-top:4px;">✨ Auto-login active as <strong>analytics@mypainclinicglobal.com</strong> (no manual token needed)</span>
+        </div>
+
+        <!-- Date Range & Filters Row -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div class="config-group">
+            <div class="config-label" style="margin-bottom:6px;">Start Date</div>
+            <input type="date" id="api-start-date" value="2026-11-01" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+          </div>
+          <div class="config-group">
+            <div class="config-label" style="margin-bottom:6px;">End Date</div>
+            <input type="date" id="api-end-date" value="2026-11-17" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="config-group">
+            <div class="config-label" style="margin-bottom:6px;">Branch ID (Optional)</div>
+            <input type="text" id="api-branch-id" value="" placeholder="e.g. 1 (leave blank for all)" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+          </div>
+          <div class="config-group">
+            <div class="config-label" style="margin-bottom:6px;">Doctor ID (Optional)</div>
+            <input type="text" id="api-doctor-id" value="" placeholder="e.g. 12 (leave blank for all)" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Local MySQL Form Fields -->
+      <div id="mysql-api-fields" style="display:none;">
+        <div class="config-group" style="margin-bottom:12px;">
+          <div class="config-label" style="margin-bottom:6px;">Local Server API URL</div>
+          <input type="text" id="mysql-api-url-input" value="http://localhost:3001/api/collections" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-family:monospace;">
+        </div>
+        <div class="config-group" style="margin-bottom:14px;">
+          <div class="config-label" style="margin-bottom:6px;">MySQL Table Name (Optional override)</div>
+          <input type="text" id="mysql-table-input" placeholder="e.g. daily_collections (leave blank for default)" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+        </div>
+      </div>
+
+      <!-- Auto-refresh interval -->
+      <div class="config-group" style="margin-bottom:16px;">
+        <div class="config-label" style="margin-bottom:6px;">Auto-Refresh Interval</div>
+        <select id="mysql-refresh-select" style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;">
+          <option value="0">Disabled (Manual Sync only)</option>
+          <option value="60000">Every 1 minute</option>
+          <option value="300000">Every 5 minutes</option>
+          <option value="900000">Every 15 minutes</option>
+          <option value="1800000">Every 30 minutes</option>
+        </select>
+      </div>
+
+      <!-- Test Connection Result Area -->
+      <div id="db-test-result" style="display:none; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:12px; line-height:1.5;"></div>
+
+      <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn btn-outline btn-sm" onclick="testLiveConnection()" id="btn-test-db-conn">
+          🔌 Test Connection
+        </button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm" onclick="closeDbConfigModal()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="saveAndSyncLiveAPI()">
+            💾 Save &amp; Sync Live Data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden file input -->
   <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.xlsm,.xlsb,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple style="display:none">
 
@@ -2023,11 +2123,18 @@
         <a href="calling_analyzer.html" class="btn btn-sm" style="display:flex; align-items:center; gap:6px; background:rgba(124,58,237,0.15); color:#7c3aed; border:1px solid rgba(124,58,237,0.3); text-decoration:none; padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600;">
           📞 Calling Leads
         </a>
+        <a href="red_flag_analyzer.html" class="btn btn-sm" style="display:flex; align-items:center; gap:6px; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); text-decoration:none; padding:7px 14px; border-radius:8px; font-size:13px; font-weight:600;">
+          🔴 Red Flags
+        </a>
         <button class="btn btn-purple btn-sm" onclick="openAIModal()" id="header-ai-btn" style="display:flex; align-items:center; gap:6px;">
           ✨ AI Insights & Audit
         </button>
         <button class="btn btn-icon" id="theme-toggle-btn" title="Toggle Light/Dark Mode" onclick="toggleTheme()" style="font-size:16px;">☀️</button>
         <button class="btn btn-icon" title="Configuration" onclick="openAdminModal()" id="config-btn">⚙️</button>
+        <button class="btn btn-sm" id="live-api-sync-btn" onclick="fetchLiveCollectionData()" style="display:flex; align-items:center; gap:6px; background:linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2)); color:#10b981; border:1px solid rgba(16,185,129,0.4); font-weight:700; padding:7px 14px; border-radius:8px; cursor:pointer;" title="Fetch live Daily Collection Report directly from MPC Global API">
+          ⚡ Sync Live API
+        </button>
+        <button class="btn btn-icon" title="Live API & Database Settings" onclick="openDbConfigModal()" id="db-config-btn" style="font-size:16px; border:1px solid rgba(16,185,129,0.4); background:rgba(16,185,129,0.1);" title="Configure API Endpoint, Token, Dates & Doctor ID">🔗</button>
       </div>
     </header>
 
@@ -2045,9 +2152,15 @@
           <div class="selected-files-list" id="selected-files-list"></div>
         </div>
       </div>
-      <div class="generate-btn-wrap">
+      <div class="generate-btn-wrap" style="display:flex; gap:12px; justify-content:center; align-items:center; flex-wrap:wrap; margin-top:20px;">
         <button class="btn btn-primary" id="generate-btn" disabled>
           🚀 Generate Unified Report
+        </button>
+        <button class="btn btn-outline" id="mysql-sync-upload-btn" onclick="fetchLiveCollectionData()" style="display:inline-flex; align-items:center; gap:8px; border-color:#10b981; color:#10b981; padding:14px 28px; border-radius:12px; font-weight:700; cursor:pointer; font-size:15px;">
+          ⚡ Sync Live API Report
+        </button>
+        <button class="btn btn-outline" onclick="openDbConfigModal()" style="display:inline-flex; align-items:center; gap:6px; border-color:var(--border); color:var(--text-muted); padding:14px 20px; border-radius:12px; font-weight:600; cursor:pointer; font-size:14px;">
+          ⚙️ API Config
         </button>
       </div>
     </section>
@@ -2065,6 +2178,7 @@
           <span id="dash-row-count">0 rows</span>
         </div>
         <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm" onclick="fetchLiveCollectionData()" style="display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-weight:600;">⚡ Refresh Live API</button>
           <button class="btn btn-purple btn-sm" onclick="openAIModal()">✨ AI Audit & Insights</button>
           <button class="btn btn-sm" onclick="resetApp()">📤 Upload New</button>
         </div>
@@ -2077,6 +2191,17 @@
         <div id="report-date-range-badge" style="font-size:12px; color:var(--cyan); font-weight:600; background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.25); padding:4px 10px; border-radius:6px;"></div>
       </div>
       <div class="filters-bar" id="filters-bar">
+        <div class="filter-group" style="min-width: 195px;">
+          <label class="filter-label" style="color:var(--cyan); font-weight:700;">🗓️ Month / Date Filter</label>
+          <select class="filter-select" id="filter-month-select" onchange="selectReportMonth(this.value)" style="border-color:var(--cyan); font-weight:700; background:var(--surface2); color:var(--text);">
+            <option value="today">⚡ Today's Collection</option>
+            <option value="2026-11" selected>November 2026 (Current)</option>
+            <option value="2026-10">October 2026</option>
+            <option value="2026-09">September 2026</option>
+            <option value="2026-08">August 2026</option>
+            <option value="custom">📅 Custom Date Range</option>
+          </select>
+        </div>
         <div class="filter-group">
           <label class="filter-label">Date From</label>
           <input type="date" class="filter-input" id="filter-date-from" onchange="applyFilters()">
@@ -10524,7 +10649,6 @@
 
         if (isRenewalsTab) {
           const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
-          const initialPkgs = pkgSvcs.filter(s => !s.isRenewal);
           const renewalPkgs = pkgSvcs.filter(s => s.isRenewal);
 
           if (initialPkgs.length > 0) {
@@ -13375,12 +13499,415 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
     // Initialize theme immediately
     initTheme();
 
+    // ==================== MPC GLOBAL LIVE API & DATABASE INTEGRATION ====================
+    const MPC_AUTH_CREDENTIALS = {
+      email: 'analytics@mypainclinicglobal.com',
+      pass: 'mpc@mpc12345'
+    };
+
+    let activeLiveToken = localStorage.getItem('mpc_api_bearer_token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NDIsInJvbGUiOjEsIm5hbWUiOiJhbmFseXRpY3NAbXlwYWluY2xpbmljZ2xvYmFsLmNvbSIsImlhdCI6MTc5NDkwMzY5MiwiZXhwIjoxODI2NDYxMjkyfQ.-FR_1kVhUE9hW_TwqEDCPFcuAdq6nF4xkO0yDmZ8gpc';
+    let autoRefreshTimer = null;
+
+    async function getFreshMpcToken() {
+      try {
+        console.log('[MPC API] Requesting fresh auth token for', MPC_AUTH_CREDENTIALS.email);
+        const res = await fetch('https://api.mypainclinicglobal.com/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(MPC_AUTH_CREDENTIALS)
+        });
+        const json = await res.json();
+        if (json && json.data && json.data.token) {
+          activeLiveToken = json.data.token;
+          localStorage.setItem('mpc_api_bearer_token', activeLiveToken);
+          const tokInput = document.getElementById('api-token-input');
+          if (tokInput) tokInput.value = activeLiveToken;
+          console.log('[MPC API] Successfully acquired fresh bearer token ✅');
+          return activeLiveToken;
+        } else {
+          console.warn('[MPC API] Auto-login response unexpected:', json);
+        }
+      } catch (err) {
+        console.error('[MPC API] Auto-login request error:', err);
+      }
+      return activeLiveToken;
+    }
+
+    function openDbConfigModal() {
+      const modal = document.getElementById('mysql-db-modal');
+      if (!modal) return;
+      const tokInput = document.getElementById('api-token-input');
+      if (tokInput && !tokInput.value) {
+        tokInput.value = localStorage.getItem('mpc_api_bearer_token') || activeLiveToken;
+      }
+      modal.classList.add('show');
+    }
+
+    function closeDbConfigModal() {
+      const modal = document.getElementById('mysql-db-modal');
+      if (modal) modal.classList.remove('show');
+    }
+
+    function switchApiSource(src) {
+      const cloudFields = document.getElementById('cloud-api-fields');
+      const mysqlFields = document.getElementById('mysql-api-fields');
+      const tabCloud = document.getElementById('tab-source-cloud');
+      const tabMysql = document.getElementById('tab-source-mysql');
+      if (src === 'mysql') {
+        if (cloudFields) cloudFields.style.display = 'none';
+        if (mysqlFields) mysqlFields.style.display = 'block';
+        if (tabCloud) { tabCloud.style.background = 'transparent'; tabCloud.style.color = 'var(--text-muted)'; }
+        if (tabMysql) { tabMysql.style.background = 'var(--primary)'; tabMysql.style.color = '#fff'; }
+      } else {
+        if (cloudFields) cloudFields.style.display = 'block';
+        if (mysqlFields) mysqlFields.style.display = 'none';
+        if (tabCloud) { tabCloud.style.background = 'var(--primary)'; tabCloud.style.color = '#fff'; }
+        if (tabMysql) { tabMysql.style.background = 'transparent'; tabMysql.style.color = 'var(--text-muted)'; }
+      }
+    }
+
+    function toggleTokenVisibility() {
+      const input = document.getElementById('api-token-input');
+      const btn = document.getElementById('token-eye-btn');
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (btn) btn.textContent = '🔒';
+      } else {
+        input.type = 'password';
+        if (btn) btn.textContent = '👁️';
+      }
+    }
+
+    function resetDefaultCloudUrl() {
+      const el = document.getElementById('api-endpoint-input');
+      if (el) el.value = 'https://api.mypainclinicglobal.com/api/reports/daily-collection';
+    }
+
+    function getSelectedMonthRange(monthKey) {
+      if (!monthKey || monthKey === 'custom') return null;
+      if (monthKey === 'today') {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+        return { startDate: todayStr, endDate: todayStr };
+      }
+      const [yearStr, monthStr] = monthKey.split('-');
+      const y = parseInt(yearStr, 10);
+      const m = parseInt(monthStr, 10);
+      const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      return { startDate, endDate };
+    }
+
+    async function selectReportMonth(monthVal) {
+      const monthSelect = document.getElementById('filter-month-select');
+      if (monthSelect) monthSelect.value = monthVal;
+      const dateFromEl = document.getElementById('filter-date-from');
+      const dateToEl = document.getElementById('filter-date-to');
+      const apiStartEl = document.getElementById('api-start-date');
+      const apiEndEl = document.getElementById('api-end-date');
+
+      if (monthVal === 'custom') {
+        showToast('Select custom Date From and Date To below, then click Refresh', 'info');
+        return;
+      }
+
+      const range = getSelectedMonthRange(monthVal);
+      if (range) {
+        if (dateFromEl) dateFromEl.value = range.startDate;
+        if (dateToEl) dateToEl.value = range.endDate;
+        if (apiStartEl) apiStartEl.value = range.startDate;
+        if (apiEndEl) apiEndEl.value = range.endDate;
+        await fetchLiveCollectionData(true);
+      }
+    }
+
+    async function saveAndSyncLiveAPI() {
+      const tokenInput = document.getElementById('api-token-input');
+      if (tokenInput && tokenInput.value.trim()) {
+        activeLiveToken = tokenInput.value.trim();
+        localStorage.setItem('mpc_api_bearer_token', activeLiveToken);
+      }
+      closeDbConfigModal();
+      await fetchLiveCollectionData(true);
+    }
+
+    async function testLiveConnection() {
+      const resArea = document.getElementById('db-test-result');
+      const btn = document.getElementById('btn-test-db-conn');
+      if (btn) btn.disabled = true;
+      if (resArea) {
+        resArea.style.display = 'block';
+        resArea.style.background = 'rgba(6,182,212,0.1)';
+        resArea.style.color = 'var(--cyan)';
+        resArea.textContent = 'Testing connection to MPC Global API...';
+      }
+
+      try {
+        let tok = document.getElementById('api-token-input')?.value?.trim() || activeLiveToken;
+        if (!tok) tok = await getFreshMpcToken();
+
+        const testUrl = 'https://api.mypainclinicglobal.com/api/reports/daily-collection?startDate=2026-11-01&endDate=2026-11-17';
+        const resp = await fetch(testUrl, {
+          headers: { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/json' }
+        });
+        const json = await resp.json();
+        const rows = json.data && json.data.rows ? json.data.rows : (Array.isArray(json.data) ? json.data : []);
+
+        if (resp.ok && (json.code === 200 || json.status === 'success' || Array.isArray(rows))) {
+          if (resArea) {
+            resArea.style.background = 'rgba(16,185,129,0.15)';
+            resArea.style.color = '#10b981';
+            resArea.innerHTML = `✅ <strong>Connected successfully!</strong> Found ${rows.length} live records for current period.`;
+          }
+        } else if (json.message && json.message.toLowerCase().includes('token')) {
+          const freshTok = await getFreshMpcToken();
+          if (resArea) {
+            resArea.style.background = 'rgba(16,185,129,0.15)';
+            resArea.style.color = '#10b981';
+            resArea.innerHTML = `✅ <strong>Auto-authenticated!</strong> Fresh token generated successfully.`;
+          }
+        } else {
+          throw new Error(json.message || 'HTTP ' + resp.status);
+        }
+      } catch (err) {
+        if (resArea) {
+          resArea.style.background = 'rgba(239,68,68,0.15)';
+          resArea.style.color = '#ef4444';
+          resArea.innerHTML = `❌ Connection test failed: ${err.message}`;
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function fetchLiveCollectionData(showProgress = true) {
+      if (showProgress) showLoading('Fetching live Daily Collection Report from MPC API...');
+
+      const monthSelect = document.getElementById('filter-month-select');
+      const selectedMonth = monthSelect ? monthSelect.value : '2026-11';
+      let startDate = '2026-11-01';
+      let endDate = '2026-11-30';
+
+      if (selectedMonth && selectedMonth !== 'custom') {
+        const range = getSelectedMonthRange(selectedMonth);
+        if (range) {
+          startDate = range.startDate;
+          endDate = range.endDate;
+        }
+      } else {
+        const dateFromEl = document.getElementById('filter-date-from');
+        const dateToEl = document.getElementById('filter-date-to');
+        if (dateFromEl && dateFromEl.value) startDate = dateFromEl.value;
+        if (dateToEl && dateToEl.value) endDate = dateToEl.value;
+      }
+
+      const branchIdInput = document.getElementById('api-branch-id');
+      const doctorIdInput = document.getElementById('api-doctor-id');
+      const branchId = branchIdInput ? branchIdInput.value.trim() : '';
+      const doctorId = doctorIdInput ? doctorIdInput.value.trim() : '';
+
+      let queryParams = `startDate=${startDate}&endDate=${endDate}`;
+      if (branchId) queryParams += `&branchId=${branchId}`;
+      if (doctorId) queryParams += `&doctorId=${doctorId}`;
+
+      let tok = localStorage.getItem('mpc_api_bearer_token') || activeLiveToken;
+      const apiEndpoint = document.getElementById('api-endpoint-input')?.value?.trim() || 'https://api.mypainclinicglobal.com/api/reports/daily-collection';
+
+      let rawApiResponse = null;
+      let usedDirect = false;
+
+      // Primary Attempt: Direct MPC API
+      try {
+        const directUrl = `${apiEndpoint}?${queryParams}`;
+        let res = await fetch(directUrl, {
+          headers: {
+            'Authorization': 'Bearer ' + tok,
+            'Accept': 'application/json'
+          }
+        });
+
+        let json = await res.json();
+
+        // If token expired / logged out, self-heal immediately with auto-login
+        if (res.status === 401 || (json && (json.code === 401 || (json.message && json.message.toLowerCase().includes('token'))))) {
+          console.log('[MPC API] Token expired or logged out. Re-authenticating...');
+          if (showProgress) showLoading('Renewing secure API session...');
+          tok = await getFreshMpcToken();
+          res = await fetch(directUrl, {
+            headers: {
+              'Authorization': 'Bearer ' + tok,
+              'Accept': 'application/json'
+            }
+          });
+          json = await res.json();
+        }
+
+        rawApiResponse = json;
+        usedDirect = true;
+      } catch (err) {
+        console.warn('[MPC API] Direct API call error, trying local server proxy:', err);
+        try {
+          const proxyUrl = `http://localhost:3001/api/reports/daily-collection?${queryParams}`;
+          const pRes = await fetch(proxyUrl);
+          rawApiResponse = await pRes.json();
+        } catch (pErr) {
+          console.error('[MPC API] Proxy call also failed:', pErr);
+        }
+      }
+
+      // Extract rows safely handling all MPC API envelope variations
+      let rows = [];
+      if (rawApiResponse) {
+        if (Array.isArray(rawApiResponse)) {
+          rows = rawApiResponse;
+        } else if (rawApiResponse.data && Array.isArray(rawApiResponse.data.rows)) {
+          rows = rawApiResponse.data.rows;
+        } else if (rawApiResponse.data && Array.isArray(rawApiResponse.data)) {
+          rows = rawApiResponse.data;
+        } else if (rawApiResponse.rows && Array.isArray(rawApiResponse.rows)) {
+          rows = rawApiResponse.rows;
+        }
+      }
+
+      if (!rows || rows.length === 0) {
+        if (showProgress) hideLoading();
+        if (doctorId || branchId) {
+          showToast(`No records found for specified Branch (${branchId || 'All'}) / Doctor (${doctorId || 'All'}) from ${startDate} to ${endDate}. Try clearing Doctor ID & Branch ID to view all clinic records.`, 'warning');
+        } else {
+          showToast(`No collection records found for date range ${startDate} to ${endDate}`, 'info');
+        }
+        return;
+      }
+
+      // Multi-Item Cart & Payment Transaction Normalization:
+      // The REST API repeats the full payment transaction amount_paid and total_cost_of_package
+      // on EVERY item belonging to the same payment log (paylog_id) or cart.
+      // In the official CRM Excel export, the payment amount is recorded only once per transaction/cart.
+      // We normalize here: only the last row of the payment group retains amount_paid & total_cost_of_package,
+      // while earlier rows are set to 0, exactly matching the Excel report and preventing duplicate revenue counts.
+      const paylogGroups = {};
+      rows.forEach((r, idx) => {
+        const key = r.paylog_id 
+          ? String(r.paylog_id) 
+          : (r.cart_id 
+              ? ('cart_' + r.cart_id + '_' + (r.invoice_no || '') + '_' + (r.payment_date || '')) 
+              : ('row_' + idx));
+        if (!paylogGroups[key]) paylogGroups[key] = [];
+        paylogGroups[key].push(r);
+      });
+
+      const normalizedApiRows = [];
+      for (const [key, group] of Object.entries(paylogGroups)) {
+        if (group.length === 1) {
+          normalizedApiRows.push(group[0]);
+        } else {
+          group.forEach((r, idx) => {
+            const isLast = (idx === group.length - 1);
+            normalizedApiRows.push({
+              ...r,
+              amount_paid: isLast ? r.amount_paid : 0,
+              total_cost_of_package: isLast ? r.total_cost_of_package : 0
+            });
+          });
+        }
+      }
+
+      // Map raw API records to standard internal format
+      rawRows = normalizedApiRows.map(r => ({
+        patientName: (r.patient_name || r.patientName || r.name || 'Unknown Patient').trim(),
+        name: (r.patient_name || r.patientName || r.name || 'Unknown Patient').trim(),
+        doctor: (r.consulting_doctor || r.doctor || 'Unassigned').trim(),
+        agent: (r.agent_name || r.agent || '').trim(),
+        leadSource: cleanLeadSource(r.lead_source || r.leadSource || ''),
+        packageName: (r.package_name || r.packageName || '').trim(),
+        paymentDate: r.payment_date ? parseDate(r.payment_date) : (r.paymentDate ? parseDate(r.paymentDate) : null),
+        packageCost: parseNumber(r.package_cost ?? r.packageCost),
+        amountPaid: parseNumber(r.amount_paid ?? r.amountPaid),
+        totalPackageCost: parseNumber(r.total_cost_of_package ?? r.totalPackageCost),
+        paymentMode: (r.payment_mode || r.paymentMode || '').trim(),
+        invoiceNo: (r.invoice_no || r.invoiceNo || '').trim(),
+        userplanId: r.userplan_id || r.userplanId || '',
+        cartId: r.cart_id || r.cartId || '',
+        sessions: r.sessions || 0,
+        usedSessions: r.used_sessions || r.cart_used_sessions || 0,
+        pendingSessions: r.pending_sessions || r.cart_pending_sessions || 0
+      }));
+
+      // Group patients & compute all analytics
+      allPatients = groupPatients(rawRows);
+      filteredPatients = { ...allPatients };
+      currentMetrics = computeMetrics(filteredPatients);
+      cachedAIPatientAudit = auditAllPatientsAI(filteredPatients);
+
+      // Populate filter dropdowns & update date controls
+      populateFilters();
+      const dateFromEl = document.getElementById('filter-date-from');
+      const dateToEl = document.getElementById('filter-date-to');
+      if (dateFromEl) dateFromEl.value = startDate;
+      if (dateToEl) dateToEl.value = endDate;
+
+      // Switch to dashboard view directly
+      document.getElementById('upload-section').classList.add('hidden');
+      document.getElementById('dashboard-section').classList.remove('hidden');
+
+      const monthNameMap = {
+        'today': 'Today',
+        '2026-11': 'November 2026',
+        '2026-10': 'October 2026',
+        '2026-09': 'September 2026',
+        '2026-08': 'August 2026'
+      };
+      const monthLabel = monthNameMap[selectedMonth] || (startDate === endDate ? `Today (${startDate})` : `${startDate} to ${endDate}`);
+
+      document.getElementById('dash-file-name').textContent = `MPC Live API · ${monthLabel}`;
+      document.getElementById('dash-row-count').textContent = `${rawRows.length} collection records • ${Object.keys(allPatients).length} patients`;
+
+      const badge = document.getElementById('report-date-range-badge');
+      if (badge) badge.textContent = `📅 ${startDate} → ${endDate}`;
+
+      // Render Dashboard
+      renderDashboard(currentMetrics, filteredPatients);
+
+      // Run AI watchdog audit
+      const auditResults = runDataIntegrityAudit(currentMetrics, filteredPatients);
+      renderAuditResults(auditResults);
+
+      // Cache current live dataset
+      await saveDatasetToCache(rawRows, {
+        dashFileName: `MPC Live API · ${monthLabel}`,
+        count: 1
+      });
+
+      if (showProgress) {
+        hideLoading();
+        showToast(`⚡ Live API Sync complete: ${rawRows.length} collection records loaded for ${monthLabel}!`, 'success');
+      }
+    }
+
     // ==================== INIT ====================
-    document.addEventListener('DOMContentLoaded', () => {
-      // Load config & theme on startup
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Load config & theme immediately
       config = loadConfig();
       initTheme();
-      restoreCachedDatasetOnStartup();
+
+      // 2. Open dashboard directly on startup
+      const uploadSec = document.getElementById('upload-section');
+      const dashSec = document.getElementById('dashboard-section');
+      if (uploadSec) uploadSec.classList.add('hidden');
+      if (dashSec) dashSec.classList.remove('hidden');
+
+      // 3. Automatically fetch the live collection report for current month (November 2026)
+      try {
+        await fetchLiveCollectionData(false);
+      } catch (e) {
+        console.warn('Live API auto-fetch failed on startup, restoring local cache:', e);
+        await restoreCachedDatasetOnStartup();
+      }
     });
   </script>
 </body>

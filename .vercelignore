@@ -1,0 +1,12 @@
+node_modules
+server.js
+import_excel_to_mysql.js
+*.xlsx
+*.xls
+*.csv
+.env*
+__pycache__
+*.py
+test*
+check*
+verify*
