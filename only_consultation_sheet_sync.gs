@@ -433,3 +433,69 @@ function onEdit(e) {
     Logger.log('ATT Timestamp error: ' + err.message);
   }
 }
+
+// ── Webhook Receiver: For Direct Push from Local Whitelisted Machine ───────────
+function doPost(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const payload = JSON.parse(e.postData.contents);
+    const rows = payload.rows || [];
+
+    if (!rows.length) {
+      return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'No rows provided' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const lastRow = sheet.getLastRow();
+    const existingNames = new Set();
+    if (lastRow > 1) {
+      const nameColValues = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      for (let i = 0; i < nameColValues.length; i++) {
+        const existingName = String(nameColValues[i][0] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (existingName) existingNames.add(existingName);
+      }
+    }
+
+    const rowsToAdd = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const normKey = String(r.name || r.patientName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!normKey || existingNames.has(normKey)) continue;
+
+      rowsToAdd.push([
+        r.date || '',
+        r.name || '',
+        r.doctor || '',
+        r.packageOffered || '',
+        r.attempt1 || '',
+        r.attempt2 || '',
+        r.attempt3 || '',
+        r.remarks || ''
+      ]);
+      existingNames.add(normKey);
+    }
+
+    if (rowsToAdd.length > 0) {
+      const startRow = lastRow + 1;
+      sheet.getRange(startRow, 1, rowsToAdd.length, 8).setValues(rowsToAdd);
+      sheet.getRange(startRow, 1, rowsToAdd.length, 8)
+        .setFontFamily('Arial')
+        .setFontSize(10)
+        .setVerticalAlignment('middle');
+      sheet.getRange(startRow, 1, rowsToAdd.length, 1).setHorizontalAlignment('center');
+      sheet.getRange(startRow, 2, rowsToAdd.length, 2).setHorizontalAlignment('left');
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      added: rowsToAdd.length,
+      skipped: rows.length - rowsToAdd.length
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
