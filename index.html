@@ -5193,9 +5193,10 @@
           hasPackage: hasPk,
           hasSingleSession: hasSS,
           status: newStatus,
-          doctors: new Set(matchingServices.map(s => s.doctor).filter(Boolean)),
-          agents: new Set(matchingServices.map(s => s.agent).filter(Boolean)),
-          leadSources: new Set(matchingServices.map(s => s.leadSource).filter(Boolean))
+          doctors: [...new Set(matchingServices.map(s => s.doctor).filter(Boolean))],
+          agents: [...new Set(matchingServices.map(s => s.agent).filter(Boolean))],
+          leadSources: [...new Set(matchingServices.map(s => s.leadSource).filter(Boolean))],
+          packages: [...new Set(matchingServices.filter(s => s.type !== 'consultation').map(s => s.packageName).filter(Boolean))]
         };
       }
 
@@ -10821,6 +10822,7 @@
 
         if (isRenewalsTab) {
           const pkgSvcs = (p.services || []).filter(s => s.type === 'package');
+          const initialPkgs = pkgSvcs.filter(s => !s.isRenewal);
           const renewalPkgs = pkgSvcs.filter(s => s.isRenewal);
 
           if (initialPkgs.length > 0) {
@@ -10872,9 +10874,9 @@
           <td style="color:var(--cyan);font-weight:500">${getPatientConsultingDate(p)}</td>
           <td style="color:var(--text-secondary);font-weight:500">${getPatientPaymentDates(p, displayServices)}</td>
           ${packageColsHTML}
-          <td>${p.doctors.join(', ') || '-'}</td>
-          <td>${p.agents.join(', ') || '-'}</td>
-          <td>${p.leadSources.join(', ') || '-'}</td>
+          <td>${(Array.isArray(p.doctors) ? p.doctors : Array.from(p.doctors || [])).join(', ') || '-'}</td>
+          <td>${(Array.isArray(p.agents) ? p.agents : Array.from(p.agents || [])).join(', ') || '-'}</td>
+          <td>${(Array.isArray(p.leadSources) ? p.leadSources : Array.from(p.leadSources || [])).join(', ') || '-'}</td>
           <td>${paymentModesText}</td>
           <td>${invoiceNosText}</td>
           <td>${pkgVal ? formatCurrency(pkgVal) : '-'}</td>
@@ -10965,10 +10967,10 @@
         case 'name': return p.name;
         case 'consultDate': return getPatientConsultingDate(p);
         case 'paymentDate': return getPatientPaymentDates(p);
-        case 'packages': return p.packages.join(', ');
-        case 'doctor': return p.doctors.join(', ');
-        case 'agent': return p.agents.join(', ');
-        case 'leadSource': return p.leadSources.join(', ');
+        case 'packages': return (Array.isArray(p.packages) ? p.packages : Array.from(p.packages || [])).join(', ');
+        case 'doctor': return (Array.isArray(p.doctors) ? p.doctors : Array.from(p.doctors || [])).join(', ');
+        case 'agent': return (Array.isArray(p.agents) ? p.agents : Array.from(p.agents || [])).join(', ');
+        case 'leadSource': return (Array.isArray(p.leadSources) ? p.leadSources : Array.from(p.leadSources || [])).join(', ');
         case 'pkgValue': return p.totalPackageValue;
         case 'amountPaid': return Math.max(0, p.totalPaid - (p.consultationRevenue || 0));
         case 'consultRev': return p.consultationRevenue;
