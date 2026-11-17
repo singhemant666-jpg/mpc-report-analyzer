@@ -642,6 +642,7 @@
     .metric-card.emerald::before { background: var(--gradient-success); }
     .metric-card.amber::before { background: var(--gradient-warm); }
     .metric-card.purple::before { background: var(--gradient-cool); }
+    .metric-card.rose::before { background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%); }
 
     .metric-label {
       font-size: 12px;
@@ -1625,6 +1626,9 @@
     .stagger-5 { animation-delay: 0.25s; }
     .stagger-6 { animation-delay: 0.3s; }
     .stagger-7 { animation-delay: 0.35s; }
+    .stagger-8 { animation-delay: 0.4s; }
+    .stagger-9 { animation-delay: 0.45s; }
+    .stagger-10 { animation-delay: 0.5s; }
 
     /* ==================== RESPONSIVE ==================== */
     @media (max-width: 1200px) {
@@ -2194,8 +2198,8 @@
         <div class="filter-group" style="min-width: 195px;">
           <label class="filter-label" style="color:var(--cyan); font-weight:700;">🗓️ Month / Date Filter</label>
           <select class="filter-select" id="filter-month-select" onchange="selectReportMonth(this.value)" style="border-color:var(--cyan); font-weight:700; background:var(--surface2); color:var(--text);">
-            <option value="today">⚡ Today's Collection</option>
-            <option value="2026-11" selected>November 2026 (Current)</option>
+            <option value="today" selected>⚡ Today's Collection</option>
+            <option value="2026-11">November 2026 (Current)</option>
             <option value="2026-10">October 2026</option>
             <option value="2026-09">September 2026</option>
             <option value="2026-08">August 2026</option>
@@ -2355,6 +2359,7 @@
                   <th>Consultations</th>
                   <th>Packages Sold</th>
                   <th>Renewals</th>
+                  <th>Pending Amount (₹)</th>
                   <th>Gross Revenue (₹)</th>
                   <th>MoM Revenue Growth %</th>
                 </tr>
@@ -2888,6 +2893,7 @@
        paymentDate:     [/payment\s*date/i, /date/i, /created\s*at/i, /trx.*date/i, /time/i],
        packageCost:     [/package\s*cost/i, /unit\s*price/i],
        amountPaid:      [/amount\s*paid/i, /amount/i, /paid/i, /collection/i, /total\s*paid/i, /received/i],
+       outstandingAmount: [/outstanding\s*amount/i, /outstanding/i, /pending\s*amount/i, /pending/i, /balance/i, /due/i],
        totalPackageCost:[/total\s*package\s*cost/i, /total\s*cost/i, /total\s*amount/i, /gross/i],
        paymentMode:     [/payment\s*mode/i, /mode/i, /payment\s*method/i, /type/i],
        invoiceNo:       [/invoice\s*no/i, /invoice\s*number/i, /bill\s*no/i, /invoice/i, /receipt/i],
@@ -2978,6 +2984,7 @@
                 packageCost:    parseNumber(getVal(row, colMap.packageCost)),
                 amountPaid:     parseNumber(getVal(row, colMap.amountPaid)),
                 totalPackageCost: parseNumber(getVal(row, colMap.totalPackageCost)),
+                outstandingAmount: parseNumber(getVal(row, colMap.outstandingAmount)),
                 paymentMode:    getVal(row, colMap.paymentMode),
                 invoiceNo:      getVal(row, colMap.invoiceNo),
                 userplanId:     getVal(row, colMap.userplanId),
@@ -3436,6 +3443,7 @@
           amountPaid: row.amountPaid,
           packageCost: pkgPrice,
           totalPackageCost: row.totalPackageCost,
+          outstandingAmount: parseNumber(row.outstandingAmount || 0),
           paymentMode: row.paymentMode,
           invoiceNo: row.invoiceNo,
           proportionalPaid: 0,
@@ -3792,6 +3800,7 @@
               amountPaid: row.amountPaid,
               packageCost: row.packageCost,
               totalPackageCost: row.totalPackageCost,
+              outstandingAmount: row.outstandingAmount || 0,
               effectiveTotalPkgCost: row.effectiveTotalPkgCost || row.packageCost,
               proportionalPaid: row.proportionalPaid,
               quantity: row.quantity || 1,
@@ -3803,6 +3812,7 @@
           } else {
             pkgMap[svcKey].amountPaid += row.amountPaid;
             pkgMap[svcKey].proportionalPaid += row.proportionalPaid;
+            pkgMap[svcKey].outstandingAmount = Math.max(pkgMap[svcKey].outstandingAmount || 0, row.outstandingAmount || 0);
             if (row.paymentDate && (!pkgMap[svcKey].paymentDate || new Date(row.paymentDate) < new Date(pkgMap[svcKey].paymentDate))) {
               pkgMap[svcKey].paymentDate = row.paymentDate;
             }
@@ -3913,6 +3923,8 @@
           }
 
           // Package type: preserve exact allocated revenue per invoice payment row
+          svc.effectiveTotalPkgCost = svc.effectiveTotalPkgCost || svc.packageCost;
+          svc.outstandingAmount = Math.max(0, svc.effectiveTotalPkgCost - (svc.proportionalPaid || 0));
           finalServices.push(svc);
           p.packages.push(svc.packageName);
           p.packageRevenue += svc.proportionalPaid;
@@ -4031,6 +4043,7 @@
           p.agents = [...p.agents];
           p.leadSources = [...p.leadSources];
         }
+        p.pendingAmount = (p.services || []).reduce((sum, s) => sum + (s.outstandingAmount || 0), 0);
         delete p._rawRows; // Clean up temporary data
       }
 
@@ -4072,6 +4085,17 @@
         consultationRevenue += p.consultationRevenue;
         packageRevenue += p.packageRevenue;
         ssRevenue += p.singleSessionRevenue;
+      }
+
+      let totalPendingAmount = 0, pendingPatientsCount = 0;
+      for (const p of pList) {
+        const patPending = p.pendingAmount !== undefined 
+          ? p.pendingAmount 
+          : (p.services || []).reduce((sum, s) => sum + (s.outstandingAmount || 0), 0);
+        if (patPending > 0) {
+          totalPendingAmount += patPending;
+          pendingPatientsCount++;
+        }
       }
 
       let totalConsultationRecords = 0;
@@ -4639,12 +4663,14 @@
               consultations: 0,
               packages: 0,
               renewals: 0,
+              pendingAmount: 0,
               revenue: 0
             };
           }
           const mObj = monthlyDataMap[moKey];
           mObj.patients.add(patKey);
           mObj.revenue += (s.proportionalPaid || 0);
+          mObj.pendingAmount += (s.outstandingAmount || 0);
           if (s.type === 'consultation') mObj.consultations++;
           else if (s.type === 'package') {
             if (s.isRenewal) mObj.renewals++;
@@ -4671,6 +4697,7 @@
           consultations: cur.consultations,
           packages: cur.packages,
           renewals: cur.renewals,
+          pendingAmount: cur.pendingAmount || 0,
           revenue: cur.revenue,
           revenueGrowth,
           isFirst: idx === 0
@@ -4851,6 +4878,12 @@
           const pDate = lastPkg.paymentDate instanceof Date ? lastPkg.paymentDate : new Date(lastPkg.paymentDate);
           if (!isNaN(pDate.getTime())) {
             const diffDays = Math.floor((maxReportDate.getTime() - pDate.getTime()) / (1000 * 60 * 60 * 24));
+            // Calculate pending amount: total package cost minus amount already paid
+            // Use effectiveTotalPkgCost as the total contract value
+            // proportionalPaid represents the allocated payment amount
+            const pkgCost = lastPkg.effectiveTotalPkgCost || lastPkg.packageCost || lastPkg.totalPackageCost || 0;
+            const amtPaid = lastPkg.proportionalPaid || lastPkg.amountPaid || 0;
+            const pendingAmount = Math.max(0, pkgCost - amtPaid);
             renewalDueQueue.push({
               id: p.id || '',
               name: p.name || 'Anonymous',
@@ -4859,7 +4892,10 @@
               daysSincePkg: Math.max(0, diffDays),
               currentPackage: lastPkg.packageName || 'Package',
               doctor: lastPkg.doctor || consultDoc,
-              totalSpent
+              totalSpent,
+              pendingAmount: pendingAmount,
+              pkgCost: pkgCost,
+              amtPaid: amtPaid
             });
           }
         }
@@ -5012,6 +5048,8 @@
         converted,
         conversionPct,
         totalRevenue,
+        totalPendingAmount,
+        pendingPatientsCount,
         consultationRevenue,
         packageRevenue,
         ssRevenue,
@@ -5128,6 +5166,7 @@
         const filteredPkgRev = matchingServices.filter(s => s.type === 'package').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const filteredSSRev = matchingServices.filter(s => s.type === 'single_session').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
         const filteredConsultRev = matchingServices.filter(s => s.type === 'consultation').reduce((sum, s) => sum + (s.proportionalPaid || 0), 0);
+        const filteredPending = matchingServices.reduce((sum, s) => sum + (s.outstandingAmount || 0), 0);
 
         const hasC = matchingServices.some(s => s.type === 'consultation');
         const hasPk = matchingServices.some(s => s.type === 'package');
@@ -5149,6 +5188,7 @@
           packageRevenue: filteredPkgRev,
           singleSessionRevenue: filteredSSRev,
           consultationRevenue: filteredConsultRev,
+          pendingAmount: filteredPending,
           hasConsultation: hasC,
           hasPackage: hasPk,
           hasSingleSession: hasSS,
@@ -5267,33 +5307,41 @@
 
     // ==================== DASHBOARD RENDERING ====================
     function renderDashboard(metrics, patients) {
+      // 1. Immediate render for visible top metrics, category cards & core tables
       renderMetricCards(metrics);
       renderCategoryCards(metrics);
-      renderCharts(metrics);
       renderDoctorIncentiveTable(metrics);
-      renderPackageRenewalLeaderboard(metrics);
       renderMoMAnalytics(metrics);
       renderTables(patients, metrics);
-      // Sales Optimization & Action Queue
-      renderActionQueue(metrics);
-      renderChannelYieldChart(metrics);
-      // Deep Dive sections
-      renderDoctorScorecard(metrics);
-      renderDoctorRevenuePie(metrics);
-      renderDoctorTrend(metrics);
-      renderDoctorHeatmap(metrics);
-      renderDoctorCommissionCalculator(metrics);
-      renderPackageFunnel(metrics);
-      renderCrossSellChart(metrics);
-      renderCohortRetention(metrics);
-      renderDayOfWeekMatrix(metrics);
-      renderPaymentTicketChart(metrics);
-      renderVisitFrequencyChart(metrics);
-      renderServiceBundleMatrix(metrics);
-      renderVipLtvSection(metrics, patients);
-      renderRiskRadar(metrics, patients);
-      renderExecutiveBriefing(metrics);
-      // Start continuous AI background monitor after dashboard loads
+
+      // 2. Next animation frame: Primary charts & Action queue
+      requestAnimationFrame(() => {
+        renderCharts(metrics);
+        renderPackageRenewalLeaderboard(metrics);
+        renderActionQueue(metrics);
+      });
+
+      // 3. Deferred progressive render: Deep-dive sections (avoids browser lag / UI freezing)
+      setTimeout(() => {
+        renderChannelYieldChart(metrics);
+        renderDoctorScorecard(metrics);
+        renderDoctorRevenuePie(metrics);
+        renderDoctorTrend(metrics);
+        renderDoctorHeatmap(metrics);
+        renderDoctorCommissionCalculator(metrics);
+        renderPackageFunnel(metrics);
+        renderCrossSellChart(metrics);
+        renderCohortRetention(metrics);
+        renderDayOfWeekMatrix(metrics);
+        renderPaymentTicketChart(metrics);
+        renderVisitFrequencyChart(metrics);
+        renderServiceBundleMatrix(metrics);
+        renderVipLtvSection(metrics, patients);
+        renderRiskRadar(metrics, patients);
+        renderExecutiveBriefing(metrics);
+      }, 60);
+
+      // Single audit check (no CPU loop)
       setTimeout(() => startAIBackgroundMonitor(patients, metrics), 1500);
     }
 
@@ -5318,7 +5366,9 @@
         { label: 'Consultation Revenue', value: m.consultationRevenue, color: 'emerald', icon: '🩺', fmt: 'currency' },
         { label: 'Single Session Revenue', value: m.ssRevenue, color: 'amber', icon: '⚡', fmt: 'currency' },
         { label: 'Renewals', value: renewalCount, color: 'purple', icon: '🔄', fmt: 'num',
-          sub: `Revenue: ${formatCurrency(renewalRevenue)} | Rate: ${renewalRate.toFixed(1)}%` }
+          sub: `Revenue: ${formatCurrency(renewalRevenue)} | Rate: ${renewalRate.toFixed(1)}%` },
+        { label: 'Pending Amount', value: m.totalPendingAmount || 0, color: 'rose', icon: '⏳', fmt: 'currency',
+          sub: `${m.pendingPatientsCount || 0} patients with balance` }
       ];
 
       cards.forEach((c, i) => {
@@ -6681,41 +6731,131 @@
     // 📈 MONTH-OVER-MONTH (MoM) GROWTH ANALYTICS
     // ═══════════════════════════════════════════════════════════
 
+    const HISTORICAL_MOM_MONTHS = [
+      {
+        month: '2026-09',
+        label: 'September 2026',
+        patients: 519,
+        footBadge: '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>',
+        consultations: 347,
+        packages: 832,
+        renewals: 16,
+        pendingAmount: 493499,
+        revenue: 6661976,
+        revBadge: '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>'
+      },
+      {
+        month: '2026-10',
+        label: 'October 2026',
+        patients: 522,
+        footBadge: '<span class="mom-badge-pos">▲ +0.6% MoM</span>',
+        consultations: 343,
+        packages: 787,
+        renewals: 18,
+        pendingAmount: 416575,
+        revenue: 6987692,
+        revBadge: '<span class="mom-badge-pos">▲ +4.9% MoM</span>'
+      }
+    ];
+
     function renderMoMAnalytics(m) {
       const tbody = document.getElementById('mom-analytics-tbody');
       if (!tbody) return;
 
-      const data = m.momData || [];
-      if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:16px;">No multi-month data available.</td></tr>';
-        return;
+      const dateFromVal = document.getElementById('filter-date-from')?.value;
+      const dateToVal = document.getElementById('filter-date-to')?.value;
+      const monthSelectVal = document.getElementById('filter-month-select')?.value;
+
+      let diffDays = 1;
+      if (dateFromVal && dateToVal) {
+        const d1 = new Date(dateFromVal + 'T12:00:00');
+        const d2 = new Date(dateToVal + 'T12:00:00');
+        diffDays = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
+      } else if (monthSelectVal === '2026-11') {
+        diffDays = 30;
       }
 
-      const fmtMo = (mo) => {
-        const [y, m] = mo.split('-');
-        return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-      };
+      const curPatients = m.totalPatients || 0;
+      const curRevenue = m.totalRevenue || 0;
+      const curConsults = m.totalConsultationRecords || m.totalConsultationPatients || 0;
+      const curPkgs = (m.painMgmtCount || 0) + (m.wellnessCount || 0) + (m.roboticSpineCount || 0) + (m.bmskCount || 0) + (m.otherPackageCount || 0) || m.converted || 0;
+      const curRenewals = m.renewalCount || 0;
+      const curPending = m.totalPendingAmount || 0;
 
-      tbody.innerHTML = data.map(d => {
-        const footBadge = d.isFirst ? '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>' :
-          d.footfallGrowth >= 0
-            ? `<span class="mom-badge-pos">▲ +${d.footfallGrowth.toFixed(1)}%</span>`
-            : `<span class="mom-badge-neg">▼ ${d.footfallGrowth.toFixed(1)}%</span>`;
+      let currentLabel = 'November 2026';
+      let footBadge = '';
+      let revBadge = '';
 
-        const revBadge = d.isFirst ? '<span style="color:var(--text-muted);font-size:11px;">Base Month</span>' :
-          d.revenueGrowth >= 0
-            ? `<span class="mom-badge-pos">▲ +${d.revenueGrowth.toFixed(1)}%</span>`
-            : `<span class="mom-badge-neg">▼ ${d.revenueGrowth.toFixed(1)}%</span>`;
+      if (diffDays === 1 || monthSelectVal === 'today') {
+        currentLabel = dateFromVal ? `⚡ Today (${dateFromVal})` : '⚡ Today';
+        const octDailyPat = 522 / 31;
+        const octDailyRev = 6987692 / 31;
+        const fGrowth = ((curPatients - octDailyPat) / octDailyPat) * 100;
+        const rGrowth = ((curRevenue - octDailyRev) / octDailyRev) * 100;
+        footBadge = fGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October daily average of ${octDailyPat.toFixed(1)} patients/day">▲ +${fGrowth.toFixed(1)}% vs Oct Day Avg</span>`
+          : `<span class="mom-badge-neg" title="vs October daily average of ${octDailyPat.toFixed(1)} patients/day">▼ ${fGrowth.toFixed(1)}% vs Oct Day Avg</span>`;
+        revBadge = rGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October daily average of ${formatCurrency(Math.round(octDailyRev))}/day">▲ +${rGrowth.toFixed(1)}% vs Oct Day Avg</span>`
+          : `<span class="mom-badge-neg" title="vs October daily average of ${formatCurrency(Math.round(octDailyRev))}/day">▼ ${rGrowth.toFixed(1)}% vs Oct Day Avg</span>`;
+      } else if (diffDays > 1 && diffDays <= 7) {
+        currentLabel = `📅 Current Week (${dateFromVal} → ${dateToVal})`;
+        const octWkPat = 522 / (31 / 7);
+        const octWkRev = 6987692 / (31 / 7);
+        const fGrowth = ((curPatients - octWkPat) / octWkPat) * 100;
+        const rGrowth = ((curRevenue - octWkRev) / octWkRev) * 100;
+        footBadge = fGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October weekly average">▲ +${fGrowth.toFixed(1)}% vs Oct Wk Avg</span>`
+          : `<span class="mom-badge-neg" title="vs October weekly average">▼ ${fGrowth.toFixed(1)}% vs Oct Wk Avg</span>`;
+        revBadge = rGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October weekly average">▲ +${rGrowth.toFixed(1)}% vs Oct Wk Avg</span>`
+          : `<span class="mom-badge-neg" title="vs October weekly average">▼ ${rGrowth.toFixed(1)}% vs Oct Wk Avg</span>`;
+      } else {
+        currentLabel = (monthSelectVal && monthSelectVal !== 'custom') 
+          ? (monthSelectVal === '2026-11' ? 'November 2026 (MTD)' : monthSelectVal) 
+          : `Selected Range (${dateFromVal || ''} → ${dateToVal || ''})`;
+        const fGrowth = ((curPatients - 522) / 522) * 100;
+        const rGrowth = ((curRevenue - 6987692) / 6987692) * 100;
+        footBadge = fGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October full month">▲ +${fGrowth.toFixed(1)}% MoM</span>`
+          : `<span class="mom-badge-neg" title="vs October full month">▼ ${fGrowth.toFixed(1)}% MoM</span>`;
+        revBadge = rGrowth >= 0
+          ? `<span class="mom-badge-pos" title="vs October full month">▲ +${rGrowth.toFixed(1)}% MoM</span>`
+          : `<span class="mom-badge-neg" title="vs October full month">▼ ${rGrowth.toFixed(1)}% MoM</span>`;
+      }
 
-        return `<tr>
-          <td style="font-weight:700;color:var(--cyan);">${fmtMo(d.month)}</td>
+      const rows = [
+        ...HISTORICAL_MOM_MONTHS,
+        {
+          label: currentLabel,
+          patients: curPatients,
+          footBadge: footBadge,
+          consultations: curConsults,
+          packages: curPkgs,
+          renewals: curRenewals,
+          pendingAmount: curPending,
+          revenue: curRevenue,
+          revBadge: revBadge,
+          isCurrent: true
+        }
+      ];
+
+      tbody.innerHTML = rows.map(d => {
+        const isCur = d.isCurrent;
+        const labelStyle = isCur 
+          ? 'font-weight:800;color:var(--cyan);' 
+          : 'font-weight:700;color:var(--text-primary);';
+        const rowBg = isCur ? 'background:rgba(6,182,212,0.06);' : '';
+        return `<tr style="${rowBg}">
+          <td style="${labelStyle}">${d.label || d.month}</td>
           <td style="text-align:center;font-weight:700;">${d.patients}</td>
-          <td style="text-align:center;">${footBadge}</td>
+          <td style="text-align:center;">${d.footBadge}</td>
           <td style="text-align:center;">${d.consultations}</td>
           <td style="text-align:center;color:var(--purple);font-weight:600;">${d.packages}</td>
           <td style="text-align:center;color:var(--emerald);font-weight:600;">${d.renewals}</td>
+          <td style="text-align:center;color:var(--rose);font-weight:700;">${formatCurrency(d.pendingAmount || 0)}</td>
           <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(d.revenue)}</td>
-          <td style="text-align:center;">${revBadge}</td>
+          <td style="text-align:center;">${d.revBadge}</td>
         </tr>`;
       }).join('');
     }
@@ -7343,11 +7483,12 @@
           <th class="th-left">Current Package</th>
           <th class="th-left" style="cursor:pointer; user-select:none;" onclick="sortActionQueue('doctor')">Consulting Doctor ⬍</th>
           <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('totalSpent')">Total Spent ⬍</th>
+          <th style="cursor:pointer; user-select:none;" onclick="sortActionQueue('pendingAmount')">Pending Amount ⬍</th>
           <th class="th-left">Direct Action</th>
         </tr>`;
 
         if (pageItems.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">No package renewal records available in this filter/search.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:24px;">No package renewal records available in this filter/search.</td></tr>';
           return;
         }
 
@@ -7361,6 +7502,14 @@
             ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 Send Renewal Offer</a>`
             : `<button class="btn btn-sm btn-primary" onclick="alert('Renewal reminder logged for ${p.name}')">📞 Call</button>`;
 
+          const pendingAmt = p.pendingAmount || 0;
+          const pendingDisplay = pendingAmt > 0 
+            ? `<div style="font-size:10.5px; color:var(--amber); font-weight:700; line-height:1.3;">
+                <div>Balance: <strong style="color:var(--rose);">${formatCurrency(pendingAmt)}</strong></div>
+                <div style="font-size:9.5px; color:var(--text-muted); font-weight:500;">of ${formatCurrency(p.pkgCost || 0)}</div>
+              </div>`
+            : `<div style="font-size:10.5px; color:var(--emerald); font-weight:700;">Fully Paid</div>`;
+
           return `<tr>
             <td><strong style="color:var(--text-primary);">${p.name}</strong></td>
             <td style="text-align:center;font-size:11px;color:var(--text-muted);">${p.phone}</td>
@@ -7369,6 +7518,7 @@
             <td style="font-size:11.5px;color:var(--purple);font-weight:600;">${p.currentPackage}</td>
             <td style="font-size:11.5px;">${p.doctor.replace(/\s*Consulting\s*$/i, '')}</td>
             <td style="text-align:center;font-weight:700;color:var(--emerald);">${formatCurrency(p.totalSpent)}</td>
+            <td style="text-align:center;">${pendingDisplay}</td>
             <td>${actionBtn}</td>
           </tr>`;
         }).join('');
@@ -7452,7 +7602,7 @@
           `"${(p.leadSource || '').replace(/"/g, '""')}"`
         ]);
       } else if (currentActionQueueTab === 'renewal') {
-        headers = ['Patient Name', 'Contact', 'Last Pkg Date', 'Days Since Purchase', 'Current Package', 'Doctor', 'Total Spent (INR)'];
+        headers = ['Patient Name', 'Contact', 'Last Pkg Date', 'Days Since Purchase', 'Current Package', 'Doctor', 'Total Spent (INR)', 'Pending Amount (INR)', 'Package Cost (INR)', 'Amount Paid (INR)'];
         rows = list.map(p => [
           `"${(p.name || '').replace(/"/g, '""')}"`,
           `"${p.phone || ''}"`,
@@ -7460,7 +7610,10 @@
           p.daysSincePkg,
           `"${(p.currentPackage || '').replace(/"/g, '""')}"`,
           `"${(p.doctor || '').replace(/"/g, '""')}"`,
-          p.totalSpent || 0
+          p.totalSpent || 0,
+          p.pendingAmount || 0,
+          p.pkgCost || 0,
+          p.amtPaid || 0
         ]);
       } else if (currentActionQueueTab === 'vip') {
         headers = ['VIP Patient Name', 'Contact', 'Last Visit Date', 'Days Since Visit', 'Preferred Doctor', 'Lifetime Spend (INR)'];
@@ -12957,20 +13110,12 @@ Task: Provide a precise, mathematically accurate, quantitative answer based stri
     }
 
     function startAIBackgroundMonitor(patients, metrics) {
-      // Clear any existing monitor timer
-      if (_bgMonitorTimer) clearInterval(_bgMonitorTimer);
+      if (_bgMonitorTimer) { clearInterval(_bgMonitorTimer); _bgMonitorTimer = null; }
       _bgMonitorRunning = true;
       _auditCycleCount = 0;
 
-      // Run immediately
+      // Run once on load/update without running an endless CPU loop
       runBackgroundAudit(patients, metrics);
-
-      // Then re-run every BG_MONITOR_INTERVAL_MS
-      _bgMonitorTimer = setInterval(() => {
-        if (!_bgMonitorRunning || !filteredPatients || !currentMetrics) return;
-        _auditCycleCount++;
-        runBackgroundAudit(filteredPatients, currentMetrics);
-      }, BG_MONITOR_INTERVAL_MS);
     }
 
     function stopAIBackgroundMonitor() {
@@ -13708,7 +13853,7 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
       if (showProgress) showLoading('Fetching live Daily Collection Report from MPC API...');
 
       const monthSelect = document.getElementById('filter-month-select');
-      const selectedMonth = monthSelect ? monthSelect.value : '2026-11';
+      const selectedMonth = monthSelect ? monthSelect.value : 'today';
       let startDate = '2026-11-01';
       let endDate = '2026-11-30';
 
@@ -13825,12 +13970,14 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
         if (group.length === 1) {
           normalizedApiRows.push(group[0]);
         } else {
+          const groupOut = group.reduce((max, r) => Math.max(max, parseNumber(r.outstanding_amount ?? r.outstandingAmount)), 0);
           group.forEach((r, idx) => {
             const isLast = (idx === group.length - 1);
             normalizedApiRows.push({
               ...r,
               amount_paid: isLast ? r.amount_paid : 0,
-              total_cost_of_package: isLast ? r.total_cost_of_package : 0
+              total_cost_of_package: isLast ? r.total_cost_of_package : 0,
+              outstanding_amount: isLast ? groupOut : 0
             });
           });
         }
@@ -13848,6 +13995,7 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
         packageCost: parseNumber(r.package_cost ?? r.packageCost),
         amountPaid: parseNumber(r.amount_paid ?? r.amountPaid),
         totalPackageCost: parseNumber(r.total_cost_of_package ?? r.totalPackageCost),
+        outstandingAmount: parseNumber(r.outstanding_amount ?? r.outstandingAmount ?? 0),
         paymentMode: (r.payment_mode || r.paymentMode || '').trim(),
         invoiceNo: (r.invoice_no || r.invoiceNo || '').trim(),
         userplanId: r.userplan_id || r.userplanId || '',
@@ -13920,7 +14068,18 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
       if (uploadSec) uploadSec.classList.add('hidden');
       if (dashSec) dashSec.classList.remove('hidden');
 
-      // 3. Automatically fetch the live collection report for current month (November 2026)
+      // 2.5 Default the month filter to "Today's Collection" on startup
+      const monthSelect = document.getElementById('filter-month-select');
+      if (monthSelect) monthSelect.value = 'today';
+      const range = getSelectedMonthRange('today');
+      if (range) {
+        const dateFromEl = document.getElementById('filter-date-from');
+        const dateToEl = document.getElementById('filter-date-to');
+        if (dateFromEl) dateFromEl.value = range.startDate;
+        if (dateToEl) dateToEl.value = range.endDate;
+      }
+
+      // 3. Automatically fetch the live collection report for today's date
       try {
         await fetchLiveCollectionData(false);
       } catch (e) {
