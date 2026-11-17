@@ -3474,6 +3474,9 @@
           <button class="btn btn-primary btn-sm" onclick="exportCurrentTabExcel()" id="tab-excel-btn">
             📊 Export Current Tab Excel
           </button>
+          <button class="btn btn-sm" onclick="copyOnlyConsultationForGoogleSheet()" id="copy-conversion-btn" title="Copy Only Consultation rows formatted for your Google Sheet" style="background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:var(--amber); font-weight:700;">
+            📋 Copy for Conversion Sheet
+          </button>
         </div>
       </div>
       <div class="tables-section">
@@ -6488,6 +6491,57 @@
       document.getElementById('filter-package').value = '';
       document.getElementById('filter-status').value = '';
       applyFilters();
+    }
+
+    function copyOnlyConsultationForGoogleSheet() {
+      const pts = Object.values(filteredPatients || {});
+      const consultPts = pts.filter(p => p.status === 'Only Consultation' || (p.hasConsultation && !p.hasPackage));
+      
+      if (!consultPts.length) {
+        showToast('No Only Consultation patients found in current filtered view', 'warning');
+        return;
+      }
+
+      const cleanDoc = (doc) => {
+        if (!doc) return 'Dr Gladys';
+        let d = String(doc).replace(/Consulting/gi, '').replace(/\./g, '').trim();
+        if (/Gladys/i.test(d)) return 'Dr Gladys';
+        if (/Vidh?isha/i.test(d)) return 'Dr Vidisha';
+        if (/Chinmay/i.test(d)) return 'Dr Chinmay';
+        if (/Krishna/i.test(d)) return 'Dr Krishna';
+        return d;
+      };
+
+      const toProper = (str) => {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      };
+
+      const lines = consultPts.map(p => {
+        const s = (p.services || []).find(sv => sv.type === 'consultation') || (p.services || [])[0] || {};
+        let dateStr = '';
+        if (s.paymentDate) {
+          const d = s.paymentDate instanceof Date ? s.paymentDate : new Date(s.paymentDate);
+          if (!isNaN(d.getTime())) {
+            dateStr = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+          }
+        }
+        if (!dateStr) {
+          const today = new Date();
+          dateStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+        }
+        const name = toProper(p.name);
+        const doctor = cleanDoc(s.doctor || (p.doctors && p.doctors[0]) || '');
+        return `${dateStr}\t${name}\t${doctor}\t\t\t\t\t`;
+      });
+
+      const textToCopy = lines.join('\n');
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast(`📋 Copied ${consultPts.length} Only Consultation patients to clipboard! Paste (Ctrl+V) into row of your Google Sheet.`, 'success', 6000);
+      }).catch(err => {
+        console.error('Clipboard copy failed:', err);
+        showToast('Could not access clipboard automatically. Please check permissions.', 'error');
+      });
     }
 
     let datasetMinDate = '';

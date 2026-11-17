@@ -71,8 +71,13 @@ function testMpcConnection() {
       return;
     }
 
-    const rows = fetchDailyCollectionReport(token, today, today);
-    ui.alert(`✅ Connection Successful!\n\nAuthenticated with MPC Cloud API.\nFound ${rows.length} live records for today (${today}).`);
+    const result = fetchDailyCollectionReport(token, today, today);
+    if (!result.success) {
+      ui.alert(`❌ Connection Failed (HTTP ${result.status}):\n\n${result.message}`);
+      return;
+    }
+
+    ui.alert(`✅ Connection Successful!\n\nAuthenticated with MPC Cloud API.\nFound ${result.rows.length} live collection records for today (${today}).`);
   } catch (err) {
     ui.alert(`❌ Connection Test Error:\n\n${err.message}`);
   }
@@ -105,18 +110,24 @@ function syncOnlyConsultationPatients(startArg, endArg) {
   }
 
   // 2. Fetch raw collection rows
-  let rawRows = fetchDailyCollectionReport(token, startDateStr, endDateStr);
+  let result = fetchDailyCollectionReport(token, startDateStr, endDateStr);
   
-  // If token was expired, refresh once and retry
-  if (!rawRows || rawRows.length === 0) {
+  // If token was expired (HTTP 401), refresh once and retry
+  if (!result.success && result.status === 401) {
     const freshToken = refreshMpcLogin();
     if (freshToken) {
       token = freshToken;
-      rawRows = fetchDailyCollectionReport(token, startDateStr, endDateStr);
+      result = fetchDailyCollectionReport(token, startDateStr, endDateStr);
     }
   }
 
-  if (!rawRows || rawRows.length === 0) {
+  if (!result.success) {
+    SpreadsheetApp.getUi().alert(`❌ API Error (HTTP ${result.status}):\n\n${result.message || 'Could not fetch collection records'}`);
+    return;
+  }
+
+  const rawRows = result.rows || [];
+  if (rawRows.length === 0) {
     SpreadsheetApp.getActiveSpreadsheet().toast(`No collection records found for ${startDateStr} to ${endDateStr}`, 'MPC Sync', 4);
     return;
   }
@@ -287,8 +298,7 @@ function refreshMpcLogin() {
       method: 'post',
       contentType: 'application/json',
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        'Accept': 'application/json'
       },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
@@ -318,26 +328,30 @@ function fetchDailyCollectionReport(token, startDate, endDate) {
       method: 'get',
       headers: {
         'Authorization': 'Bearer ' + token,
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        'Accept': 'application/json'
       },
       muteHttpExceptions: true
     };
     const res = UrlFetchApp.fetch(url, options);
-    const json = JSON.parse(res.getContentText());
-    if (json && json.data && Array.isArray(json.data.rows)) {
-      return json.data.rows;
+    const status = res.getResponseCode();
+    const text = res.getContentText();
+
+    if (status !== 200) {
+      Logger.log(`API HTTP error ${status}: ${text}`);
+      return { success: false, status: status, message: text, rows: [] };
     }
-    if (json && Array.isArray(json.data)) {
-      return json.data;
-    }
-    if (Array.isArray(json)) {
-      return json;
-    }
+
+    const json = JSON.parse(text);
+    let rows = [];
+    if (json && json.data && Array.isArray(json.data.rows)) rows = json.data.rows;
+    else if (json && Array.isArray(json.data)) rows = json.data;
+    else if (Array.isArray(json)) rows = json;
+
+    return { success: true, status: 200, rows: rows };
   } catch (e) {
     Logger.log('Fetch error: ' + e.message);
+    return { success: false, status: 0, message: e.message, rows: [] };
   }
-  return [];
 }
 
 // ── Helper: Clean Doctor Names ────────────────────────────────────────────────
