@@ -592,21 +592,13 @@
   <!-- Top Navigation -->
   <header class="top-nav">
     <div class="nav-container">
-      <a href="/" class="brand-wrap">
+      <a href="patient_data.html" class="brand-wrap">
         <img src="logo.png" alt="MPC Logo" class="brand-logo" onerror="this.src='MPC New Logo - 1.png'; this.onerror=null;">
         <div class="brand-text">
           <h1>📋 Patient Data & Category Breakdown</h1>
           <p>My Pain Clinic Global · Live Clinical Conversion & Patient Registry</p>
         </div>
       </a>
-      <nav class="nav-links">
-        <a href="/" class="nav-link">📊 Main Dashboard</a>
-        <a href="patient_data.html" class="nav-link active">📋 Patient Data Table</a>
-        <a href="only_consultation.html" class="nav-link">🩺 Only Consultations</a>
-        <a href="red_flag_analyzer.html" class="nav-link">🔴 Red Flags</a>
-        <a href="calling_analyzer.html" class="nav-link">📞 Calling Leads</a>
-        <a href="appointment_analyzer.html" class="nav-link">📅 Appointments</a>
-      </nav>
     </div>
   </header>
 
@@ -666,35 +658,6 @@
       </div>
     </section>
 
-    <!-- KPI Summary Row -->
-    <section class="kpi-row">
-      <div class="kpi-card">
-        <span class="kpi-label">Total Patients</span>
-        <div class="kpi-val" id="kpi-total-patients">0</div>
-        <span class="kpi-sub" id="kpi-total-records">0 collection records</span>
-      </div>
-      <div class="kpi-card cyan">
-        <span class="kpi-label">Consultation Patients</span>
-        <div class="kpi-val" id="kpi-consult-patients">0</div>
-        <span class="kpi-sub" id="kpi-consult-rev">₹0 revenue</span>
-      </div>
-      <div class="kpi-card purple">
-        <span class="kpi-label">Package Conversions</span>
-        <div class="kpi-val" id="kpi-pkg-patients">0</div>
-        <span class="kpi-sub" id="kpi-pkg-rev">₹0 revenue</span>
-      </div>
-      <div class="kpi-card emerald">
-        <span class="kpi-label">Total Gross Revenue</span>
-        <div class="kpi-val" id="kpi-gross-rev">₹0</div>
-        <span class="kpi-sub" id="kpi-avg-rev">Avg ₹0 / patient</span>
-      </div>
-      <div class="kpi-card amber">
-        <span class="kpi-label">Renewals</span>
-        <div class="kpi-val" id="kpi-renewals-count">0</div>
-        <span class="kpi-sub" id="kpi-pending-amt">Pending: ₹0</span>
-      </div>
-    </section>
-
     <!-- Patient Data Section With All Tabs -->
     <section class="card" style="padding: 16px 20px;">
       <div class="section-header">
@@ -731,7 +694,7 @@
           </thead>
           <tbody id="patient-table-body">
             <tr>
-              <td colspan="12" class="empty-state">
+              <td colspan="11" class="empty-state">
                 <div class="empty-state-icon">⏳</div>
                 <h3>Loading Patient Records...</h3>
                 <p>Connecting to MPC Live Cloud API...</p>
@@ -744,7 +707,6 @@
       <!-- Footer Breakdown -->
       <div class="table-footer">
         <span id="footer-count">Showing 0 patients</span>
-        <span id="footer-breakdown" style="font-weight: 600;">Pain Mgmt Pkg Total: ₹0 | Wellness Pkg Total: ₹0 | Robotic Spine: ₹0 | BMSK: ₹0 | Renewals Total: ₹0</span>
       </div>
     </section>
 
@@ -1231,7 +1193,6 @@
             <th>Lead Source</th>
             <th>Payment Mode</th>
             <th>Invoice No</th>
-            <th style="text-align: right;">Amount Paid</th>
           </tr>
         `;
       } else {
@@ -1247,7 +1208,6 @@
             <th>Lead Source</th>
             <th>Payment Mode</th>
             <th>Invoice No</th>
-            <th style="text-align: right;">Amount Paid</th>
           </tr>
         `;
       }
@@ -1255,23 +1215,18 @@
       if (list.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="12" class="empty-state">
+            <td colspan="11" class="empty-state">
               <div class="empty-state-icon">🔍</div>
               <h3>No patients found in ${tab.label}</h3>
               <p>No records match your active search or date filter.</p>
             </td>
           </tr>
         `;
-        footerBreakdown.textContent = `Pain Mgmt: ₹0 | Wellness: ₹0 | Total: ₹0`;
         return;
       }
 
-      let pmTotal = 0, wellnessTotal = 0, consultTotal = 0, totalRev = 0;
-
       tbody.innerHTML = list.map((p, idx) => {
-        totalRev += p.totalPaid;
         const consultSvc = p.services.find(s => s.type === 'consultation') || {};
-        const firstPkg = p.services.find(s => s.type === 'package') || {};
         const primarySvc = p.services[0] || {};
 
         const consultDateStr = formatDateDisplay(p.consultDate || consultSvc.date);
@@ -1282,14 +1237,6 @@
         const leadSrc = consultSvc.leadSource || p.leadSources[0] || 'Direct';
         const payMode = consultSvc.paymentMode || p.paymentModes[0] || 'cash';
         const invoiceNo = consultSvc.invoiceNo || p.invoices[0] || '-';
-        const amount = p.totalPaid || 0;
-
-        // Sum breakdowns
-        p.services.forEach(s => {
-          if (s.type === 'consultation') consultTotal += s.proportionalPaid;
-          else if (isPainManagementPackage(s.packageName)) pmTotal += s.proportionalPaid;
-          else if (isWellnessPackage(s.packageName)) wellnessTotal += s.proportionalPaid;
-        });
 
         if (isRenewalsTab) {
           const initPkg = p.services.find(s => s.type === 'package' && !s.isRenewal);
@@ -1310,7 +1257,6 @@
               <td><span class="source-badge">${leadSrc}</span></td>
               <td><span class="pm-badge">${payMode}</span></td>
               <td class="inv-cell">${invoiceNo}</td>
-              <td class="amt-cell">${formatCurrency(amount)}</td>
             </tr>
           `;
         }
@@ -1329,39 +1275,16 @@
             <td><span class="source-badge">${leadSrc}</span></td>
             <td><span class="pm-badge">${payMode}</span></td>
             <td class="inv-cell">${invoiceNo}</td>
-            <td class="amt-cell">${formatCurrency(amount)}</td>
           </tr>
         `;
       }).join('');
-
-      footerBreakdown.textContent = `Pain Mgmt: ${formatCurrency(pmTotal)} | Wellness: ${formatCurrency(wellnessTotal)} | Consult: ${formatCurrency(consultTotal)} | Total: ${formatCurrency(totalRev)}`;
     }
 
     // ═══════════════════════════════════════════════════════════
     // RENDER KPIS
     // ═══════════════════════════════════════════════════════════
     function renderKPIs() {
-      const pList = Object.values(filteredPatients);
-      const totalPatients = pList.length;
-      const consultPatients = pList.filter(p => p.hasConsultation).length;
-      const pkgPatients = pList.filter(p => p.hasPackage).length;
-      const totalRev = pList.reduce((sum, p) => sum + p.totalPaid, 0);
-      const consultRev = pList.reduce((sum, p) => sum + p.consultationRevenue, 0);
-      const pkgRev = pList.reduce((sum, p) => sum + p.packageRevenue, 0);
-      const avgRev = totalPatients ? Math.round(totalRev / totalPatients) : 0;
-      const renewalCount = pList.filter(p => p.services && p.services.some(s => s.isRenewal)).length;
-      const totalPending = pList.reduce((sum, p) => sum + p.pendingAmount, 0);
-
-      document.getElementById('kpi-total-patients').textContent = totalPatients;
-      document.getElementById('kpi-total-records').textContent = `${rawCollectionRows.length} collection records`;
-      document.getElementById('kpi-consult-patients').textContent = consultPatients;
-      document.getElementById('kpi-consult-rev').textContent = `${formatCurrency(consultRev)} revenue`;
-      document.getElementById('kpi-pkg-patients').textContent = pkgPatients;
-      document.getElementById('kpi-pkg-rev').textContent = `${formatCurrency(pkgRev)} revenue`;
-      document.getElementById('kpi-gross-rev').textContent = formatCurrency(totalRev);
-      document.getElementById('kpi-avg-rev').textContent = `Avg ${formatCurrency(avgRev)} / patient`;
-      document.getElementById('kpi-renewals-count').textContent = renewalCount;
-      document.getElementById('kpi-pending-amt').textContent = `Pending: ${formatCurrency(totalPending)}`;
+      // KPI summary cards removed as requested
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1417,8 +1340,7 @@
           { header: 'Agent', key: 'agent', width: 20 },
           { header: 'Lead Source', key: 'source', width: 22 },
           { header: 'Payment Mode', key: 'mode', width: 18 },
-          { header: 'Invoice No', key: 'invoice', width: 16 },
-          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+          { header: 'Invoice No', key: 'invoice', width: 16 }
         ];
 
         list.forEach(p => {
@@ -1434,8 +1356,7 @@
             agent: p.agents[0] || '',
             source: p.leadSources[0] || '',
             mode: p.paymentModes[0] || '',
-            invoice: p.invoices[0] || '',
-            amount: p.totalPaid
+            invoice: p.invoices[0] || ''
           });
         });
       } else {
@@ -1448,8 +1369,7 @@
           { header: 'Agent', key: 'agent', width: 20 },
           { header: 'Lead Source', key: 'source', width: 22 },
           { header: 'Payment Mode', key: 'mode', width: 18 },
-          { header: 'Invoice No', key: 'invoice', width: 16 },
-          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+          { header: 'Invoice No', key: 'invoice', width: 16 }
         ];
 
         list.forEach(p => {
@@ -1463,8 +1383,7 @@
             agent: consultSvc.agent || p.agents[0] || '',
             source: consultSvc.leadSource || p.leadSources[0] || '',
             mode: consultSvc.paymentMode || p.paymentModes[0] || '',
-            invoice: consultSvc.invoiceNo || p.invoices[0] || '',
-            amount: p.totalPaid
+            invoice: consultSvc.invoiceNo || p.invoices[0] || ''
           });
         });
       }
@@ -1512,8 +1431,7 @@
           { header: 'Agent', key: 'agent', width: 20 },
           { header: 'Lead Source', key: 'source', width: 22 },
           { header: 'Payment Mode', key: 'mode', width: 18 },
-          { header: 'Invoice No', key: 'invoice', width: 16 },
-          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+          { header: 'Invoice No', key: 'invoice', width: 16 }
         ];
 
         ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1530,8 +1448,7 @@
             agent: consultSvc.agent || p.agents[0] || '',
             source: consultSvc.leadSource || p.leadSources[0] || '',
             mode: consultSvc.paymentMode || p.paymentModes[0] || '',
-            invoice: consultSvc.invoiceNo || p.invoices[0] || '',
-            amount: p.totalPaid
+            invoice: consultSvc.invoiceNo || p.invoices[0] || ''
           });
         });
       });
