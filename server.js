@@ -317,6 +317,14 @@ app.get('/api/mpc-cloud', async (req, res) => {
   }
 });
 
+// Dedicated Page Routes
+app.get('/only-consultation', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'only_consultation.html'));
+});
+app.get('/consultations', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'only_consultation.html'));
+});
+
 // ────────────────────────────────────────────────────────────
 // START SERVER
 // ────────────────────────────────────────────────────────────
