@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📋 Patient Data & Category Breakdown | MPC Global</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface2: #f1f5f9;
+      --surface3: #e2e8f0;
+      --border: #e2e8f0;
+      --border-focus: #2563eb;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --cyan: #0891b2;
+      --cyan-light: rgba(8, 145, 178, 0.1);
+      --purple: #7c3aed;
+      --purple-light: rgba(124, 58, 237, 0.1);
+      --emerald: #059669;
+      --emerald-light: rgba(5, 150, 105, 0.1);
+      --amber: #d97706;
+      --amber-light: rgba(217, 119, 6, 0.12);
+      --rose: #e11d48;
+      --rose-light: rgba(225, 29, 72, 0.1);
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation */
+    .top-nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-sm);
+    }
+    .nav-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-logo {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+    }
+    .brand-text h1 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e3a8a;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .nav-link:hover {
+      color: var(--text);
+      background: var(--surface3);
+    }
+    .nav-link.active {
+      color: var(--primary);
+      background: rgba(37, 99, 235, 0.1);
+      border-color: rgba(37, 99, 235, 0.25);
+    }
+
+    /* Main Container */
+    .main-wrap {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+
+    /* Filter Card */
+    .filter-card {
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .quick-date-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .date-pill {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .date-pill:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .date-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .input-field {
+      width: 100%;
+      height: 38px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .input-field:focus {
+      border-color: var(--border-focus);
+      background: #fff;
+    }
+    .filter-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn-sm {
+      height: 34px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: var(--surface3);
+    }
+    .btn-success {
+      background: #10b981;
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+    .btn-purple {
+      background: var(--purple-light);
+      border: 1px solid rgba(124, 58, 237, 0.35);
+      color: var(--purple);
+    }
+    .btn-purple:hover {
+      background: rgba(124, 58, 237, 0.2);
+    }
+    .btn-amber {
+      background: var(--amber-light);
+      border: 1px solid rgba(217, 119, 6, 0.4);
+      color: var(--amber);
+    }
+    .btn-amber:hover {
+      background: rgba(217, 119, 6, 0.22);
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .kpi-card {
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-left: 4px solid var(--primary);
+    }
+    .kpi-card.cyan { border-left-color: var(--cyan); }
+    .kpi-card.emerald { border-left-color: var(--emerald); }
+    .kpi-card.amber { border-left-color: var(--amber); }
+    .kpi-card.purple { border-left-color: var(--purple); }
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi-val {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Patient Data Section */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-box input {
+      padding: 6px 30px 6px 12px;
+      font-size: 13px;
+      min-width: 240px;
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: var(--border-focus);
+    }
+    .search-clear {
+      position: absolute;
+      right: 10px;
+      cursor: pointer;
+      display: none;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Tabs Bar */
+    .tabs-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--surface2);
+      overflow-x: auto;
+      padding-bottom: 0;
+      margin-top: 8px;
+    }
+    .tab-btn {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 700;
+    }
+    .tab-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--surface2);
+      color: var(--text-muted);
+    }
+    .tab-btn.active .tab-pill {
+      background: rgba(37, 99, 235, 0.15);
+      color: var(--primary);
+    }
+
+    /* Table */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      max-height: 720px;
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    thead {
+      background: #f8fafc;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 0 var(--border);
+    }
+    th {
+      padding: 11px 13px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    th:hover {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+    td {
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: var(--text);
+    }
+    tbody tr:hover {
+      background-color: #f8fafc;
+    }
+    .pt-name {
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .date-badge {
+      display: inline-block;
+      font-weight: 600;
+      color: #0284c7;
+      background: #f0f9ff;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+    }
+    .doctor-name {
+      font-weight: 600;
+      color: #334155;
+      white-space: nowrap;
+    }
+    .agent-name {
+      color: #475569;
+      white-space: nowrap;
+    }
+    .source-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #475569;
+      white-space: nowrap;
+    }
+    .pm-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e2e8f0;
+      color: #334155;
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+    .inv-cell {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .amt-cell {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--emerald);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* Table Footer */
+    .table-footer {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+      opacity: 0.6;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-lg);
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-nav">
+    <div class="nav-container">
+      <a href="/" class="brand-wrap">
+        <img src="logo.png" alt="MPC Logo" class="brand-logo" onerror="this.src='MPC New Logo - 1.png'; this.onerror=null;">
+        <div class="brand-text">
+          <h1>📋 Patient Data & Category Breakdown</h1>
+          <p>My Pain Clinic Global · Live Clinical Conversion & Patient Registry</p>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="/" class="nav-link">📊 Main Dashboard</a>
+        <a href="patient_data.html" class="nav-link active">📋 Patient Data Table</a>
+        <a href="only_consultation.html" class="nav-link">🩺 Only Consultations</a>
+        <a href="red_flag_analyzer.html" class="nav-link">🔴 Red Flags</a>
+        <a href="calling_analyzer.html" class="nav-link">📞 Calling Leads</a>
+        <a href="appointment_analyzer.html" class="nav-link">📅 Appointments</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-wrap">
+
+    <!-- Filters Bar -->
+    <section class="card filter-card">
+      <div class="filter-header">
+        <div class="filter-title">
+          <span>🔍</span> Filter All Patient Data
+          <span id="active-range-badge" class="date-badge" style="font-size:11px; margin-left:4px;">Loading...</span>
+        </div>
+        <div class="quick-date-pills">
+          <button class="date-pill" onclick="setQuickDate('today', this)">⚡ Today</button>
+          <button class="date-pill" onclick="setQuickDate('yesterday', this)">⏮️ Yesterday</button>
+          <button class="date-pill active" onclick="setQuickDate('last7', this)">📅 Last 7 Days</button>
+          <button class="date-pill" onclick="setQuickDate('mtd', this)">🗓️ This Month (Nov)</button>
+          <button class="date-pill" onclick="setQuickDate('all', this)">✨ Full Month</button>
+        </div>
+      </div>
+
+      <div class="filter-grid">
+        <div class="field-group">
+          <label class="field-label">Date From</label>
+          <input type="date" id="filter-date-from" class="input-field" onchange="markCustomPill()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Date To</label>
+          <input type="date" id="filter-date-to" class="input-field" onchange="markCustomPill()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Doctor</label>
+          <select id="filter-doctor" class="input-field" onchange="applyFilters()">
+            <option value="">All Doctors</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Agent / Counselor</label>
+          <select id="filter-agent" class="input-field" onchange="applyFilters()">
+            <option value="">All Agents</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Lead Source</label>
+          <select id="filter-source" class="input-field" onchange="applyFilters()">
+            <option value="">All Sources</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-primary" onclick="fetchLiveCollectionData(true)">
+            <span>🔄</span> Fetch Live Data
+          </button>
+          <button class="btn btn-secondary" onclick="resetFilters()">
+            <span>✖</span> Reset
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI Summary Row -->
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-label">Total Patients</span>
+        <div class="kpi-val" id="kpi-total-patients">0</div>
+        <span class="kpi-sub" id="kpi-total-records">0 collection records</span>
+      </div>
+      <div class="kpi-card cyan">
+        <span class="kpi-label">Consultation Patients</span>
+        <div class="kpi-val" id="kpi-consult-patients">0</div>
+        <span class="kpi-sub" id="kpi-consult-rev">₹0 revenue</span>
+      </div>
+      <div class="kpi-card purple">
+        <span class="kpi-label">Package Conversions</span>
+        <div class="kpi-val" id="kpi-pkg-patients">0</div>
+        <span class="kpi-sub" id="kpi-pkg-rev">₹0 revenue</span>
+      </div>
+      <div class="kpi-card emerald">
+        <span class="kpi-label">Total Gross Revenue</span>
+        <div class="kpi-val" id="kpi-gross-rev">₹0</div>
+        <span class="kpi-sub" id="kpi-avg-rev">Avg ₹0 / patient</span>
+      </div>
+      <div class="kpi-card amber">
+        <span class="kpi-label">Renewals</span>
+        <div class="kpi-val" id="kpi-renewals-count">0</div>
+        <span class="kpi-sub" id="kpi-pending-amt">Pending: ₹0</span>
+      </div>
+    </section>
+
+    <!-- Patient Data Section With All Tabs -->
+    <section class="card" style="padding: 16px 20px;">
+      <div class="section-header">
+        <div class="section-title">
+          <span>📋</span> Patient Data
+        </div>
+        <div class="header-tools">
+          <div class="search-box">
+            <input type="text" id="patient-search-input" placeholder="🔍 Search patient name..." oninput="onSearchInput()">
+            <span id="search-clear-btn" class="search-clear" onclick="clearSearch()">✕</span>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="exportFullExcelMaster()" id="patient-excel-btn">
+            📥 Download Full Excel (15 Sheets)
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="exportCurrentTabExcel()" id="tab-excel-btn">
+            📊 Export Current Tab Excel
+          </button>
+          <button class="btn btn-amber btn-sm" onclick="copyForConversionSheet()" id="copy-conversion-btn" title="Copy Only Consultation rows formatted for Google Sheet">
+            📋 Copy for Conversion Sheet
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs Navigation -->
+      <div class="tabs-bar" id="category-tabs-bar">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Table -->
+      <div class="table-responsive" style="margin-top: 14px;">
+        <table id="main-patient-table">
+          <thead id="patient-table-head">
+            <!-- Headers rendered dynamically based on active tab -->
+          </thead>
+          <tbody id="patient-table-body">
+            <tr>
+              <td colspan="12" class="empty-state">
+                <div class="empty-state-icon">⏳</div>
+                <h3>Loading Patient Records...</h3>
+                <p>Connecting to MPC Live Cloud API...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer Breakdown -->
+      <div class="table-footer">
+        <span id="footer-count">Showing 0 patients</span>
+        <span id="footer-breakdown" style="font-weight: 600;">Pain Mgmt Pkg Total: ₹0 | Wellness Pkg Total: ₹0 | Robotic Spine: ₹0 | BMSK: ₹0 | Renewals Total: ₹0</span>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════
+    // GLOBAL STATE & TAB CONFIGURATION (Matching index.html exactly)
+    // ═══════════════════════════════════════════════════════════
+    let rawCollectionRows = [];
+    let allPatients = {};
+    let filteredPatients = {};
+    let currentTab = 'all';
+    let searchQuery = '';
+
+    const TAB_CONFIG = [
+      { id: 'all', label: 'All Patients', filter: () => true },
+      { id: 'only_consultation', label: 'Only Consultation', filter: p => p.status === 'Only Consultation' },
+      { id: 'consult_pkg', label: 'Consult + Package', filter: p => p.status === 'Consultation + Package' },
+      { id: 'consult_ss', label: 'Consult + SS', filter: p => p.status === 'Consultation + Single Session' },
+      { id: 'consult_pkg_ss', label: 'Consult + Pkg + SS', filter: p => p.status === 'Consultation + Package + Single Session' },
+      { id: 'only_pkg', label: 'Only Package', filter: p => p.status === 'Only Package' },
+      { id: 'only_ss', label: 'Only SS', filter: p => p.status === 'Only Single Session' },
+      { id: 'pkg_ss', label: 'Pkg + SS', filter: p => p.status === 'Package + Single Session' },
+      { id: 'renewals', label: 'Package Renewals', filter: p => p.services && p.services.some(s => s.type === 'package' && s.isRenewal) }
+    ];
+
+    // Helpers
+    const formatCurrency = (amt) => '₹' + Math.round(Number(amt || 0)).toLocaleString('en-IN');
+
+    function formatDateDisplay(d) {
+      if (!d) return '-';
+      const date = d instanceof Date ? d : new Date(d);
+      if (isNaN(date.getTime())) return String(d);
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function formatDateDMY(d) {
+      if (!d) return '';
+      const date = d instanceof Date ? d : new Date(d);
+      if (isNaN(date.getTime())) return '';
+      return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+    }
+
+    function toTitleCase(str) {
+      if (!str) return '';
+      return str.toLowerCase().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function cleanDoctorName(doc) {
+      if (!doc) return 'Dr Gladys';
+      let d = String(doc).replace(/Consulting/gi, '').replace(/\./g, '').trim();
+      if (/Gladys/i.test(d)) return 'Dr Gladys';
+      if (/Vidh?isha/i.test(d)) return 'Dr Vidisha';
+      if (/Chinmay/i.test(d)) return 'Dr Chinmay';
+      if (/Krishna/i.test(d)) return 'Dr Krishna';
+      if (/Hardi/i.test(d)) return 'Dr Hardi';
+      return d;
+    }
+
+    function showToast(msg, duration = 4000) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), duration);
+    }
+
+    function isPainManagementPackage(name) {
+      if (!name) return false;
+      const s = name.toLowerCase();
+      return s.includes('pain') || s.includes('pm') || s.includes('spine') || s.includes('joint');
+    }
+    function isWellnessPackage(name) {
+      if (!name) return false;
+      const s = name.toLowerCase();
+      return s.includes('wellness') || s.includes('physio') || s.includes('rehab');
+    }
+    function isRoboticSpinePackage(name) {
+      if (!name) return false;
+      return name.toLowerCase().includes('robotic');
+    }
+    function isBMSKPackage(name) {
+      if (!name) return false;
+      return name.toLowerCase().includes('bmsk');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // QUICK DATE PRESETS
+    // ═══════════════════════════════════════════════════════════
+    function setQuickDate(type, btnEl) {
+      if (btnEl) {
+        document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+        btnEl.classList.add('active');
+      }
+
+      const today = new Date();
+      const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      let from = '', to = '';
+
+      if (type === 'today') {
+        from = fmt(today);
+        to = fmt(today);
+      } else if (type === 'yesterday') {
+        const y = new Date(today);
+        y.setDate(today.getDate() - 1);
+        from = fmt(y);
+        to = fmt(y);
+      } else if (type === 'last7') {
+        const l7 = new Date(today);
+        l7.setDate(today.getDate() - 6);
+        from = fmt(l7);
+        to = fmt(today);
+      } else if (type === 'mtd') {
+        from = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+        to = fmt(today);
+      } else if (type === 'all') {
+        from = '2026-11-01';
+        to = '2026-11-30';
+      }
+
+      document.getElementById('filter-date-from').value = from;
+      document.getElementById('filter-date-to').value = to;
+
+      fetchLiveCollectionData(true);
+    }
+
+    function markCustomPill() {
+      document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // LIVE API DATA FETCHER
+    // ═══════════════════════════════════════════════════════════
+    async function fetchLiveCollectionData(showNotification = false) {
+      const dateFrom = document.getElementById('filter-date-from').value || '2026-11-01';
+      const dateTo = document.getElementById('filter-date-to').value || '2026-11-30';
+
+      const badge = document.getElementById('active-range-badge');
+      if (badge) badge.textContent = `📅 ${dateFrom} → ${dateTo}`;
+
+      const tbody = document.getElementById('patient-table-body');
+      tbody.innerHTML = `<tr><td colspan="12" class="empty-state"><div class="empty-state-icon">⏳</div><h3>Loading Patient Data...</h3><p>Fetching collection records from ${dateFrom} to ${dateTo}</p></td></tr>`;
+
+      try {
+        let rows = [];
+        // Primary: Local Server Proxy (/api/mpc-cloud)
+        try {
+          const res = await fetch(`/api/mpc-cloud?startDate=${dateFrom}&endDate=${dateTo}`);
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data.rows)) rows = json.data.rows;
+          else if (json.data && Array.isArray(json.data)) rows = json.data;
+          else if (Array.isArray(json)) rows = json;
+        } catch (e) {
+          console.warn('Local proxy failed, trying direct:', e);
+        }
+
+        // Secondary fallback
+        if (!rows.length) {
+          const directRes = await fetch(`https://api.mypainclinicglobal.com/api/reports/daily-collection?startDate=${dateFrom}&endDate=${dateTo}`, {
+            headers: { 'Accept': 'application/json' }
+          });
+          const dJson = await directRes.json();
+          if (dJson.data && Array.isArray(dJson.data.rows)) rows = dJson.data.rows;
+        }
+
+        rawCollectionRows = rows;
+        processPatients(rawCollectionRows);
+
+        if (showNotification) {
+          showToast(`⚡ Loaded ${rawCollectionRows.length} collection records. Found ${Object.keys(allPatients).length} patients.`);
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        tbody.innerHTML = `<tr><td colspan="12" class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not fetch live records</h3><p>${err.message}</p></td></tr>`;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PATIENT GROUPING & CART NORMALIZATION ENGINE
+    // ═══════════════════════════════════════════════════════════
+    function processPatients(rows) {
+      // 1. Multi-Item Cart Normalization (deduplicate amount_paid and total_cost on paylog_id)
+      const paylogGroups = {};
+      rows.forEach(r => {
+        const plId = r.paylog_id || r.invoice_no || Math.random();
+        if (!paylogGroups[plId]) paylogGroups[plId] = [];
+        paylogGroups[plId].push(r);
+      });
+
+      const normalizedRows = [];
+      Object.values(paylogGroups).forEach(group => {
+        if (group.length <= 1) {
+          normalizedRows.push(group[0]);
+        } else {
+          const groupOut = group.reduce((max, r) => Math.max(max, Number(r.outstanding_amount ?? r.outstandingAmount ?? 0)), 0);
+          group.forEach((r, idx) => {
+            const isLast = (idx === group.length - 1);
+            normalizedRows.push({
+              ...r,
+              amount_paid: isLast ? r.amount_paid : 0,
+              total_cost_of_package: isLast ? r.total_cost_of_package : 0,
+              outstanding_amount: isLast ? groupOut : 0
+            });
+          });
+        }
+      });
+
+      // 2. Group by patient
+      const pMap = {};
+      for (const r of normalizedRows) {
+        const name = (r.patient_name || r.name || '').trim();
+        if (!name) continue;
+        const normKey = name.toLowerCase().replace(/\s+/g, ' ');
+
+        if (!pMap[normKey]) {
+          pMap[normKey] = {
+            id: r.userplan_id || r.cart_id || normKey,
+            rawName: name,
+            name: toTitleCase(name),
+            services: [],
+            hasConsultation: false,
+            hasPackage: false,
+            hasSingleSession: false,
+            status: '',
+            doctors: new Set(),
+            agents: new Set(),
+            leadSources: new Set(),
+            paymentModes: new Set(),
+            invoices: new Set(),
+            packages: [],
+            totalPaid: 0,
+            packageRevenue: 0,
+            consultationRevenue: 0,
+            singleSessionRevenue: 0,
+            pendingAmount: 0,
+            consultDate: null,
+            earliestDate: null
+          };
+        }
+
+        const p = pMap[normKey];
+        const pkgName = (r.package_name || r.packageName || '').trim();
+        const pkgLower = pkgName.toLowerCase();
+        const isConsult = pkgLower.includes('consult');
+        const isSS = pkgLower.includes('single session') || pkgLower.includes('per session');
+        const isPkg = !isConsult && !isSS && pkgName.length > 0;
+
+        const paid = Number(r.amount_paid ?? r.amountPaid ?? 0);
+        const out = Number(r.outstanding_amount ?? r.outstandingAmount ?? 0);
+        const pDate = r.payment_date ? new Date(r.payment_date) : null;
+
+        if (pDate && !isNaN(pDate.getTime())) {
+          if (!p.earliestDate || pDate < p.earliestDate) p.earliestDate = pDate;
+          if (isConsult) p.consultDate = pDate;
+        }
+
+        p.totalPaid += paid;
+        p.pendingAmount += out;
+
+        if (isConsult) {
+          p.hasConsultation = true;
+          p.consultationRevenue += paid;
+        } else if (isPkg) {
+          p.hasPackage = true;
+          p.packageRevenue += paid;
+          p.packages.push(pkgName);
+        } else if (isSS) {
+          p.hasSingleSession = true;
+          p.singleSessionRevenue += paid;
+        }
+
+        if (r.consulting_doctor) p.doctors.add(r.consulting_doctor.trim());
+        if (r.agent_name) p.agents.add(r.agent_name.trim());
+        if (r.lead_source) p.leadSources.add(r.lead_source.trim());
+        if (r.payment_mode) p.paymentModes.add(r.payment_mode.trim());
+        if (r.invoice_no) p.invoices.add(r.invoice_no.trim());
+
+        p.services.push({
+          packageName: pkgName,
+          paid,
+          proportionalPaid: paid,
+          date: pDate,
+          doctor: r.consulting_doctor || '',
+          agent: r.agent_name || '',
+          leadSource: r.lead_source || '',
+          paymentMode: r.payment_mode || '',
+          invoiceNo: r.invoice_no || '',
+          type: isConsult ? 'consultation' : (isSS ? 'single_session' : 'package'),
+          isRenewal: false,
+          outstandingAmount: out
+        });
+      }
+
+      // 3. Determine status and renewals
+      for (const p of Object.values(pMap)) {
+        // Renewal detection
+        const pkgSvcs = p.services.filter(s => s.type === 'package');
+        if (pkgSvcs.length > 1) {
+          pkgSvcs.sort((a, b) => (a.date || 0) - (b.date || 0));
+          const firstDate = pkgSvcs[0].date ? pkgSvcs[0].date.toDateString() : '';
+          pkgSvcs.forEach(s => {
+            if (s.date && s.date.toDateString() !== firstDate) {
+              s.isRenewal = true;
+            }
+          });
+        }
+
+        // Status
+        if (p.hasConsultation && p.hasPackage && p.hasSingleSession) {
+          p.status = 'Consultation + Package + Single Session';
+        } else if (p.hasConsultation && p.hasPackage) {
+          p.status = 'Consultation + Package';
+        } else if (p.hasConsultation && p.hasSingleSession) {
+          p.status = 'Consultation + Single Session';
+        } else if (p.hasPackage && p.hasSingleSession) {
+          p.status = 'Package + Single Session';
+        } else if (p.hasConsultation) {
+          p.status = 'Only Consultation';
+        } else if (p.hasPackage) {
+          p.status = 'Only Package';
+        } else if (p.hasSingleSession) {
+          p.status = 'Only Single Session';
+        } else {
+          p.status = 'Other';
+        }
+
+        // Convert Sets to Arrays for safety
+        p.doctors = [...p.doctors];
+        p.agents = [...p.agents];
+        p.leadSources = [...p.leadSources];
+        p.paymentModes = [...p.paymentModes];
+        p.invoices = [...p.invoices];
+      }
+
+      allPatients = pMap;
+      populateFilterDropdowns();
+      applyFilters();
+    }
+
+    // Populate Filters
+    function populateFilterDropdowns() {
+      const docSelect = document.getElementById('filter-doctor');
+      const agentSelect = document.getElementById('filter-agent');
+      const sourceSelect = document.getElementById('filter-source');
+
+      const prevDoc = docSelect.value;
+      const prevAgent = agentSelect.value;
+      const prevSource = sourceSelect.value;
+
+      const doctors = new Set();
+      const agents = new Set();
+      const sources = new Set();
+
+      Object.values(allPatients).forEach(p => {
+        p.doctors.forEach(d => doctors.add(d));
+        p.agents.forEach(a => agents.add(a));
+        p.leadSources.forEach(s => sources.add(s));
+      });
+
+      docSelect.innerHTML = '<option value="">All Doctors</option>' + 
+        [...doctors].sort().map(d => `<option value="${d}">${cleanDoctorName(d)}</option>`).join('');
+      agentSelect.innerHTML = '<option value="">All Agents</option>' + 
+        [...agents].sort().map(a => `<option value="${a}">${a}</option>`).join('');
+      sourceSelect.innerHTML = '<option value="">All Sources</option>' + 
+        [...sources].sort().map(s => `<option value="${s}">${s}</option>`).join('');
+
+      docSelect.value = prevDoc;
+      agentSelect.value = prevAgent;
+      sourceSelect.value = prevSource;
+    }
+
+    // Filter Logic
+    function applyFilters() {
+      const selectedDoc = (document.getElementById('filter-doctor').value || '').toLowerCase();
+      const selectedAgent = (document.getElementById('filter-agent').value || '').toLowerCase();
+      const selectedSource = (document.getElementById('filter-source').value || '').toLowerCase();
+
+      const filtered = {};
+
+      for (const [key, p] of Object.entries(allPatients)) {
+        if (selectedDoc && !p.doctors.some(d => d.toLowerCase().includes(selectedDoc))) continue;
+        if (selectedAgent && !p.agents.some(a => a.toLowerCase().includes(selectedAgent))) continue;
+        if (selectedSource && !p.leadSources.some(s => s.toLowerCase().includes(selectedSource))) continue;
+
+        filtered[key] = p;
+      }
+
+      filteredPatients = filtered;
+      renderTabs();
+      renderKPIs();
+      renderActiveTabTable();
+    }
+
+    function resetFilters() {
+      document.getElementById('patient-search-input').value = '';
+      document.getElementById('filter-doctor').value = '';
+      document.getElementById('filter-agent').value = '';
+      document.getElementById('filter-source').value = '';
+      searchQuery = '';
+      applyFilters();
+    }
+
+    function onSearchInput() {
+      searchQuery = (document.getElementById('patient-search-input').value || '').trim().toLowerCase();
+      document.getElementById('search-clear-btn').style.display = searchQuery ? 'block' : 'none';
+      renderActiveTabTable();
+    }
+
+    function clearSearch() {
+      document.getElementById('patient-search-input').value = '';
+      searchQuery = '';
+      document.getElementById('search-clear-btn').style.display = 'none';
+      renderActiveTabTable();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // RENDER TABS BAR
+    // ═══════════════════════════════════════════════════════════
+    function renderTabs() {
+      const container = document.getElementById('category-tabs-bar');
+      const pList = Object.values(filteredPatients);
+
+      container.innerHTML = TAB_CONFIG.map(tab => {
+        const count = pList.filter(tab.filter).length;
+        const isActive = (tab.id === currentTab);
+        return `
+          <button class="tab-btn ${isActive ? 'active' : ''}" onclick="switchTab('${tab.id}')">
+            ${tab.label} <span class="tab-pill">${count}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function switchTab(tabId) {
+      currentTab = tabId;
+      renderTabs();
+      renderActiveTabTable();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // RENDER ACTIVE TAB TABLE
+    // ═══════════════════════════════════════════════════════════
+    function renderActiveTabTable() {
+      const tab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      const thead = document.getElementById('patient-table-head');
+      const tbody = document.getElementById('patient-table-body');
+      const footerCount = document.getElementById('footer-count');
+      const footerBreakdown = document.getElementById('footer-breakdown');
+
+      let list = Object.values(filteredPatients).filter(tab.filter);
+
+      if (searchQuery) {
+        list = list.filter(p => {
+          const matchName = p.name.toLowerCase().includes(searchQuery);
+          const matchDoc = p.doctors.some(d => d.toLowerCase().includes(searchQuery));
+          const matchAgent = p.agents.some(a => a.toLowerCase().includes(searchQuery));
+          const matchInv = p.invoices.some(inv => inv.toLowerCase().includes(searchQuery));
+          return matchName || matchDoc || matchAgent || matchInv;
+        });
+      }
+
+      // Sort chronologically descending
+      list.sort((a, b) => (b.consultDate || b.earliestDate || 0) - (a.consultDate || a.earliestDate || 0));
+
+      footerCount.textContent = `Showing ${list.length} patients in ${tab.label}`;
+
+      // Table Headers
+      const isRenewalsTab = tab.id === 'renewals';
+      if (isRenewalsTab) {
+        thead.innerHTML = `
+          <tr>
+            <th style="width: 45px; text-align: center;">#</th>
+            <th>Patient Name</th>
+            <th>Consulting Date</th>
+            <th>Renewal Date</th>
+            <th>Initial Package</th>
+            <th>Renewed Package(s)</th>
+            <th>Doctor</th>
+            <th>Agent</th>
+            <th>Lead Source</th>
+            <th>Payment Mode</th>
+            <th>Invoice No</th>
+            <th style="text-align: right;">Amount Paid</th>
+          </tr>
+        `;
+      } else {
+        thead.innerHTML = `
+          <tr>
+            <th style="width: 45px; text-align: center;">#</th>
+            <th>Patient Name</th>
+            <th>Consulting Date</th>
+            <th>Payment Date</th>
+            <th>Packages</th>
+            <th>Doctor</th>
+            <th>Agent</th>
+            <th>Lead Source</th>
+            <th>Payment Mode</th>
+            <th>Invoice No</th>
+            <th style="text-align: right;">Amount Paid</th>
+          </tr>
+        `;
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="12" class="empty-state">
+              <div class="empty-state-icon">🔍</div>
+              <h3>No patients found in ${tab.label}</h3>
+              <p>No records match your active search or date filter.</p>
+            </td>
+          </tr>
+        `;
+        footerBreakdown.textContent = `Pain Mgmt: ₹0 | Wellness: ₹0 | Total: ₹0`;
+        return;
+      }
+
+      let pmTotal = 0, wellnessTotal = 0, consultTotal = 0, totalRev = 0;
+
+      tbody.innerHTML = list.map((p, idx) => {
+        totalRev += p.totalPaid;
+        const consultSvc = p.services.find(s => s.type === 'consultation') || {};
+        const firstPkg = p.services.find(s => s.type === 'package') || {};
+        const primarySvc = p.services[0] || {};
+
+        const consultDateStr = formatDateDisplay(p.consultDate || consultSvc.date);
+        const paymentDateStr = formatDateDisplay(primarySvc.date || p.earliestDate);
+
+        const doctorName = cleanDoctorName(consultSvc.doctor || p.doctors[0] || 'Unassigned');
+        const agentName = consultSvc.agent || p.agents[0] || 'Unassigned';
+        const leadSrc = consultSvc.leadSource || p.leadSources[0] || 'Direct';
+        const payMode = consultSvc.paymentMode || p.paymentModes[0] || 'cash';
+        const invoiceNo = consultSvc.invoiceNo || p.invoices[0] || '-';
+        const amount = p.totalPaid || 0;
+
+        // Sum breakdowns
+        p.services.forEach(s => {
+          if (s.type === 'consultation') consultTotal += s.proportionalPaid;
+          else if (isPainManagementPackage(s.packageName)) pmTotal += s.proportionalPaid;
+          else if (isWellnessPackage(s.packageName)) wellnessTotal += s.proportionalPaid;
+        });
+
+        if (isRenewalsTab) {
+          const initPkg = p.services.find(s => s.type === 'package' && !s.isRenewal);
+          const renPkgs = p.services.filter(s => s.type === 'package' && s.isRenewal);
+          const renDateStr = formatDateDisplay(renPkgs[0]?.date || p.earliestDate);
+          const renNames = renPkgs.map(s => s.packageName).filter(Boolean).join(', ') || '-';
+
+          return `
+            <tr>
+              <td style="text-align: center; color: var(--text-muted); font-size: 11px; font-weight: 600;">${idx + 1}</td>
+              <td class="pt-name">${p.name}</td>
+              <td><span class="date-badge">${consultDateStr}</span></td>
+              <td><span class="date-badge" style="color:#059669; background:#ecfdf5;">${renDateStr}</span></td>
+              <td style="font-weight: 600;">${initPkg ? initPkg.packageName : '-'}</td>
+              <td style="color: var(--purple); font-weight: 600;">${renNames}</td>
+              <td class="doctor-name">${doctorName}</td>
+              <td class="agent-name">${agentName}</td>
+              <td><span class="source-badge">${leadSrc}</span></td>
+              <td><span class="pm-badge">${payMode}</span></td>
+              <td class="inv-cell">${invoiceNo}</td>
+              <td class="amt-cell">${formatCurrency(amount)}</td>
+            </tr>
+          `;
+        }
+
+        const pkgListStr = p.packages && p.packages.length ? p.packages.join(', ') : '-';
+
+        return `
+          <tr>
+            <td style="text-align: center; color: var(--text-muted); font-size: 11px; font-weight: 600;">${idx + 1}</td>
+            <td class="pt-name">${p.name}</td>
+            <td><span class="date-badge">${consultDateStr}</span></td>
+            <td><span class="date-badge" style="color:#475569; background:#f1f5f9;">${paymentDateStr}</span></td>
+            <td style="color: ${pkgListStr === '-' ? 'var(--text-muted)' : 'var(--purple)'}; font-weight: 600;">${pkgListStr}</td>
+            <td class="doctor-name">${doctorName}</td>
+            <td class="agent-name">${agentName}</td>
+            <td><span class="source-badge">${leadSrc}</span></td>
+            <td><span class="pm-badge">${payMode}</span></td>
+            <td class="inv-cell">${invoiceNo}</td>
+            <td class="amt-cell">${formatCurrency(amount)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      footerBreakdown.textContent = `Pain Mgmt: ${formatCurrency(pmTotal)} | Wellness: ${formatCurrency(wellnessTotal)} | Consult: ${formatCurrency(consultTotal)} | Total: ${formatCurrency(totalRev)}`;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // RENDER KPIS
+    // ═══════════════════════════════════════════════════════════
+    function renderKPIs() {
+      const pList = Object.values(filteredPatients);
+      const totalPatients = pList.length;
+      const consultPatients = pList.filter(p => p.hasConsultation).length;
+      const pkgPatients = pList.filter(p => p.hasPackage).length;
+      const totalRev = pList.reduce((sum, p) => sum + p.totalPaid, 0);
+      const consultRev = pList.reduce((sum, p) => sum + p.consultationRevenue, 0);
+      const pkgRev = pList.reduce((sum, p) => sum + p.packageRevenue, 0);
+      const avgRev = totalPatients ? Math.round(totalRev / totalPatients) : 0;
+      const renewalCount = pList.filter(p => p.services && p.services.some(s => s.isRenewal)).length;
+      const totalPending = pList.reduce((sum, p) => sum + p.pendingAmount, 0);
+
+      document.getElementById('kpi-total-patients').textContent = totalPatients;
+      document.getElementById('kpi-total-records').textContent = `${rawCollectionRows.length} collection records`;
+      document.getElementById('kpi-consult-patients').textContent = consultPatients;
+      document.getElementById('kpi-consult-rev').textContent = `${formatCurrency(consultRev)} revenue`;
+      document.getElementById('kpi-pkg-patients').textContent = pkgPatients;
+      document.getElementById('kpi-pkg-rev').textContent = `${formatCurrency(pkgRev)} revenue`;
+      document.getElementById('kpi-gross-rev').textContent = formatCurrency(totalRev);
+      document.getElementById('kpi-avg-rev').textContent = `Avg ${formatCurrency(avgRev)} / patient`;
+      document.getElementById('kpi-renewals-count').textContent = renewalCount;
+      document.getElementById('kpi-pending-amt').textContent = `Pending: ${formatCurrency(totalPending)}`;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // EXPORT TOOLS (Matching index.html exactly)
+    // ═══════════════════════════════════════════════════════════
+    // 1. Copy for Conversion Sheet (Formats Only Consultation for Google Sheet)
+    function copyForConversionSheet() {
+      const pList = Object.values(filteredPatients).filter(p => p.status === 'Only Consultation' || (p.hasConsultation && !p.hasPackage));
+
+      if (!pList.length) {
+        showToast('⚠️ No Only Consultation patients found in current view');
+        return;
+      }
+
+      const rowsText = pList.map(p => {
+        const consultSvc = p.services.find(s => s.type === 'consultation') || p.services[0] || {};
+        const dateStr = formatDateDMY(p.consultDate || consultSvc.date || new Date());
+        const docClean = cleanDoctorName(consultSvc.doctor || p.doctors[0] || '');
+        return `${dateStr}\t${p.name}\t${docClean}\t\t\t\t\t`;
+      }).join('\n');
+
+      navigator.clipboard.writeText(rowsText).then(() => {
+        showToast(`📋 Copied ${pList.length} Only Consultation patients to clipboard! Paste (Ctrl+V) into Google Sheet.`, 5000);
+      }).catch(err => {
+        console.error('Clipboard copy failed:', err);
+        showToast('❌ Clipboard copy failed. Check browser permissions.');
+      });
+    }
+
+    // 2. Export Current Tab to Excel
+    async function exportCurrentTabExcel() {
+      const tab = TAB_CONFIG.find(t => t.id === currentTab) || TAB_CONFIG[0];
+      const list = Object.values(filteredPatients).filter(tab.filter);
+
+      if (!list.length) {
+        showToast('⚠️ No patient data in current tab to export');
+        return;
+      }
+
+      showToast(`Generating Excel for ${tab.label}...`);
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet(tab.label.substring(0, 31));
+
+      const isRenewalsTab = tab.id === 'renewals';
+      if (isRenewalsTab) {
+        ws.columns = [
+          { header: 'Patient Name', key: 'name', width: 28 },
+          { header: 'Consulting Date', key: 'consultDate', width: 16 },
+          { header: 'Renewal Date', key: 'renDate', width: 16 },
+          { header: 'Initial Package', key: 'initPkg', width: 24 },
+          { header: 'Renewed Package(s)', key: 'renPkgs', width: 28 },
+          { header: 'Doctor', key: 'doctor', width: 26 },
+          { header: 'Agent', key: 'agent', width: 20 },
+          { header: 'Lead Source', key: 'source', width: 22 },
+          { header: 'Payment Mode', key: 'mode', width: 18 },
+          { header: 'Invoice No', key: 'invoice', width: 16 },
+          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+        ];
+
+        list.forEach(p => {
+          const initPkg = p.services.find(s => s.type === 'package' && !s.isRenewal);
+          const renPkgs = p.services.filter(s => s.type === 'package' && s.isRenewal);
+          ws.addRow({
+            name: p.name,
+            consultDate: formatDateDisplay(p.consultDate),
+            renDate: formatDateDisplay(renPkgs[0]?.date),
+            initPkg: initPkg ? initPkg.packageName : '-',
+            renPkgs: renPkgs.map(s => s.packageName).join(', ') || '-',
+            doctor: cleanDoctorName(p.doctors[0]),
+            agent: p.agents[0] || '',
+            source: p.leadSources[0] || '',
+            mode: p.paymentModes[0] || '',
+            invoice: p.invoices[0] || '',
+            amount: p.totalPaid
+          });
+        });
+      } else {
+        ws.columns = [
+          { header: 'Patient Name', key: 'name', width: 28 },
+          { header: 'Consulting Date', key: 'consultDate', width: 16 },
+          { header: 'Payment Date', key: 'payDate', width: 16 },
+          { header: 'Packages', key: 'pkg', width: 26 },
+          { header: 'Doctor', key: 'doctor', width: 26 },
+          { header: 'Agent', key: 'agent', width: 20 },
+          { header: 'Lead Source', key: 'source', width: 22 },
+          { header: 'Payment Mode', key: 'mode', width: 18 },
+          { header: 'Invoice No', key: 'invoice', width: 16 },
+          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+        ];
+
+        list.forEach(p => {
+          const consultSvc = p.services.find(s => s.type === 'consultation') || {};
+          ws.addRow({
+            name: p.name,
+            consultDate: formatDateDisplay(p.consultDate || consultSvc.date),
+            payDate: formatDateDisplay(p.earliestDate),
+            pkg: p.packages.join(', ') || '-',
+            doctor: cleanDoctorName(consultSvc.doctor || p.doctors[0]),
+            agent: consultSvc.agent || p.agents[0] || '',
+            source: consultSvc.leadSource || p.leadSources[0] || '',
+            mode: consultSvc.paymentMode || p.paymentModes[0] || '',
+            invoice: consultSvc.invoiceNo || p.invoices[0] || '',
+            amount: p.totalPaid
+          });
+        });
+      }
+
+      // Header styling
+      ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+      ws.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MPC_${tab.id}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✅ Exported ${list.length} rows for ${tab.label}`);
+    }
+
+    // 3. Export Full Master Excel (All Tabs in 1 Workbook)
+    async function exportFullExcelMaster() {
+      const pList = Object.values(filteredPatients);
+      if (!pList.length) {
+        showToast('⚠️ No patient data available to export');
+        return;
+      }
+
+      showToast('Generating Master Multi-Sheet Excel (All Tabs)...');
+      const wb = new ExcelJS.Workbook();
+
+      TAB_CONFIG.forEach(tab => {
+        const list = pList.filter(tab.filter);
+        if (!list.length) return;
+
+        const sheetName = tab.label.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 31);
+        const ws = wb.addWorksheet(sheetName);
+
+        ws.columns = [
+          { header: 'Patient Name', key: 'name', width: 28 },
+          { header: 'Consulting Date', key: 'consultDate', width: 16 },
+          { header: 'Payment Date', key: 'payDate', width: 16 },
+          { header: 'Packages', key: 'pkg', width: 26 },
+          { header: 'Doctor', key: 'doctor', width: 26 },
+          { header: 'Agent', key: 'agent', width: 20 },
+          { header: 'Lead Source', key: 'source', width: 22 },
+          { header: 'Payment Mode', key: 'mode', width: 18 },
+          { header: 'Invoice No', key: 'invoice', width: 16 },
+          { header: 'Amount Paid (₹)', key: 'amount', width: 16 }
+        ];
+
+        ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+
+        list.forEach(p => {
+          const consultSvc = p.services.find(s => s.type === 'consultation') || {};
+          ws.addRow({
+            name: p.name,
+            consultDate: formatDateDisplay(p.consultDate || consultSvc.date),
+            payDate: formatDateDisplay(p.earliestDate),
+            pkg: p.packages.join(', ') || '-',
+            doctor: cleanDoctorName(consultSvc.doctor || p.doctors[0]),
+            agent: consultSvc.agent || p.agents[0] || '',
+            source: consultSvc.leadSource || p.leadSources[0] || '',
+            mode: consultSvc.paymentMode || p.paymentModes[0] || '',
+            invoice: consultSvc.invoiceNo || p.invoices[0] || '',
+            amount: p.totalPaid
+          });
+        });
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MPC_Master_Patient_Data_${new Date().toISOString().split('T')[0]}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✅ Full Master Excel with all category sheets downloaded!');
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date();
+      const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      
+      // Default to Last 7 days
+      const l7 = new Date(today);
+      l7.setDate(today.getDate() - 6);
+
+      document.getElementById('filter-date-from').value = fmt(l7);
+      document.getElementById('filter-date-to').value = fmt(today);
+
+      fetchLiveCollectionData(false);
+    });
+  </script>
+</body>
+</html>

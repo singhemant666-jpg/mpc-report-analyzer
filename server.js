@@ -318,6 +318,12 @@ app.get('/api/mpc-cloud', async (req, res) => {
 });
 
 // Dedicated Page Routes
+app.get('/patient-data', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'patient_data.html'));
+});
+app.get('/patients', (req, res) => {
+  res.sendFile(require('path').join(__dirname, 'patient_data.html'));
+});
 app.get('/only-consultation', (req, res) => {
   res.sendFile(require('path').join(__dirname, 'only_consultation.html'));
 });
