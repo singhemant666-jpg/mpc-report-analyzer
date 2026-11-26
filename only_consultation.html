@@ -952,6 +952,46 @@
     }
 
     // Process & Group Patients
+    function classifyService(packageName, amountPaid, totalPackageCost) {
+      if (!packageName) return 'unknown';
+      const lower = packageName.toLowerCase().trim();
+
+      if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('insole')) {
+        return 'single_session';
+      }
+
+      const hasMultiSessionNum = /[-_\s]([2-9]|\d{2,})\b/.test(lower) && !lower.includes('ss');
+      if (hasMultiSessionNum) {
+        return 'package';
+      }
+
+      if (
+        lower.includes('-ss') ||
+        lower.includes('ss-') ||
+        lower.includes('ss-1') ||
+        lower.includes('ss 1') ||
+        lower.includes('rss') ||
+        lower.includes('single session') ||
+        lower.includes('single-session') ||
+        /\bss\b/.test(lower)
+      ) {
+        return 'single_session';
+      }
+
+      if (lower === 'default top up' || lower === 'default topup' || lower === 'n/a' || lower === 'na' || lower === '') {
+        const amt = Math.round(amountPaid || 0);
+        const cost = Math.round(totalPackageCost || 0);
+        if (amt === 499 || amt === 1500 || cost === 499 || cost === 1500) {
+          return 'consultation';
+        }
+        return 'package';
+      }
+
+      if (lower.includes('consult')) return 'consultation';
+
+      return 'package';
+    }
+
     function processCollectionRows(rows) {
       // 1. Group records by patient name to determine conversion status
       const pMap = {};
@@ -984,12 +1024,13 @@
 
         const p = pMap[normKey];
         const pkgName = (r.package_name || r.packageName || '').trim();
-        const pkgLower = pkgName.toLowerCase();
-        const isConsult = pkgLower.includes('consult');
-        const isSS = pkgLower.includes('single session') || pkgLower.includes('per session');
-        const isPkg = !isConsult && !isSS && pkgName.length > 0;
-
         const paid = Number(r.amount_paid ?? r.amountPaid ?? 0);
+        const totalCost = Number(r.total_cost_of_package ?? r.package_cost ?? 0);
+        const svcType = classifyService(pkgName, paid, totalCost);
+        const isConsult = (svcType === 'consultation');
+        const isSS = (svcType === 'single_session');
+        const isPkg = (svcType === 'package');
+
         p.totalPaid += paid;
 
         const pDate = r.payment_date ? new Date(r.payment_date) : null;

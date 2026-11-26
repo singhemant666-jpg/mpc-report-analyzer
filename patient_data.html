@@ -948,6 +948,55 @@
     }
 
     // ═══════════════════════════════════════════════════════════
+    // SERVICE CLASSIFICATION ENGINE (Matching index.html exactly)
+    // ═══════════════════════════════════════════════════════════
+    function classifyService(packageName, amountPaid, totalPackageCost) {
+      if (!packageName) return 'unknown';
+      const lower = packageName.toLowerCase().trim();
+
+      // Rule 0: Foot Insoles is strictly a single session product purchase
+      if (lower.includes('foot insole') || lower.includes('foot insoles') || lower.includes('insole')) {
+        return 'single_session';
+      }
+
+      // Rule 1: Multi-session package pattern (e.g. -3, -4, -5, -6, -8, -10, -12, -16, -18) without SS tag is ALWAYS a package!
+      const hasMultiSessionNum = /[-_\s]([2-9]|\d{2,})\b/.test(lower) && !lower.includes('ss');
+      if (hasMultiSessionNum) {
+        return 'package';
+      }
+
+      // Rule 2: Single session explicit indicators (e.g. -SS-1, - RSS 1, ss-1, single session, etc.)
+      if (
+        lower.includes('-ss') ||
+        lower.includes('ss-') ||
+        lower.includes('ss-1') ||
+        lower.includes('ss 1') ||
+        lower.includes('rss') ||
+        lower.includes('single session') ||
+        lower.includes('single-session') ||
+        /\bss\b/.test(lower)
+      ) {
+        return 'single_session';
+      }
+
+      // Rule 3: Special Rule for Default Top Up / N/A / NA:
+      if (lower === 'default top up' || lower === 'default topup' || lower === 'n/a' || lower === 'na' || lower === '') {
+        const amt = Math.round(amountPaid || 0);
+        const cost = Math.round(totalPackageCost || 0);
+        if (amt === 499 || amt === 1500 || cost === 499 || cost === 1500) {
+          return 'consultation';
+        }
+        return 'package';
+      }
+
+      // Rule 4: Check consultation keywords
+      if (lower.includes('consult')) return 'consultation';
+
+      // Everything else is a package
+      return 'package';
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // PATIENT GROUPING & CART NORMALIZATION ENGINE
     // ═══════════════════════════════════════════════════════════
     function processPatients(rows) {
@@ -1013,14 +1062,15 @@
 
         const p = pMap[normKey];
         const pkgName = (r.package_name || r.packageName || '').trim();
-        const pkgLower = pkgName.toLowerCase();
-        const isConsult = pkgLower.includes('consult');
-        const isSS = pkgLower.includes('single session') || pkgLower.includes('per session');
-        const isPkg = !isConsult && !isSS && pkgName.length > 0;
-
         const paid = Number(r.amount_paid ?? r.amountPaid ?? 0);
         const out = Number(r.outstanding_amount ?? r.outstandingAmount ?? 0);
+        const totalCost = Number(r.total_cost_of_package ?? r.package_cost ?? 0);
         const pDate = r.payment_date ? new Date(r.payment_date) : null;
+
+        const svcType = classifyService(pkgName, paid, totalCost);
+        const isConsult = (svcType === 'consultation');
+        const isSS = (svcType === 'single_session');
+        const isPkg = (svcType === 'package');
 
         if (pDate && !isNaN(pDate.getTime())) {
           if (!p.earliestDate || pDate < p.earliestDate) p.earliestDate = pDate;
@@ -1040,6 +1090,7 @@
         } else if (isSS) {
           p.hasSingleSession = true;
           p.singleSessionRevenue += paid;
+          p.packages.push(pkgName);
         }
 
         const regAgentName = (r.patient_created_by_agent_name || r.patient_created_by_agent || r.registration_agent || '').trim();
@@ -1062,7 +1113,7 @@
           leadSource: r.lead_source || '',
           paymentMode: r.payment_mode || '',
           invoiceNo: r.invoice_no || '',
-          type: isConsult ? 'consultation' : (isSS ? 'single_session' : 'package'),
+          type: svcType,
           isRenewal: false,
           outstandingAmount: out
         });
