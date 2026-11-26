@@ -616,11 +616,11 @@
       <div class="filter-grid">
         <div class="field-group">
           <label class="field-label">Date From</label>
-          <input type="date" id="filter-date-from" class="input-field" onchange="markCustomPill()">
+          <input type="date" id="filter-date-from" class="input-field" onchange="onDateInputChange()">
         </div>
         <div class="field-group">
           <label class="field-label">Date To</label>
-          <input type="date" id="filter-date-to" class="input-field" onchange="markCustomPill()">
+          <input type="date" id="filter-date-to" class="input-field" onchange="onDateInputChange()">
         </div>
         <div class="field-group">
           <label class="field-label">Doctor</label>
@@ -843,8 +843,24 @@
       fetchLiveCollectionData(true);
     }
 
+    let dateDebounceTimer = null;
     function markCustomPill() {
       document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+    }
+
+    function onDateInputChange() {
+      markCustomPill();
+      clearTimeout(dateDebounceTimer);
+      dateDebounceTimer = setTimeout(() => {
+        const from = document.getElementById('filter-date-from').value;
+        const to = document.getElementById('filter-date-to').value;
+        if (from && to) {
+          if (from > to) {
+            document.getElementById('filter-date-to').value = from;
+          }
+          fetchLiveCollectionData(true);
+        }
+      }, 250);
     }
 
     // ═══════════════════════════════════════════════════════════
