@@ -3527,7 +3527,6 @@
                   <th>Consultations</th>
                   <th>Packages Sold</th>
                   <th>Renewals</th>
-                  <th>Pending Amount (₹)</th>
                   <th>Gross Revenue (₹)</th>
                   <th>MoM Revenue Growth %</th>
                 </tr>
@@ -6728,10 +6727,6 @@
         {
           label: 'Renewals', value: renewalCount, color: 'purple', icon: '🔄', fmt: 'num',
           sub: `Revenue: ${formatCurrency(renewalRevenue)} | Rate: ${renewalRate.toFixed(1)}%`
-        },
-        {
-          label: 'Pending Amount', value: m.totalPendingAmount || 0, color: 'rose', icon: '⏳', fmt: 'currency',
-          sub: `${m.pendingPatientsCount || 0} patients with balance`
         }
       ];
 
@@ -8495,7 +8490,6 @@
           <td style="text-align:center;">${d.consultations}</td>
           <td style="text-align:center;color:var(--purple);font-weight:600;">${d.packages}</td>
           <td style="text-align:center;color:var(--emerald);font-weight:600;">${d.renewals}</td>
-          <td style="text-align:center;font-weight:700;color:var(--amber);">${formatCurrency(d.pendingAmount)}</td>
           <td style="text-align:center;font-weight:800;color:var(--emerald);">${formatCurrency(d.revenue)}</td>
           <td style="text-align:center;">${d.revBadge}</td>
         </tr>`;
