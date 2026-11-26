@@ -726,6 +726,7 @@
               <th>Payment Date</th>
               <th>Packages</th>
               <th>Doctor</th>
+              <th>Reg. Agent</th>
               <th>Agent</th>
               <th>Lead Source</th>
               <th>Payment Mode</th>
@@ -971,6 +972,7 @@
             hasSingleSession: false,
             doctors: new Set(),
             agents: new Set(),
+            registrationAgents: new Set(),
             leadSources: new Set(),
             paymentModes: new Set(),
             invoices: new Set(),
@@ -1000,6 +1002,9 @@
         if (isPkg) p.hasPackage = true;
         if (isSS) p.hasSingleSession = true;
 
+        const regAgentName = (r.patient_created_by_agent_name || r.patient_created_by_agent || r.registration_agent || '').trim();
+        if (regAgentName) p.registrationAgents.add(regAgentName);
+
         if (r.consulting_doctor) p.doctors.add(r.consulting_doctor.trim());
         if (r.agent_name) p.agents.add(r.agent_name.trim());
         if (r.lead_source) p.leadSources.add(r.lead_source.trim());
@@ -1012,6 +1017,7 @@
           date: pDate,
           doctor: r.consulting_doctor || '',
           agent: r.agent_name || '',
+          registrationAgent: regAgentName,
           source: r.lead_source || '',
           paymentMode: r.payment_mode || '',
           invoiceNo: r.invoice_no || '',
@@ -1045,6 +1051,7 @@
         if (p.hasConsultation && !p.hasPackage) {
           p.doctors.forEach(d => doctors.add(d));
           p.agents.forEach(a => agents.add(a));
+          p.registrationAgents.forEach(a => agents.add(a));
           p.leadSources.forEach(s => sources.add(s));
         }
       });
@@ -1077,8 +1084,8 @@
         // Doctor Filter
         if (selectedDoc && ![...p.doctors].some(d => d.toLowerCase().includes(selectedDoc))) continue;
 
-        // Agent Filter
-        if (selectedAgent && ![...p.agents].some(a => a.toLowerCase().includes(selectedAgent))) continue;
+        // Agent Filter (matches either billing agent or registration agent)
+        if (selectedAgent && ![...p.agents].some(a => a.toLowerCase().includes(selectedAgent)) && ![...p.registrationAgents].some(a => a.toLowerCase().includes(selectedAgent))) continue;
 
         // Lead Source Filter
         if (selectedSource && ![...p.leadSources].some(s => s.toLowerCase().includes(selectedSource))) continue;
@@ -1088,8 +1095,9 @@
           const matchName = p.rawName.toLowerCase().includes(searchTxt);
           const matchDoc = [...p.doctors].some(d => d.toLowerCase().includes(searchTxt));
           const matchAgent = [...p.agents].some(a => a.toLowerCase().includes(searchTxt));
+          const matchRegAgent = [...p.registrationAgents].some(a => a.toLowerCase().includes(searchTxt));
           const matchInv = [...p.invoices].some(inv => inv.toLowerCase().includes(searchTxt));
-          if (!matchName && !matchDoc && !matchAgent && !matchInv) continue;
+          if (!matchName && !matchDoc && !matchAgent && !matchRegAgent && !matchInv) continue;
         }
 
         matched.push(p);
@@ -1151,6 +1159,7 @@
         const consultDateStr = formatDateDisplay(p.consultDate || consultSvc.date);
         const paymentDateStr = formatDateDisplay(consultSvc.date || p.earliestDate);
         const doctorName = consultSvc.doctor || [...p.doctors][0] || 'Unassigned';
+        const regAgentName = consultSvc.registrationAgent || [...p.registrationAgents][0] || '-';
         const agentName = consultSvc.agent || [...p.agents][0] || 'Unassigned';
         const leadSrc = consultSvc.source || [...p.leadSources][0] || 'Direct';
         const payMode = consultSvc.paymentMode || [...p.paymentModes][0] || 'cash';
@@ -1167,6 +1176,7 @@
             <td><span class="date-badge" style="color:#475569; background:#f1f5f9;">${paymentDateStr}</span></td>
             <td style="color: var(--text-muted); font-weight: 600;">-</td>
             <td class="doctor-cell">${doctorName}</td>
+            <td class="agent-badge" style="font-weight:600; color:#0284c7;">${regAgentName}</td>
             <td class="agent-badge">${agentName}</td>
             <td><span class="source-badge">${leadSrc}</span></td>
             <td><span class="pm-badge">${payMode}</span></td>
@@ -1231,7 +1241,8 @@
         { header: 'Payment Date', key: 'payDate', width: 16 },
         { header: 'Packages', key: 'pkg', width: 12 },
         { header: 'Doctor', key: 'doctor', width: 28 },
-        { header: 'Agent', key: 'agent', width: 20 },
+        { header: 'Reg. Agent', key: 'regAgent', width: 20 },
+        { header: 'Billing Agent', key: 'agent', width: 20 },
         { header: 'Lead Source', key: 'source', width: 22 },
         { header: 'Payment Mode', key: 'mode', width: 18 },
         { header: 'Invoice No', key: 'invoice', width: 16 },
@@ -1251,6 +1262,7 @@
           payDate: formatDateDisplay(consultSvc.date || p.earliestDate),
           pkg: '-',
           doctor: consultSvc.doctor || [...p.doctors][0] || '',
+          regAgent: consultSvc.registrationAgent || [...p.registrationAgents][0] || '-',
           agent: consultSvc.agent || [...p.agents][0] || '',
           source: consultSvc.source || [...p.leadSources][0] || '',
           mode: consultSvc.paymentMode || [...p.paymentModes][0] || '',

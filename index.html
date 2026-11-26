@@ -15609,6 +15609,7 @@ In 3-4 bullet points, identify the most likely ROOT CAUSE and suggest the exact 
         name: (r.patient_name || r.patientName || r.name || 'Unknown Patient').trim(),
         doctor: (r.consulting_doctor || r.doctor || 'Unassigned').trim(),
         agent: (r.agent_name || r.agent || '').trim(),
+        registrationAgent: (r.patient_created_by_agent_name || r.patient_created_by_agent || r.registration_agent || '').trim(),
         leadSource: cleanLeadSource(r.lead_source || r.leadSource || ''),
         packageName: (r.package_name || r.packageName || '').trim(),
         paymentDate: r.payment_date ? parseDate(r.payment_date) : (r.paymentDate ? parseDate(r.paymentDate) : null),
