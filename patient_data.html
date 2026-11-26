@@ -842,6 +842,37 @@
     }
 
     // ═══════════════════════════════════════════════════════════
+    // MPC GLOBAL LIVE API AUTHENTICATION & DIRECT SYNC
+    // ═══════════════════════════════════════════════════════════
+    const MPC_AUTH_CREDENTIALS = {
+      email: 'analytics@mypainclinicglobal.com',
+      pass: 'mpc@mpc12345'
+    };
+
+    let activeLiveToken = localStorage.getItem('mpc_api_bearer_token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NDIsInJvbGUiOjEsIm5hbWUiOiJhbmFseXRpY3NAbXlwYWluY2xpbmljZ2xvYmFsLmNvbSIsImlhdCI6MTc5NDkwMzY5MiwiZXhwIjoxODI2NDYxMjkyfQ.-FR_1kVhUE9hW_TwqEDCPFcuAdq6nF4xkO0yDmZ8gpc';
+
+    async function getFreshMpcToken() {
+      try {
+        console.log('[MPC API] Requesting fresh auth token for', MPC_AUTH_CREDENTIALS.email);
+        const res = await fetch('https://api.mypainclinicglobal.com/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(MPC_AUTH_CREDENTIALS)
+        });
+        const json = await res.json();
+        if (json && json.data && json.data.token) {
+          activeLiveToken = json.data.token;
+          localStorage.setItem('mpc_api_bearer_token', activeLiveToken);
+          console.log('[MPC API] Fresh token acquired successfully ✅');
+          return activeLiveToken;
+        }
+      } catch (err) {
+        console.error('[MPC API] Auto-login request error:', err);
+      }
+      return activeLiveToken;
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // LIVE API DATA FETCHER
     // ═══════════════════════════════════════════════════════════
     async function fetchLiveCollectionData(showNotification = false) {
@@ -852,28 +883,56 @@
       if (badge) badge.textContent = `📅 ${dateFrom} → ${dateTo}`;
 
       const tbody = document.getElementById('patient-table-body');
-      tbody.innerHTML = `<tr><td colspan="12" class="empty-state"><div class="empty-state-icon">⏳</div><h3>Loading Patient Data...</h3><p>Fetching collection records from ${dateFrom} to ${dateTo}</p></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="empty-state"><div class="empty-state-icon">⏳</div><h3>Loading Patient Data...</h3><p>Fetching collection records from ${dateFrom} to ${dateTo}...</p></td></tr>`;
 
       try {
         let rows = [];
-        // Primary: Local Server Proxy (/api/mpc-cloud)
+
+        // 1. Direct fetch to MPC Cloud API with Bearer token
+        let tok = localStorage.getItem('mpc_api_bearer_token') || activeLiveToken;
+        const directUrl = `https://api.mypainclinicglobal.com/api/reports/daily-collection?startDate=${dateFrom}&endDate=${dateTo}`;
+
         try {
-          const res = await fetch(`/api/mpc-cloud?startDate=${dateFrom}&endDate=${dateTo}`);
-          const json = await res.json();
-          if (json.data && Array.isArray(json.data.rows)) rows = json.data.rows;
-          else if (json.data && Array.isArray(json.data)) rows = json.data;
-          else if (Array.isArray(json)) rows = json;
-        } catch (e) {
-          console.warn('Local proxy failed, trying direct:', e);
+          let directRes = await fetch(directUrl, {
+            headers: {
+              'Authorization': 'Bearer ' + tok,
+              'Accept': 'application/json'
+            }
+          });
+          let dJson = await directRes.json();
+
+          // If token expired / invalid header, auto-reauth and retry
+          const isAuthError = directRes.status === 401 || (dJson && (dJson.code === 401 || (dJson.message && (dJson.message.toLowerCase().includes('token') || dJson.message.toLowerCase().includes('authorization')))));
+          if (isAuthError) {
+            console.log('[MPC API] Token invalid or expired. Auto-logging in...');
+            tok = await getFreshMpcToken();
+            directRes = await fetch(directUrl, {
+              headers: {
+                'Authorization': 'Bearer ' + tok,
+                'Accept': 'application/json'
+              }
+            });
+            dJson = await directRes.json();
+          }
+
+          if (dJson && dJson.data && Array.isArray(dJson.data.rows)) rows = dJson.data.rows;
+          else if (dJson && dJson.data && Array.isArray(dJson.data)) rows = dJson.data;
+          else if (Array.isArray(dJson)) rows = dJson;
+        } catch (directErr) {
+          console.warn('[MPC API] Direct call failed, trying local proxy fallback:', directErr);
         }
 
-        // Secondary fallback
+        // 2. Fallback: Local Server Proxy (/api/mpc-cloud) if direct failed
         if (!rows.length) {
-          const directRes = await fetch(`https://api.mypainclinicglobal.com/api/reports/daily-collection?startDate=${dateFrom}&endDate=${dateTo}`, {
-            headers: { 'Accept': 'application/json' }
-          });
-          const dJson = await directRes.json();
-          if (dJson.data && Array.isArray(dJson.data.rows)) rows = dJson.data.rows;
+          try {
+            const proxyRes = await fetch(`/api/mpc-cloud?startDate=${dateFrom}&endDate=${dateTo}`);
+            const pJson = await proxyRes.json();
+            if (pJson && pJson.data && Array.isArray(pJson.data.rows)) rows = pJson.data.rows;
+            else if (pJson && pJson.data && Array.isArray(pJson.data)) rows = pJson.data;
+            else if (Array.isArray(pJson)) rows = pJson;
+          } catch (pErr) {
+            console.warn('[MPC API] Local proxy also unavailable:', pErr);
+          }
         }
 
         rawCollectionRows = rows;
@@ -884,7 +943,7 @@
         }
       } catch (err) {
         console.error('Fetch error:', err);
-        tbody.innerHTML = `<tr><td colspan="12" class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not fetch live records</h3><p>${err.message}</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not fetch live records</h3><p>${err.message}</p></td></tr>`;
       }
     }
 
